@@ -1268,26 +1268,49 @@ function drawSalChart(canvas,keys,grouped){
 }
 
 function dlSalesCSV(rows,total){
-  let csv='\uFEFF오렌지골프존아카데미 매출 내역 ('+(salMode==='sales'?'수업권 판매':'수업 진행')+')\n';
-  const period=salStartDate+' ~ '+salEndDate;
+  const isSes=salMode==='sessions';
   const trName=salTrainer?(trainers.find(t=>t.id===salTrainer)||{}).name||'':'전체';
-  csv+='기간: '+period+' / 트레이너: '+trName+'\n\n';
-  csv+='등록일,시간,트레이너,회원명,수업시간,수업권,결제금액(원)\n';
-  rows.forEach(r=>{
-    csv+=r.date+','+r.time+','+r.trainerName+','+r.memberName+','+r.type+','+r.planLabel+','+(r.revenue||'')+'\n';
-  });
-  csv+='\n합계,,,,'+rows.length+'회,,'+total.toLocaleString()+'\n';
-  
-  // 트레이너별 소계
-  const byTr={};
-  rows.forEach(r=>{if(!byTr[r.trainerName])byTr[r.trainerName]={cnt:0,sum:0};byTr[r.trainerName].cnt++;byTr[r.trainerName].sum+=r.revenue;});
-  csv+='\n트레이너별 요약\n트레이너,수업 수,매출\n';
-  Object.entries(byTr).forEach(([nm,d])=>{csv+=nm+','+d.cnt+'회,'+d.sum.toLocaleString()+'\n';});
-  
+  let csv='\uFEFF오렌지골프존아카데미 매출 내역 ('+(isSes?'수업 진행':'수업권 판매')+')\n';
+  csv+='기간: '+salStartDate+' ~ '+salEndDate+' / 트레이너: '+trName+'\n\n';
+
+  if(isSes){
+    // ── 수업 진행 형식 ─────────────────────────────────────────────
+    // 계약일, 회원명, 세션, 계약료, 세션단가, 수업료
+    // 세션단가 = pricePerSession, 계약료 = totalPrice (plan)
+    // 수업료 = 세션단가 (1회 진행 금액)
+    csv+='계약일,회원명,세션,계약료,세션단가,수업료\n';
+    rows.forEach(r=>{
+      // plan 정보 찾기
+      const mb=members.find(m=>m.name===r.memberName&&m.trainerId===r.trainerId);
+      const plan=mb?(mb.plans||[]).find(p=>p.id===r.planId||(p.sessions+'회권')===r.planLabel):null;
+      const totalPrice=plan?plan.totalPrice:0;
+      const pricePerSes=r.revenue||0;
+      const sessions=plan?plan.sessions:0;
+      csv+=r.date+','+r.memberName+','+sessions+','+totalPrice+','+pricePerSes+','+pricePerSes+'\n';
+    });
+    csv+='\n합계,,,,,'+total.toLocaleString()+'\n';
+    // 트레이너별 소계
+    const byTr={};
+    rows.forEach(r=>{if(!byTr[r.trainerName])byTr[r.trainerName]={cnt:0,sum:0};byTr[r.trainerName].cnt++;byTr[r.trainerName].sum+=r.revenue;});
+    csv+='\n트레이너별 요약\n트레이너,수업 수,수업료 합계\n';
+    Object.entries(byTr).forEach(([nm,d])=>{csv+=nm+','+d.cnt+'회,'+d.sum.toLocaleString()+'\n';});
+  } else {
+    // ── 수업권 판매 형식 ───────────────────────────────────────────
+    csv+='등록일,트레이너,회원명,수업시간,수업권,결제금액\n';
+    rows.forEach(r=>{
+      csv+=r.date+','+r.trainerName+','+r.memberName+','+r.type+','+r.planLabel+','+(r.revenue||'')+'\n';
+    });
+    csv+='\n합계,,,,'+rows.length+'건,'+total.toLocaleString()+'\n';
+    const byTr={};
+    rows.forEach(r=>{if(!byTr[r.trainerName])byTr[r.trainerName]={cnt:0,sum:0};byTr[r.trainerName].cnt++;byTr[r.trainerName].sum+=r.revenue;});
+    csv+='\n트레이너별 요약\n트레이너,판매 건수,매출 합계\n';
+    Object.entries(byTr).forEach(([nm,d])=>{csv+=nm+','+d.cnt+'건,'+d.sum.toLocaleString()+'\n';});
+  }
+
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;
-  a.download='매출내역_'+salStartDate+'_'+salEndDate+'.csv';
+  a.download=(isSes?'수업진행_':'수업권판매_')+salStartDate+'_'+salEndDate+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
