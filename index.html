@@ -371,6 +371,7 @@ function initFB(){
   }catch(e){console.warn('Firebase 초기화 실패:',e.message);}
 }
 </script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -1167,7 +1168,7 @@ function renderSales(){
   if(rows.length===0){ct.appendChild(mk('div','sal-empty','해당 기간 데이터가 없습니다.'));return;}
 
   // ─ 엑셀 다운로드 ─
-  const dlBtn=ct.appendChild(mk('button','sal-dl-btn','엑셀 다운로드'));
+  const dlBtn=ct.appendChild(mk('button','sal-dl-btn','엑셀 다운로드 (.xlsx)'));
   dlBtn.onclick=()=>dlSalesCSV(rows,totalRevenue);
 
   // ─ 상세 테이블 ─
@@ -1270,48 +1271,161 @@ function drawSalChart(canvas,keys,grouped){
 function dlSalesCSV(rows,total){
   const isSes=salMode==='sessions';
   const trName=salTrainer?(trainers.find(t=>t.id===salTrainer)||{}).name||'':'전체';
-  let csv='\uFEFF오렌지골프존아카데미 매출 내역 ('+(isSes?'수업 진행':'수업권 판매')+')\n';
-  csv+='기간: '+salStartDate+' ~ '+salEndDate+' / 트레이너: '+trName+'\n\n';
+
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
+
+  const wb=XLSX.utils.book_new();
+
+  // ── 헤더 정보 ──────────────────────────────────────────────────────────
+  const title='오렌지골프존아카데미 매출 내역 ('+(isSes?'수업 진행':'수업권 판매')+')';
+  const period='기간: '+salStartDate+' ~ '+salEndDate+'  /  트레이너: '+trName;
+
+  let wsData=[];
+  wsData.push([title]);
+  wsData.push([period]);
+  wsData.push([]); // 빈 행
 
   if(isSes){
-    // ── 수업 진행 형식 ─────────────────────────────────────────────
-    // 계약일, 회원명, 세션, 계약료, 세션단가, 수업료
-    // 세션단가 = pricePerSession, 계약료 = totalPrice (plan)
-    // 수업료 = 세션단가 (1회 진행 금액)
-    csv+='계약일,회원명,세션,계약료,세션단가,수업료\n';
+    // ── 수업 진행 시트 ───────────────────────────────────────────────────
+    wsData.push(['계약일','회원명','세션','계약료','세션단가','수업료']);
     rows.forEach(r=>{
-      // plan 정보 찾기
       const mb=members.find(m=>m.name===r.memberName&&m.trainerId===r.trainerId);
-      const plan=mb?(mb.plans||[]).find(p=>p.id===r.planId||(p.sessions+'회권')===r.planLabel):null;
+      const plan=mb?(mb.plans||[]).find(p=>(p.sessions+'회권')===r.planLabel):null;
       const totalPrice=plan?plan.totalPrice:0;
       const pricePerSes=r.revenue||0;
       const sessions=plan?plan.sessions:0;
-      csv+=r.date+','+r.memberName+','+sessions+','+totalPrice+','+pricePerSes+','+pricePerSes+'\n';
+      wsData.push([r.date, r.memberName, sessions, totalPrice, pricePerSes, pricePerSes]);
     });
-    csv+='\n합계,,,,,'+total.toLocaleString()+'\n';
+    wsData.push([]); // 빈 행
+    wsData.push(['합계','','','','',total]);
+
     // 트레이너별 소계
+    wsData.push([]);
+    wsData.push(['트레이너별 요약']);
+    wsData.push(['트레이너','수업 수','수업료 합계']);
     const byTr={};
     rows.forEach(r=>{if(!byTr[r.trainerName])byTr[r.trainerName]={cnt:0,sum:0};byTr[r.trainerName].cnt++;byTr[r.trainerName].sum+=r.revenue;});
-    csv+='\n트레이너별 요약\n트레이너,수업 수,수업료 합계\n';
-    Object.entries(byTr).forEach(([nm,d])=>{csv+=nm+','+d.cnt+'회,'+d.sum.toLocaleString()+'\n';});
+    Object.entries(byTr).forEach(([nm,d])=>wsData.push([nm, d.cnt, d.sum]));
   } else {
-    // ── 수업권 판매 형식 ───────────────────────────────────────────
-    csv+='등록일,트레이너,회원명,수업시간,수업권,결제금액\n';
+    // ── 수업권 판매 시트 ──────────────────────────────────────────────────
+    wsData.push(['등록일','트레이너','회원명','수업시간','수업권','결제금액']);
     rows.forEach(r=>{
-      csv+=r.date+','+r.trainerName+','+r.memberName+','+r.type+','+r.planLabel+','+(r.revenue||'')+'\n';
+      wsData.push([r.date, r.trainerName, r.memberName, r.type, r.planLabel, r.revenue||0]);
     });
-    csv+='\n합계,,,,'+rows.length+'건,'+total.toLocaleString()+'\n';
+    wsData.push([]);
+    wsData.push(['합계','','','','건 합계',total]);
+    wsData.push([]);
+    wsData.push(['트레이너별 요약']);
+    wsData.push(['트레이너','판매 건수','매출 합계']);
     const byTr={};
     rows.forEach(r=>{if(!byTr[r.trainerName])byTr[r.trainerName]={cnt:0,sum:0};byTr[r.trainerName].cnt++;byTr[r.trainerName].sum+=r.revenue;});
-    csv+='\n트레이너별 요약\n트레이너,판매 건수,매출 합계\n';
-    Object.entries(byTr).forEach(([nm,d])=>{csv+=nm+','+d.cnt+'건,'+d.sum.toLocaleString()+'\n';});
+    Object.entries(byTr).forEach(([nm,d])=>wsData.push([nm, d.cnt, d.sum]));
   }
 
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;
-  a.download=(isSes?'수업진행_':'수업권판매_')+salStartDate+'_'+salEndDate+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  const headerRow=isSes?3:3; // 0-indexed: 행3이 컬럼 헤더
+  const dataStart=4;
+  const lastDataRow=dataStart+rows.length-1;
+  const lastCol=isSes?5:5; // F열
+
+  // ── 열 너비 ──────────────────────────────────────────────────────────
+  ws['!cols']=[{wch:14},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12}];
+
+  // ── 자동 필터 (헤더 행) ───────────────────────────────────────────────
+  const hdrRef='A4:F4';
+  ws['!autofilter']={ref:hdrRef};
+
+  // ── 셀 서식 함수 ─────────────────────────────────────────────────────
+  function cellAddr(r,c){return XLSX.utils.encode_cell({r,c});}
+
+  function styleCell(addr, bold, bg, numFmt, align){
+    if(!ws[addr])ws[addr]={t:'z',v:''};
+    ws[addr].s={
+      font:{bold:bold||false, sz:10, name:'맑은 고딕'},
+      fill:bg?{fgColor:{rgb:bg},patternType:'solid'}:{patternType:'none'},
+      border:{
+        top:{style:'thin',color:{rgb:'CCCCCC'}},
+        bottom:{style:'thin',color:{rgb:'CCCCCC'}},
+        left:{style:'thin',color:{rgb:'CCCCCC'}},
+        right:{style:'thin',color:{rgb:'CCCCCC'}}
+      },
+      alignment:{horizontal:align||'left',vertical:'center'},
+      numFmt:numFmt||''
+    };
+  }
+
+  // ── 제목행 스타일 ─────────────────────────────────────────────────────
+  if(ws['A1']){ws['A1'].s={font:{bold:true,sz:13,name:'맑은 고딕',color:{rgb:'1A1A1A'}},fill:{patternType:'none'}};}
+  if(ws['A2']){ws['A2'].s={font:{sz:10,name:'맑은 고딕',color:{rgb:'666666'}},fill:{patternType:'none'}};}
+
+  // ── 헤더 행 스타일 (행4 = index 3) ────────────────────────────────────
+  const headerBg='2D2D2D'; // 다크 배경
+  for(let c=0;c<=lastCol;c++){
+    const addr=cellAddr(3,c);
+    if(!ws[addr])continue;
+    ws[addr].s={
+      font:{bold:true,sz:10,name:'맑은 고딕',color:{rgb:'FFFFFF'}},
+      fill:{fgColor:{rgb:headerBg},patternType:'solid'},
+      border:{
+        top:{style:'medium',color:{rgb:'000000'}},
+        bottom:{style:'medium',color:{rgb:'000000'}},
+        left:{style:'thin',color:{rgb:'555555'}},
+        right:{style:'thin',color:{rgb:'555555'}}
+      },
+      alignment:{horizontal:'center',vertical:'center'}
+    };
+  }
+
+  // ── 데이터 행 스타일 ──────────────────────────────────────────────────
+  for(let r=dataStart;r<=lastDataRow;r++){
+    const isEven=(r-dataStart)%2===0;
+    const bg=isEven?'F8F8F8':'FFFFFF';
+    for(let c=0;c<=lastCol;c++){
+      const addr=cellAddr(r,c);
+      if(!ws[addr])ws[addr]={t:'z',v:''};
+      const isNum=c>=2; // 세션/금액 열은 숫자
+      ws[addr].s={
+        font:{sz:10,name:'맑은 고딕'},
+        fill:{fgColor:{rgb:bg},patternType:'solid'},
+        border:{
+          top:{style:'thin',color:{rgb:'DDDDDD'}},
+          bottom:{style:'thin',color:{rgb:'DDDDDD'}},
+          left:{style:'thin',color:{rgb:'DDDDDD'}},
+          right:{style:'thin',color:{rgb:'DDDDDD'}}
+        },
+        alignment:{horizontal:isNum?'right':'left',vertical:'center'},
+        numFmt:c>=3?'#,##0':''
+      };
+    }
+  }
+
+  // ── 합계 행 스타일 ────────────────────────────────────────────────────
+  const totalRow=lastDataRow+2;
+  for(let c=0;c<=lastCol;c++){
+    const addr=cellAddr(totalRow,c);
+    if(!ws[addr])continue;
+    ws[addr].s={
+      font:{bold:true,sz:10,name:'맑은 고딕',color:{rgb:'FFFFFF'}},
+      fill:{fgColor:{rgb:'444444'},patternType:'solid'},
+      border:{
+        top:{style:'medium',color:{rgb:'000000'}},
+        bottom:{style:'medium',color:{rgb:'000000'}},
+        left:{style:'thin',color:{rgb:'555555'}},
+        right:{style:'thin',color:{rgb:'555555'}}
+      },
+      alignment:{horizontal:c>=3?'right':'left',vertical:'center'},
+      numFmt:c>=3?'#,##0':''
+    };
+  }
+
+  // ── 병합 (제목, 기간) ─────────────────────────────────────────────────
+  ws['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:5}},
+    {s:{r:1,c:0},e:{r:1,c:5}},
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, isSes?'수업진행':'수업권판매');
+  XLSX.writeFile(wb, (isSes?'수업진행_':'수업권판매_')+salStartDate+'_'+salEndDate+'.xlsx');
 }
 
 // ── ADMIN ──
