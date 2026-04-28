@@ -553,7 +553,7 @@ let members=ld('og10_mb',[]);
 let notices=ld('og10_nt',[]);
 let packages=ld('og10_pkg',[]);
 let centerCode=localStorage.getItem('og10_cc')||'0000';
-let codeVerified=localStorage.getItem('og11_cv')==='1';
+let codeVerified=false; // 매번 코드 입력 필요
 let curUser=ld('og10_cu',null);
 let weekOff=0;
 let selDay=(new Date().getDay()+6)%7;
@@ -610,7 +610,7 @@ function updateDots(){
 }
 function submitPin(){
   if(pinBuffer===centerCode){
-    localStorage.setItem('og11_cv','1');codeVerified=true;
+    codeVerified=true;
     const gate=document.getElementById('gate');
     gate.classList.add('fade');
     setTimeout(()=>{gate.classList.add('gone');showApp();},800);
@@ -1713,7 +1713,7 @@ if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').cat
     notices=ld('og10_nt',[]);
     packages=ld('og10_pkg',[]);
     centerCode=localStorage.getItem('og10_cc')||'0000';
-    codeVerified=localStorage.getItem('og11_cv')==='1';
+    codeVerified=false; // 매번 코드 입력
     curUser=ld('og10_cu',null);
     
     if(!trainers.length){
