@@ -340,6 +340,34 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .tabs{flex-shrink:0;display:flex;gap:5px;padding:9px 10px;background:var(--bg0);border-bottom:1px solid var(--bd);}
 .tab{flex:1;padding:10px 4px;border-radius:10px;border:none;cursor:pointer;font-size:11px;font-weight:600;background:var(--bg2);color:var(--t3);white-space:nowrap;font-family:inherit;}
 .tab.on{background:#fff;color:#000;}
+
+/* ── 상담 서브탭 ── */
+.mem-subtabs{display:flex;gap:0;background:var(--bg2);border-radius:10px;padding:3px;margin-bottom:16px;}
+.mem-stab{flex:1;padding:9px 4px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:var(--t3);font-family:inherit;}
+.mem-stab.on{background:#fff;color:#000;}
+.today-section{background:#1a1200;border:1px solid #3a2e00;border-radius:14px;padding:14px 16px;margin-bottom:16px;}
+.today-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.today-badge{font-size:11px;font-weight:700;background:#e8892a;color:#000;border-radius:6px;padding:2px 8px;}
+.today-ttl{font-size:14px;font-weight:700;color:var(--gold);}
+.today-empty{font-size:13px;color:#555;padding:4px 0;}
+.con-card{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:8px;position:relative;}
+.con-card.today{border-color:#e8892a;background:#1a1000;}
+.con-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.con-name{font-size:15px;font-weight:700;flex:1;}
+.con-phone{font-size:12px;color:var(--t3);}
+.con-date{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:var(--bg2);color:var(--t3);}
+.con-date.today{background:#e8892a;color:#000;}
+.con-date.past{background:rgba(224,85,85,.15);color:var(--red);}
+.con-memo{font-size:13px;color:var(--t2);line-height:1.6;margin-top:6px;white-space:pre-wrap;}
+.con-acts{display:flex;gap:6px;margin-top:10px;}
+.con-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg2);color:var(--t2);font-size:12px;cursor:pointer;font-family:inherit;}
+.con-btn.done{border-color:#3dc87a;color:#3dc87a;}
+.con-del{width:28px;height:28px;border-radius:50%;background:var(--bg2);border:1px solid var(--bd);color:var(--t3);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:auto;}
+.con-del:active{background:#3d1a1a;color:#ffaaaa;}
+.con-status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;}
+.con-status.pending{background:rgba(232,137,42,.15);color:#e8892a;}
+.con-status.done{background:rgba(61,200,122,.15);color:#3dc87a;}
+.add-con-btn{width:100%;padding:13px;background:var(--bg2);border:1px solid var(--bd2);border-radius:10px;color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;}
 </style>
 
 <!-- Firebase SDK -->
@@ -488,6 +516,7 @@ async function pushAllToFirebase(){
     {k:'og10_mb',v:members},
     {k:'og10_nt',v:notices},
     {k:'og10_pkg',v:packages},
+    {k:'og10_cs',v:consultations},
   ];
   // 개별 순차 저장 (batch 대신)
   for(let i=0;i<items.length;i++){
@@ -541,7 +570,8 @@ function startRealtimeSync(){
           else if(id==='og10_sl'){slots=ld('og10_sl',[]);if(document.getElementById('pg-sch').classList.contains('show'))renderTimes();}
           else if(id==='og10_mb'){members=ld('og10_mb',[]);if(document.getElementById('pg-mem').classList.contains('show'))renderMem();}
           else if(id==='og10_nt'){notices=ld('og10_nt',[]);if(document.getElementById('pg-not').classList.contains('show'))renderNotice();}
-          else if(id==='og10_pkg'){packages=ld('og10_pkg',[]);} 
+          else if(id==='og10_pkg'){packages=ld('og10_pkg',[]);}
+          else if(id==='og10_cs'){consultations=ld('og10_cs',[]);if(document.getElementById('pg-mem').classList.contains('show'))renderMem();} 
         }
       }
     });
@@ -553,6 +583,7 @@ let slots=ld('og10_sl',[]);
 let members=ld('og10_mb',[]);
 let notices=ld('og10_nt',[]);
 let packages=ld('og10_pkg',[]);
+let consultations=ld('og10_cs',[]);
 let centerCode=localStorage.getItem('og10_cc')||'0000';
 let codeVerified=false; // 매번 코드 입력 필요
 let curUser=ld('og10_cu',null);
@@ -561,6 +592,7 @@ let selDay=(new Date().getDay()+6)%7;
 let newColor=0;
 let mvTr=null;
 let admSubTab='staff';
+let memSubTab='member'; // 'member' | 'consult'
 
 // 초기 기본 직원 (없을 때만)
 if(!trainers.length){
@@ -820,6 +852,142 @@ function openCal(){
   draw();
 }
 
+
+// ── 상담 관리 ──────────────────────────────────────────────────────────────
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+function renderConsult(ct){
+  const today=todayStr();
+  const sorted=[...consultations].sort((a,b)=>a.contactDate.localeCompare(b.contactDate));
+  const todayList=sorted.filter(c=>c.contactDate===today&&c.status!=='done');
+  const pastList=sorted.filter(c=>c.contactDate<today&&c.status!=='done');
+  const upcoming=sorted.filter(c=>c.contactDate>today&&c.status!=='done');
+  const doneList=sorted.filter(c=>c.status==='done');
+
+  // 금일 연락 섹션
+  const todaySec=ct.appendChild(el('div','today-section'));
+  const th=todaySec.appendChild(el('div','today-header'));
+  const tbdg=th.appendChild(mk('div','today-badge','TODAY'));
+  th.appendChild(mk('div','today-ttl','금일 연락 대상 '+todayList.length+'명'));
+  if(pastList.length>0){
+    const pb=th.appendChild(mk('div','today-badge',''));
+    pb.textContent='미연락 '+pastList.length+'명';pb.style.background='#e05555';
+  }
+  if(todayList.length===0&&pastList.length===0){
+    todaySec.appendChild(mk('div','today-empty','오늘 연락할 상담자가 없습니다.'));
+  } else {
+    [...pastList,...todayList].forEach(c=>renderConCard(todaySec,c,today,true));
+  }
+
+  // 추가 버튼
+  if(isAdminUser()||curUser){
+    ct.appendChild(mk('button','add-con-btn','+ 상담 문의자 등록')).onclick=openAddConsult;
+  }
+
+  // 예정 목록
+  if(upcoming.length>0){
+    ct.appendChild(mk('div','sec','예정된 상담'));
+    upcoming.forEach(c=>renderConCard(ct,c,today,false));
+  }
+
+  // 완료 목록
+  if(doneList.length>0){
+    ct.appendChild(mk('div','sec','연락 완료'));
+    doneList.forEach(c=>renderConCard(ct,c,today,false));
+  }
+
+  if(consultations.length===0){
+    ct.appendChild(mk('div','nempty','등록된 상담 문의자가 없습니다.'));
+  }
+}
+
+function renderConCard(ct,c,today,inToday){
+  const isPast=c.contactDate<today&&c.status!=='done';
+  const isToday=c.contactDate===today;
+  const card=ct.appendChild(el('div','con-card'+(isToday?' today':'')));
+  const top=card.appendChild(el('div','con-top'));
+  top.appendChild(mk('div','con-name',c.name));
+  if(c.phone){
+    const ph=top.appendChild(mk('div','con-phone',c.phone));
+    ph.onclick=()=>{window.open('tel:'+c.phone.replace(/-/g,''));};
+    ph.style.cursor='pointer';
+  }
+  const dateBdg=top.appendChild(mk('div','con-date'+(isToday?' today':isPast?' past':''),c.contactDate));
+  const statusBdg=top.appendChild(mk('div','con-status'+(c.status==='done'?' done':' pending'),c.status==='done'?'완료':'대기'));
+  if(c.memo)card.appendChild(mk('div','con-memo',c.memo));
+  const acts=card.appendChild(el('div','con-acts'));
+  if(c.status!=='done'){
+    const doneBtn=acts.appendChild(mk('button','con-btn done','연락 완료'));
+    doneBtn.onclick=()=>{c.status='done';c.doneAt=Date.now();sv('og10_cs',consultations);renderMem();};
+    const editBtn=acts.appendChild(mk('button','con-btn','수정'));
+    editBtn.onclick=()=>openEditConsult(c.id);
+  } else {
+    const reBtn=acts.appendChild(mk('button','con-btn','재등록'));
+    reBtn.onclick=()=>{c.status='pending';sv('og10_cs',consultations);renderMem();};
+  }
+  const delBtn=acts.appendChild(mk('button','con-del','×'));
+  delBtn.onclick=()=>{if(confirm(c.name+' 삭제?')){consultations=consultations.filter(x=>x.id!==c.id);sv('og10_cs',consultations);renderMem();}};
+}
+
+function openAddConsult(){
+  showSheet(function(sheet,close){
+    sheet.appendChild(el('div','shdl'));
+    sheet.appendChild(mk('h3','','상담 문의자 등록'));
+    sheet.appendChild(mk('label','','이름'));
+    const ni=sheet.appendChild(el('input'));ni.type='text';ni.placeholder='홍길동';
+    sheet.appendChild(mk('label','','연락처'));
+    const pi=sheet.appendChild(el('input'));pi.type='tel';pi.placeholder='010-0000-0000';
+    pi.oninput=function(){this.value=fmtPhone(this.value);};
+    sheet.appendChild(mk('label','','상담 내용'));
+    const mi=sheet.appendChild(el('textarea'));
+    mi.style.cssText='width:100%;min-height:80px;padding:12px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:14px;font-family:inherit;resize:none;line-height:1.6;';
+    mi.placeholder='상담 내용 또는 특이사항 입력...';
+    sheet.appendChild(mk('label','','연락 예정일'));
+    const di=sheet.appendChild(el('input'));di.type='date';di.value=todayStr();
+    di.style.cssText='width:100%;padding:13px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;';
+    const btns=sheet.appendChild(el('div','shbtns'));
+    btns.appendChild(mk('button','shno','취소')).onclick=close;
+    btns.appendChild(mk('button','shok','등록')).onclick=()=>{
+      const name=ni.value.trim();
+      if(!name){alert('이름을 입력해주세요.');return;}
+      consultations.unshift({
+        id:'c'+Date.now(),name,phone:pi.value.trim(),
+        memo:mi.value.trim(),contactDate:di.value,
+        status:'pending',createdAt:Date.now()
+      });
+      sv('og10_cs',consultations);close();renderMem();
+    };
+    setTimeout(()=>ni.focus(),200);
+  });
+}
+
+function openEditConsult(cid){
+  const c=consultations.find(x=>x.id===cid);if(!c)return;
+  showSheet(function(sheet,close){
+    sheet.appendChild(el('div','shdl'));
+    sheet.appendChild(mk('h3','','상담자 수정'));
+    sheet.appendChild(mk('label','','이름'));
+    const ni=sheet.appendChild(el('input'));ni.type='text';ni.value=c.name;
+    sheet.appendChild(mk('label','','연락처'));
+    const pi=sheet.appendChild(el('input'));pi.type='tel';pi.value=fmtPhone(c.phone||'');
+    pi.oninput=function(){this.value=fmtPhone(this.value);};
+    sheet.appendChild(mk('label','','상담 내용'));
+    const mi=sheet.appendChild(el('textarea'));
+    mi.style.cssText='width:100%;min-height:80px;padding:12px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:14px;font-family:inherit;resize:none;line-height:1.6;';
+    mi.value=c.memo||'';
+    sheet.appendChild(mk('label','','연락 예정일'));
+    const di=sheet.appendChild(el('input'));di.type='date';di.value=c.contactDate;
+    di.style.cssText='width:100%;padding:13px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;';
+    const btns=sheet.appendChild(el('div','shbtns'));
+    btns.appendChild(mk('button','shno','취소')).onclick=close;
+    btns.appendChild(mk('button','shok','저장')).onclick=()=>{
+      const name=ni.value.trim();if(!name){alert('이름을 입력해주세요.');return;}
+      c.name=name;c.phone=pi.value.trim();c.memo=mi.value.trim();c.contactDate=di.value;
+      sv('og10_cs',consultations);close();renderMem();
+    };
+  });
+}
+
 // ── MEMBER TAB ──
 function renderMem(){
   const ct=document.getElementById('pg-mem').querySelector('.pad');ct.innerHTML='';
@@ -828,6 +996,13 @@ function renderMem(){
     lb.appendChild(mk('button','','로그인하기')).onclick=()=>openLogin(()=>{mvTr=null;renderMem();});return;
   }
   if(mvTr){if(!canAccessTrainer(mvTr)){mvTr=null;renderMem();return;}renderMemView(ct);return;}
+  // 서브탭
+  const stWrap=ct.appendChild(el('div','mem-subtabs'));
+  [['member','회원 관리'],['consult','상담 관리']].forEach(([v,l])=>{
+    const b=stWrap.appendChild(mk('button','mem-stab'+(memSubTab===v?' on':''),l));
+    b.onclick=()=>{memSubTab=v;renderMem();};
+  });
+  if(memSubTab==='consult'){renderConsult(ct);return;}
   ct.appendChild(mk('div','sec-header','담당자 선택'));
   const grid=ct.appendChild(el('div','trgrid'));
   trainers.filter(tr=>tr.showInMem!==false).forEach(tr=>{
