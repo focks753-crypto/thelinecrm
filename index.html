@@ -360,7 +360,7 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .con-date.past{background:rgba(224,85,85,.15);color:var(--red);}
 .con-memo{font-size:13px;color:var(--t2);line-height:1.6;margin-top:6px;white-space:pre-wrap;}
 .con-acts{display:flex;gap:6px;margin-top:10px;}
-.con-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg2);color:var(--t2);font-size:12px;cursor:pointer;font-family:inherit;}
+.con-btn{padding:8px 14px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg2);color:var(--t2);font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;}
 .con-btn.done{border-color:#3dc87a;color:#3dc87a;}
 .con-del{width:28px;height:28px;border-radius:50%;background:var(--bg2);border:1px solid var(--bd);color:var(--t3);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:auto;}
 .con-del:active{background:#3d1a1a;color:#ffaaaa;}
@@ -906,65 +906,77 @@ function renderConsult(ct){
 }
 
 function renderConCard(ct,c,today,inToday){
-  const isPast=c.contactDate<today&&c.status!=='done'&&c.status!=='missed';
+  const isPast=c.contactDate<today&&c.status==='pending';
   const isToday=c.contactDate===today;
   const isDone=c.status==='done';
   const isMissed=c.status==='missed';
-  const card=ct.appendChild(el('div','con-card'+(isToday&&!isDone?' today':'')));
+  const isPending=c.status==='pending';
 
-  // 상단: 이름 + 연락처 + 날짜 + 상태
-  const top=card.appendChild(el('div','con-top'));
-  top.appendChild(mk('div','con-name',c.name));
+  const card=ct.appendChild(el('div','con-card'+(isToday&&isPending?' today':'')));
+
+  // ─ 1행: 이름 + 상태 배지
+  const row1=card.appendChild(el('div',''));
+  row1.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;';
+  const nameEl=row1.appendChild(mk('div','con-name',c.name));
+  const stMap={done:'연락완료',missed:'부재중',pending:'대기'};
+  const stCls={done:' done',missed:' missed',pending:' pending'};
+  row1.appendChild(mk('div','con-status'+(stCls[c.status]||' pending'),stMap[c.status]||'대기'));
+
+  // ─ 2행: 연락처 + 날짜
+  const row2=card.appendChild(el('div',''));
+  row2.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;';
   if(c.phone){
-    const ph=top.appendChild(mk('div','con-phone',c.phone));
+    const ph=row2.appendChild(mk('div','con-phone',c.phone));
     ph.onclick=()=>{window.open('tel:'+c.phone.replace(/-/g,''));};
     ph.style.cursor='pointer';
   }
-  top.appendChild(mk('div','con-date'+(isToday&&!isDone?' today':isPast?' past':''),c.contactDate));
-  const stMap={done:'완료',missed:'부재중',pending:'대기'};
-  const stCls={done:' done',missed:' missed',pending:' pending'};
-  top.appendChild(mk('div','con-status'+(stCls[c.status]||' pending'),stMap[c.status]||'대기'));
+  row2.appendChild(mk('div','con-date'+(isToday&&isPending?' today':isPast?' past':''),c.contactDate));
 
-  // 담당 트레이너 표시
+  // ─ 담당 트레이너
   if(c.assignedTrainer){
     const tr=trainers.find(t=>t.id===c.assignedTrainer);
     if(tr){
       const col=getTrainerColor(tr);
       const tb=card.appendChild(mk('div','','담당: '+tr.name));
-      tb.style.cssText='font-size:11px;font-weight:600;color:'+col.dot+';margin-bottom:4px;';
+      tb.style.cssText='font-size:11px;font-weight:600;color:'+col.dot+';margin-bottom:5px;';
     }
   }
 
-  if(c.memo)card.appendChild(mk('div','con-memo',c.memo));
+  // ─ 메모
+  if(c.memo){card.appendChild(mk('div','con-memo',c.memo));}
 
-  // 액션 버튼
-  const acts=card.appendChild(el('div','con-acts'));
-  if(!isDone){
-    // 연락 완료
+  // ─ 액션 버튼 (2행 구조)
+  const acts=card.appendChild(el('div',''));
+  acts.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center;';
+
+  if(isPending||isMissed){
     const doneBtn=acts.appendChild(mk('button','con-btn done','연락 완료'));
     doneBtn.onclick=()=>{c.status='done';c.doneAt=Date.now();sv('og10_cs',consultations);renderMem();};
-    // 부재중
-    const missBtn=acts.appendChild(mk('button','con-btn','부재중'));
-    missBtn.style.cssText+='border-color:#6496ff;color:#6496ff;';
-    missBtn.onclick=()=>{c.status='missed';c.missedAt=Date.now();sv('og10_cs',consultations);renderMem();};
-    // 수정
-    acts.appendChild(mk('button','con-btn','수정')).onclick=()=>openEditConsult(c.id);
-    // 트레이너 지정
+
+    if(isPending){
+      const missBtn=acts.appendChild(mk('button','con-btn','부재중'));
+      missBtn.style.cssText='border-color:#6496ff;color:#6496ff;padding:6px 14px;border-radius:8px;border:1px solid;background:var(--bg2);font-size:12px;cursor:pointer;font-family:inherit;';
+      missBtn.onclick=()=>{c.status='missed';c.missedAt=Date.now();sv('og10_cs',consultations);renderMem();};
+    }
+    if(isMissed){
+      const reCallBtn=acts.appendChild(mk('button','con-btn','재연락 예약'));
+      reCallBtn.onclick=()=>openEditConsult(c.id);
+    }
+    const editBtn=acts.appendChild(mk('button','con-btn','수정'));
+    editBtn.onclick=()=>openEditConsult(c.id);
+
     const trBtn=acts.appendChild(mk('button','con-btn','트레이너 지정'));
-    trBtn.style.cssText+='border-color:#ab47bc;color:#ce93d8;';
+    trBtn.style.cssText='border-color:#ab47bc;color:#ce93d8;padding:6px 14px;border-radius:8px;border:1px solid;background:var(--bg2);font-size:12px;cursor:pointer;font-family:inherit;';
     trBtn.onclick=()=>openAssignTrainer(c.id);
   } else {
-    // 완료/부재중 → 재등록
-    acts.appendChild(mk('button','con-btn','재등록')).onclick=()=>{c.status='pending';sv('og10_cs',consultations);renderMem();};
-    if(isDone){
-      acts.appendChild(mk('button','con-btn','트레이너 지정')).onclick=()=>openAssignTrainer(c.id);
-    }
+    // 완료 상태
+    const reBtn=acts.appendChild(mk('button','con-btn','재등록'));
+    reBtn.onclick=()=>{c.status='pending';sv('og10_cs',consultations);renderMem();};
+    const trBtn=acts.appendChild(mk('button','con-btn','트레이너 지정'));
+    trBtn.style.cssText='border-color:#ab47bc;color:#ce93d8;padding:6px 14px;border-radius:8px;border:1px solid;background:var(--bg2);font-size:12px;cursor:pointer;font-family:inherit;';
+    trBtn.onclick=()=>openAssignTrainer(c.id);
   }
-  if(isMissed){
-    // 부재중에서도 트레이너 지정 + 재연락 설정
-    acts.appendChild(mk('button','con-btn','재연락 예약')).onclick=()=>openEditConsult(c.id);
-    acts.appendChild(mk('button','con-btn','트레이너 지정')).onclick=()=>openAssignTrainer(c.id);
-  }
+
   const delBtn=acts.appendChild(mk('button','con-del','×'));
   delBtn.onclick=()=>{if(confirm(c.name+' 삭제?')){consultations=consultations.filter(x=>x.id!==c.id);sv('og10_cs',consultations);renderMem();}};
 }
