@@ -366,6 +366,7 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .con-del:active{background:#3d1a1a;color:#ffaaaa;}
 .con-status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;}
 .con-status.pending{background:rgba(232,137,42,.15);color:#e8892a;}
+.con-status.missed{background:rgba(100,150,255,.15);color:#6496ff;}
 .con-status.done{background:rgba(61,200,122,.15);color:#3dc87a;}
 .add-con-btn{width:100%;padding:13px;background:var(--bg2);border:1px solid var(--bd2);border-radius:10px;color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;}
 </style>
@@ -859,9 +860,10 @@ function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMo
 function renderConsult(ct){
   const today=todayStr();
   const sorted=[...consultations].sort((a,b)=>a.contactDate.localeCompare(b.contactDate));
-  const todayList=sorted.filter(c=>c.contactDate===today&&c.status!=='done');
-  const pastList=sorted.filter(c=>c.contactDate<today&&c.status!=='done');
-  const upcoming=sorted.filter(c=>c.contactDate>today&&c.status!=='done');
+  const todayList=sorted.filter(c=>c.contactDate===today&&c.status==='pending');
+  const missedList=sorted.filter(c=>c.status==='missed');
+  const pastList=sorted.filter(c=>c.contactDate<today&&c.status==='pending');
+  const upcoming=sorted.filter(c=>c.contactDate>today&&c.status==='pending');
   const doneList=sorted.filter(c=>c.status==='done');
 
   // 금일 연락 섹션
@@ -869,14 +871,16 @@ function renderConsult(ct){
   const th=todaySec.appendChild(el('div','today-header'));
   const tbdg=th.appendChild(mk('div','today-badge','TODAY'));
   th.appendChild(mk('div','today-ttl','금일 연락 대상 '+todayList.length+'명'));
-  if(pastList.length>0){
-    const pb=th.appendChild(mk('div','today-badge',''));
-    pb.textContent='미연락 '+pastList.length+'명';pb.style.background='#e05555';
-  }
-  if(todayList.length===0&&pastList.length===0){
+  if(pastList.length>0){const pb=th.appendChild(mk('div','today-badge',''));pb.textContent='미연락 '+pastList.length+'명';pb.style.background='#e05555';}
+  if(missedList.length>0){const mb=th.appendChild(mk('div','today-badge',''));mb.textContent='부재중 '+missedList.length+'명';mb.style.background='#6496ff';}
+  if(todayList.length===0&&pastList.length===0&&missedList.length===0){
     todaySec.appendChild(mk('div','today-empty','오늘 연락할 상담자가 없습니다.'));
   } else {
     [...pastList,...todayList].forEach(c=>renderConCard(todaySec,c,today,true));
+    if(missedList.length>0){
+      todaySec.appendChild(mk('div','','부재중')).style.cssText='font-size:11px;color:#6496ff;font-weight:700;margin:10px 0 6px;';
+      missedList.forEach(c=>renderConCard(todaySec,c,today,false));
+    }
   }
 
   // 추가 버튼
@@ -902,9 +906,13 @@ function renderConsult(ct){
 }
 
 function renderConCard(ct,c,today,inToday){
-  const isPast=c.contactDate<today&&c.status!=='done';
+  const isPast=c.contactDate<today&&c.status!=='done'&&c.status!=='missed';
   const isToday=c.contactDate===today;
-  const card=ct.appendChild(el('div','con-card'+(isToday?' today':'')));
+  const isDone=c.status==='done';
+  const isMissed=c.status==='missed';
+  const card=ct.appendChild(el('div','con-card'+(isToday&&!isDone?' today':'')));
+
+  // 상단: 이름 + 연락처 + 날짜 + 상태
   const top=card.appendChild(el('div','con-top'));
   top.appendChild(mk('div','con-name',c.name));
   if(c.phone){
@@ -912,18 +920,50 @@ function renderConCard(ct,c,today,inToday){
     ph.onclick=()=>{window.open('tel:'+c.phone.replace(/-/g,''));};
     ph.style.cursor='pointer';
   }
-  const dateBdg=top.appendChild(mk('div','con-date'+(isToday?' today':isPast?' past':''),c.contactDate));
-  const statusBdg=top.appendChild(mk('div','con-status'+(c.status==='done'?' done':' pending'),c.status==='done'?'완료':'대기'));
+  top.appendChild(mk('div','con-date'+(isToday&&!isDone?' today':isPast?' past':''),c.contactDate));
+  const stMap={done:'완료',missed:'부재중',pending:'대기'};
+  const stCls={done:' done',missed:' missed',pending:' pending'};
+  top.appendChild(mk('div','con-status'+(stCls[c.status]||' pending'),stMap[c.status]||'대기'));
+
+  // 담당 트레이너 표시
+  if(c.assignedTrainer){
+    const tr=trainers.find(t=>t.id===c.assignedTrainer);
+    if(tr){
+      const col=getTrainerColor(tr);
+      const tb=card.appendChild(mk('div','','담당: '+tr.name));
+      tb.style.cssText='font-size:11px;font-weight:600;color:'+col.dot+';margin-bottom:4px;';
+    }
+  }
+
   if(c.memo)card.appendChild(mk('div','con-memo',c.memo));
+
+  // 액션 버튼
   const acts=card.appendChild(el('div','con-acts'));
-  if(c.status!=='done'){
+  if(!isDone){
+    // 연락 완료
     const doneBtn=acts.appendChild(mk('button','con-btn done','연락 완료'));
     doneBtn.onclick=()=>{c.status='done';c.doneAt=Date.now();sv('og10_cs',consultations);renderMem();};
-    const editBtn=acts.appendChild(mk('button','con-btn','수정'));
-    editBtn.onclick=()=>openEditConsult(c.id);
+    // 부재중
+    const missBtn=acts.appendChild(mk('button','con-btn','부재중'));
+    missBtn.style.cssText+='border-color:#6496ff;color:#6496ff;';
+    missBtn.onclick=()=>{c.status='missed';c.missedAt=Date.now();sv('og10_cs',consultations);renderMem();};
+    // 수정
+    acts.appendChild(mk('button','con-btn','수정')).onclick=()=>openEditConsult(c.id);
+    // 트레이너 지정
+    const trBtn=acts.appendChild(mk('button','con-btn','트레이너 지정'));
+    trBtn.style.cssText+='border-color:#ab47bc;color:#ce93d8;';
+    trBtn.onclick=()=>openAssignTrainer(c.id);
   } else {
-    const reBtn=acts.appendChild(mk('button','con-btn','재등록'));
-    reBtn.onclick=()=>{c.status='pending';sv('og10_cs',consultations);renderMem();};
+    // 완료/부재중 → 재등록
+    acts.appendChild(mk('button','con-btn','재등록')).onclick=()=>{c.status='pending';sv('og10_cs',consultations);renderMem();};
+    if(isDone){
+      acts.appendChild(mk('button','con-btn','트레이너 지정')).onclick=()=>openAssignTrainer(c.id);
+    }
+  }
+  if(isMissed){
+    // 부재중에서도 트레이너 지정 + 재연락 설정
+    acts.appendChild(mk('button','con-btn','재연락 예약')).onclick=()=>openEditConsult(c.id);
+    acts.appendChild(mk('button','con-btn','트레이너 지정')).onclick=()=>openAssignTrainer(c.id);
   }
   const delBtn=acts.appendChild(mk('button','con-del','×'));
   delBtn.onclick=()=>{if(confirm(c.name+' 삭제?')){consultations=consultations.filter(x=>x.id!==c.id);sv('og10_cs',consultations);renderMem();}};
@@ -958,6 +998,78 @@ function openAddConsult(){
       sv('og10_cs',consultations);close();renderMem();
     };
     setTimeout(()=>ni.focus(),200);
+  });
+}
+
+
+function openAssignTrainer(cid){
+  const c=consultations.find(x=>x.id===cid);if(!c)return;
+  let selTrId=c.assignedTrainer||'';
+  showSheet(function(sheet,close){
+    sheet.appendChild(el('div','shdl'));
+    sheet.appendChild(mk('h3','','트레이너 지정'));
+    sheet.appendChild(mk('div','shsub',c.name+' · '+(c.phone||'')));
+
+    // 트레이너 선택
+    sheet.appendChild(mk('label','','담당 트레이너'));
+    const nml=sheet.appendChild(el('div','nmlist'));
+    trainers.filter(t=>t.showInMem!==false).forEach(tr=>{
+      const col=getTrainerColor(tr);
+      const btn=nml.appendChild(el('button','nmbtn'+(tr.id===selTrId?' ':{}).toString()));
+      btn.style.borderColor=tr.id===selTrId?col.dot:'';
+      const av=btn.appendChild(el('div','nmav'));
+      av.style.cssText='background:'+col.bg+';color:'+col.text+';';
+      av.textContent=initials(tr.name);
+      const inf=btn.appendChild(el('div','nminf'));
+      inf.appendChild(document.createTextNode(tr.name));
+      inf.appendChild(mk('div','nmrl',tr.role));
+      btn.onclick=()=>{
+        selTrId=tr.id;
+        nml.querySelectorAll('.nmbtn').forEach(b=>b.style.borderColor='');
+        btn.style.borderColor=col.dot;
+      };
+    });
+
+    // 수업권 선택 (회원 등록용)
+    sheet.appendChild(mk('label','','수업권 등록'));
+    renderPlanForm(sheet);
+
+    // 버튼
+    const btns=sheet.appendChild(el('div','shbtns'));
+    btns.appendChild(mk('button','shno','취소')).onclick=close;
+    btns.appendChild(mk('button','shok','지정 & 회원 등록')).onclick=()=>{
+      if(!selTrId){alert('트레이너를 선택해주세요.');return;}
+      const plan=getPlanFormValue();
+      if(!plan){alert('수업권 정보를 입력해주세요.');return;}
+      // 상담자를 회원으로 등록
+      const newMember={
+        id:'m'+Date.now(),
+        trainerId:selTrId,
+        name:c.name,
+        phone:c.phone||'',
+        plans:[{id:'pl'+Date.now(),...plan}],
+        registeredAt:Date.now()
+      };
+      members.push(newMember);
+      sv('og10_mb',members);
+      // 상담 상태 업데이트
+      c.assignedTrainer=selTrId;
+      c.status='done';
+      c.doneAt=Date.now();
+      sv('og10_cs',consultations);
+      close();
+      alert(c.name+'님이 '+trainers.find(t=>t.id===selTrId).name+' 트레이너 회원으로 등록되었습니다!');
+      renderMem();
+    };
+    // 트레이너 지정만 (회원 등록 없이)
+    const trOnlyBtn=sheet.appendChild(mk('button','','트레이너만 지정 (회원 등록 없이)'));
+    trOnlyBtn.style.cssText='width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd2);background:transparent;color:var(--t3);font-size:13px;cursor:pointer;margin-top:8px;';
+    trOnlyBtn.onclick=()=>{
+      if(!selTrId){alert('트레이너를 선택해주세요.');return;}
+      c.assignedTrainer=selTrId;
+      sv('og10_cs',consultations);
+      close();renderMem();
+    };
   });
 }
 
