@@ -1100,13 +1100,16 @@ function openEditConsult(cid){
     sheet.appendChild(el('div','shdl'));sheet.appendChild(mk('h3','','상담자 수정'));
     sheet.appendChild(mk('label','','이름'));const ni=sheet.appendChild(el('input'));ni.type='text';ni.value=c.name;
     sheet.appendChild(mk('label','','연락처'));const pi=sheet.appendChild(el('input'));pi.type='tel';pi.value=fmtPhone(c.phone||'');pi.oninput=function(){this.value=fmtPhone(this.value);};
+    sheet.appendChild(mk('label','','유입경로'));
+    const ii=sheet.appendChild(el('select'));ii.style.cssText='width:100%;padding:13px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;';
+    INFLOW_OPTIONS.forEach(v=>{const o=ii.appendChild(document.createElement('option'));o.value=v;o.textContent=v;if(v===c.inflow)o.selected=true;});
     sheet.appendChild(mk('label','','상담 내용'));const mi=sheet.appendChild(el('textarea'));mi.style.cssText='width:100%;min-height:80px;padding:12px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:14px;font-family:inherit;resize:none;line-height:1.6;';mi.value=c.memo||'';
     sheet.appendChild(mk('label','','연락 예정일'));const di=sheet.appendChild(el('input'));di.type='date';di.value=c.contactDate;di.style.cssText='width:100%;padding:13px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;';
     const btns=sheet.appendChild(el('div','shbtns'));
     btns.appendChild(mk('button','shno','취소')).onclick=close;
     btns.appendChild(mk('button','shok','저장')).onclick=()=>{
       const name=ni.value.trim();if(!name){alert('이름을 입력해주세요.');return;}
-      c.name=name;c.phone=pi.value.trim();c.memo=mi.value.trim();c.contactDate=di.value;
+      c.name=name;c.phone=pi.value.trim();c.inflow=ii.value;c.memo=mi.value.trim();c.contactDate=di.value;
       sv('og10_cs',consultations);close();renderMem();
     };
   });
