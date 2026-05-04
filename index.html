@@ -945,22 +945,28 @@ function renderMemberSearch(ct){
     const kw=mqKeyword.trim();
     const ra=document.getElementById('mq-result');if(!ra)return;ra.innerHTML='';
 
-    // 회원 × 권종 단위로 펼치기
+    // 회원 필터 + 권종 단위 펼치기
     const rows=[];
     members.forEach(mb=>{
+      if(kw&&!mb.name.includes(kw)&&!(mb.phone||'').includes(kw))return;
+      if(mqInflow&&mb.inflow!==mqInflow)return;
       const tr2=trainers.find(t=>t.id===mb.trainerId);
-      (mb.plans||[]).forEach(plan=>{
-        const dateStr=plan.addedAt?new Date(plan.addedAt).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}):'';
-        const timeStr=plan.addedAt?new Date(plan.addedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'';
-        if(kw&&!mb.name.includes(kw)&&!(mb.phone||'').includes(kw))return;
-        rows.push({mb,plan,tr2,dateStr,timeStr});
-      });
+      let plans=(mb.plans||[]);
+      if(mqPkg)plans=plans.filter(p=>p.sessions==mqPkg);
+      if(plans.length===0&&!mqPkg){
+        rows.push({mb,plan:null,tr2,dateStr:'',timeStr:''});
+      } else {
+        plans.forEach(plan=>{
+          const dateStr=plan.addedAt?new Date(plan.addedAt).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}):'';
+          const timeStr=plan.addedAt?new Date(plan.addedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'';
+          rows.push({mb,plan,tr2,dateStr,timeStr});
+        });
+      }
     });
 
-    // 등록일 내림차순
-    rows_.sort((a,b)=>((b.plan&&b.plan.addedAt)||0)-((a.plan&&a.plan.addedAt)||0));
-    if(!rows_.length){ra.appendChild(mk('div','mq-empty',kw?'검색 결과가 없습니다.':'등록된 회원이 없습니다.'));return;}
-    ra.appendChild(mk('div','mq-result-ttl',(kw?'검색 결과 ':'전체 ')+rows.length+'건'));
+    rows.sort((a,b)=>((b.plan&&b.plan.addedAt)||0)-((a.plan&&a.plan.addedAt)||0));
+    if(!rows.length){ra.appendChild(mk('div','mq-empty',kw||mqInflow||mqPkg?'검색 결과가 없습니다.':'등록된 회원이 없습니다.'));return;}
+    ra.appendChild(mk('div','mq-result-ttl',(kw||mqInflow||mqPkg?'검색 결과 ':'전체 ')+rows.length+'건'));
 
     const wrap=ra.appendChild(el('div','mq-table-wrap'));
     const tbl=wrap.appendChild(el('table','mq-table'));
