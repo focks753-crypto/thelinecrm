@@ -959,8 +959,7 @@ function renderMemberSearch(ct){
 
     // 등록일 내림차순
     rows_.sort((a,b)=>((b.plan&&b.plan.addedAt)||0)-((a.plan&&a.plan.addedAt)||0));
-    const rows=rows_;
-    if(!rows.length){ra.appendChild(mk('div','mq-empty',kw?'검색 결과가 없습니다.':'등록된 회원이 없습니다.'));return;}
+    if(!rows_.length){ra.appendChild(mk('div','mq-empty',kw?'검색 결과가 없습니다.':'등록된 회원이 없습니다.'));return;}
     ra.appendChild(mk('div','mq-result-ttl',(kw?'검색 결과 ':'전체 ')+rows.length+'건'));
 
     const wrap=ra.appendChild(el('div','mq-table-wrap'));
