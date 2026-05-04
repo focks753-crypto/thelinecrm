@@ -419,6 +419,23 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .mq-td-date{white-space:nowrap;color:var(--t3);}
 .mq-td-amount{text-align:right;font-weight:600;color:var(--t1);white-space:nowrap;}
 .mq-td-trainer{white-space:nowrap;}
+
+.chist-card{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:8px;}
+.chist-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.chist-name{font-size:15px;font-weight:700;}
+.chist-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+.chist-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;}
+.chist-inflow{background:rgba(171,71,188,.15);color:#ce93d8;}
+.chist-status-done{background:rgba(61,200,122,.15);color:#3dc87a;}
+.chist-status-missed{background:rgba(100,150,255,.15);color:#6496ff;}
+.chist-status-pending{background:rgba(232,137,42,.15);color:#e8892a;}
+.chist-memo{font-size:13px;color:var(--t3);margin-top:6px;line-height:1.5;}
+.chist-hist{background:var(--bg2);border-radius:8px;padding:8px 10px;margin-top:8px;}
+.chist-hist-row{font-size:12px;color:var(--t3);padding:4px 0;border-bottom:1px solid var(--bd);display:flex;gap:8px;}
+.chist-hist-row:last-child{border:none;}
+.chist-hist-type{font-weight:600;}
+.chist-hist-type.done{color:#3dc87a;}
+.chist-hist-type.missed{color:#6496ff;}
 </style>
 
 <!-- Firebase SDK -->
@@ -1019,7 +1036,7 @@ function renderConsult(ct){
   }
   if(isAdminUser()||curUser)ct.appendChild(mk('button','add-con-btn','+ 상담 문의자 등록')).onclick=openAddConsult;
   if(upcoming.length>0){ct.appendChild(mk('div','sec','예정된 상담'));upcoming.forEach(c=>renderConCard(ct,c,today,false));}
-  if(doneList.length>0){ct.appendChild(mk('div','sec','연락 완료'));doneList.forEach(c=>renderConCard(ct,c,today,false));}
+
   if(consultations.length===0)ct.appendChild(mk('div','nempty','등록된 상담 문의자가 없습니다.'));
 }
 
@@ -1095,6 +1112,104 @@ function openEditConsult(cid){
   });
 }
 
+
+
+// ── 상담 내역 탭 ────────────────────────────────────────────────────────────
+let chistKw='';let chistInflow='';let chistStatus='';
+
+function renderConsultHistory(ct){
+  const sw=ct.appendChild(el('div','msearch-wrap'));
+  const si=sw.appendChild(el('input','msearch-input'));
+  si.type='text';si.placeholder='이름 또는 연락처 검색...';si.value=chistKw;
+  si.oninput=e=>{chistKw=e.target.value;};
+  si.onkeydown=e=>{if(e.key==='Enter')doChist();};
+  sw.appendChild(mk('button','msearch-btn','조회')).onclick=doChist;
+
+  const fr=ct.appendChild(el('div','sal-row'));fr.style.cssText='margin-bottom:8px;display:flex;gap:6px;';
+  const isel=fr.appendChild(el('select'));isel.style.cssText='flex:1;padding:10px 12px;border:1px solid var(--bd2);border-radius:9px;background:var(--bg2);color:var(--t1);font-size:13px;';
+  [{v:'',l:'전체 유입경로'},...INFLOW_OPTIONS.map(v=>({v,l:v}))].forEach(({v,l})=>{const o=isel.appendChild(document.createElement('option'));o.value=v;o.textContent=l;if(v===chistInflow)o.selected=true;});
+  isel.onchange=e=>chistInflow=e.target.value;
+  const ssel=fr.appendChild(el('select'));ssel.style.cssText='flex:1;padding:10px 12px;border:1px solid var(--bd2);border-radius:9px;background:var(--bg2);color:var(--t1);font-size:13px;';
+  [{v:'',l:'전체 상태'},{v:'pending',l:'대기'},{v:'missed',l:'부재중'},{v:'done',l:'완료'}].forEach(({v,l})=>{const o=ssel.appendChild(document.createElement('option'));o.value=v;o.textContent=l;if(v===chistStatus)o.selected=true;});
+  ssel.onchange=e=>chistStatus=e.target.value;
+
+  ct.appendChild(mk('button','sal-dl-btn','상담 명단 엑셀 다운로드')).onclick=dlConsultXLSX;
+  const ra=ct.appendChild(el('div'));ra.id='chist-result';
+  doChist();
+
+  function doChist(){
+    const ra2=document.getElementById('chist-result');if(!ra2)return;ra2.innerHTML='';
+    const kw=chistKw.trim();
+    const matched=consultations.filter(c=>{
+      if(kw&&!c.name.includes(kw)&&!(c.phone||'').includes(kw))return false;
+      if(chistInflow&&c.inflow!==chistInflow)return false;
+      if(chistStatus&&c.status!==chistStatus)return false;
+      return true;
+    }).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+
+    if(!matched.length){ra2.appendChild(mk('div','mq-empty',kw||chistInflow||chistStatus?'검색 결과가 없습니다.':'등록된 상담자가 없습니다.'));return;}
+    ra2.appendChild(mk('div','mq-result-ttl',(kw||chistInflow||chistStatus?'검색 결과 ':'전체 ')+matched.length+'명'));
+
+    matched.forEach(c=>{
+      const card=ra2.appendChild(el('div','chist-card'));
+      // 이름 + 날짜
+      const top=card.appendChild(el('div','chist-top'));
+      top.appendChild(mk('div','chist-name',c.name));
+      top.appendChild(mk('div','',c.contactDate||'')).style.cssText='font-size:11px;color:var(--t4);';
+      // 연락처 (탭하면 전화)
+      if(c.phone){
+        const ph=card.appendChild(mk('div','',c.phone));
+        ph.style.cssText='font-size:12px;color:#4a9eff;cursor:pointer;margin-bottom:4px;';
+        ph.onclick=()=>window.open('tel:'+c.phone.replace(/-/g,''));
+      }
+      // 배지
+      const bdgs=card.appendChild(el('div','chist-badges'));
+      const stMap={done:'연락완료',missed:'부재중',pending:'대기'};
+      const stCls={done:'chist-status-done',missed:'chist-status-missed',pending:'chist-status-pending'};
+      bdgs.appendChild(mk('div','chist-badge '+(stCls[c.status]||'chist-status-pending'),stMap[c.status]||'대기'));
+      if(c.inflow)bdgs.appendChild(mk('div','chist-badge chist-inflow',c.inflow));
+      // 메모
+      if(c.memo)card.appendChild(mk('div','chist-memo',c.memo));
+      // 상담 이력
+      const hist=c.history||[];
+      if(hist.length){
+        const hbox=card.appendChild(el('div','chist-hist'));
+        hist.slice().reverse().slice(0,3).forEach(h=>{
+          const row=hbox.appendChild(el('div','chist-hist-row'));
+          const typEl=row.appendChild(mk('div','chist-hist-type '+(h.type==='done'?'done':'missed'),h.type==='done'?'완료':'부재중'));
+          row.appendChild(mk('div','',fmtTs(h.ts)));
+          if(h.memo)row.appendChild(mk('div','',h.memo));
+        });
+        if(hist.length>3){const more=card.appendChild(mk('div','','+ '+(hist.length-3)+'건 더 보기'));more.style.cssText='font-size:11px;color:#555;cursor:pointer;margin-top:4px;';more.onclick=()=>viewConsultHistory(c.id);}
+      }
+      // 삭제 버튼
+      const acts=card.appendChild(el('div',''));acts.style.cssText='display:flex;gap:6px;margin-top:10px;';
+      const editBtn=acts.appendChild(mk('button','con-btn','수정'));editBtn.onclick=()=>openEditConsult(c.id);
+      const delBtn=acts.appendChild(mk('button','con-del','×'));delBtn.onclick=()=>{if(confirm(c.name+' 삭제?')){consultations=consultations.filter(x=>x.id!==c.id);sv('og10_cs',consultations);renderMem();}};
+    });
+  }
+}
+
+function dlConsultXLSX(){
+  if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
+  const matched=consultations.filter(c=>{
+    if(chistInflow&&c.inflow!==chistInflow)return false;
+    if(chistStatus&&c.status!==chistStatus)return false;
+    return true;
+  }).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const stMap={done:'연락완료',missed:'부재중',pending:'대기'};
+  const wsData=[['이름','연락처','유입경로','상태','연락예정일','등록일','메모','이력수']];
+  matched.forEach(c=>{
+    const regDate=c.createdAt?new Date(c.createdAt).toLocaleDateString('ko-KR'):'';
+    wsData.push([c.name,c.phone||'',c.inflow||'',stMap[c.status]||'',c.contactDate||'',regDate,c.memo||'',(c.history||[]).length]);
+  });
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:10},{wch:14},{wch:10},{wch:10},{wch:12},{wch:12},{wch:20},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws,'상담내역');
+  const today=new Date();const ds=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  XLSX.writeFile(wb,'상담내역_'+ds+'.xlsx');
+}
 
 function openConsultHistory(cid, action){
   const c=consultations.find(x=>x.id===cid);if(!c)return;
@@ -1203,10 +1318,11 @@ function renderMem(){
     const lb=ct.appendChild(el('div','lockbox'));lb.appendChild(mk('p','','회원관리는 로그인이 필요합니다.'));lb.appendChild(mk('button','','로그인하기')).onclick=()=>openLogin(()=>{mvTr=null;renderMem();});return;
   }
   const stWrap=ct.appendChild(el('div','mem-subtabs'));
-  [['member','회원 관리'],['consult','상담 관리'],['search','회원 조회']].forEach(([v,l])=>{
+  [['member','회원 관리'],['consult','상담 관리'],['chist','상담 내역'],['search','회원 조회']].forEach(([v,l])=>{
     const b=stWrap.appendChild(mk('button','mem-stab'+(memSubTab===v?' on':''),l));b.onclick=()=>{memSubTab=v;renderMem();};
   });
   if(memSubTab==='consult'){renderConsult(ct);return;}
+  if(memSubTab==='chist'){renderConsultHistory(ct);return;}
   if(memSubTab==='search'){renderMemberSearch(ct);return;}
   // mvTr 체크 (담당자 선택 후 뷰)
   if(mvTr){if(!canAccessTrainer(mvTr)){mvTr=null;}else{renderMemView(ct);return;}}
@@ -1263,11 +1379,14 @@ function openEditMember(memberId){
     sheet.appendChild(el('div','shdl'));sheet.appendChild(mk('h3','','회원 정보 수정'));sheet.appendChild(mk('div','shsub',mb.name));
     sheet.appendChild(mk('label','','이름'));const ni=sheet.appendChild(el('input'));ni.type='text';ni.value=mb.name;
     sheet.appendChild(mk('label','','연락처'));const pi=sheet.appendChild(el('input'));pi.type='tel';pi.value=fmtPhone(mb.phone||'');pi.oninput=function(){this.value=fmtPhone(this.value);};
+    sheet.appendChild(mk('label','','유입경로'));
+    const ii=sheet.appendChild(el('select'));ii.style.cssText='width:100%;padding:13px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;';
+    INFLOW_OPTIONS.forEach(v=>{const o=ii.appendChild(document.createElement('option'));o.value=v;o.textContent=v;if(v===mb.inflow)o.selected=true;});
     const btns=sheet.appendChild(el('div','shbtns'));
     btns.appendChild(mk('button','shno','취소')).onclick=close;
     btns.appendChild(mk('button','shok','저장')).onclick=()=>{
       const name=ni.value.trim();if(!name){alert('이름을 입력해주세요.');return;}
-      mb.name=name;mb.phone=pi.value.trim();sv('og10_mb',members);close();renderMem();
+      mb.name=name;mb.phone=pi.value.trim();mb.inflow=ii.value;sv('og10_mb',members);close();renderMem();
     };
   });
 }
