@@ -369,6 +369,40 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .con-status.missed{background:rgba(100,150,255,.15);color:#6496ff;}
 .con-status.done{background:rgba(61,200,122,.15);color:#3dc87a;}
 .add-con-btn{width:100%;padding:13px;background:var(--bg2);border:1px solid var(--bd2);border-radius:10px;color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;}
+
+/* ── 회원 조회 ── */
+.msearch-wrap{display:flex;gap:8px;margin-bottom:14px;}
+.msearch-input{flex:1;padding:12px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;}
+.msearch-input::placeholder{color:var(--t4);}
+.msearch-btn{padding:12px 18px;border-radius:10px;border:none;background:#fff;color:#000;font-size:14px;font-weight:700;cursor:pointer;}
+.mq-card{background:var(--bg1);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:12px;}
+.mq-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.mq-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;}
+.mq-info{flex:1;}
+.mq-name{font-size:17px;font-weight:700;}
+.mq-sub{font-size:12px;color:var(--t3);margin-top:2px;}
+.mq-stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.mq-stat{background:var(--bg2);border-radius:10px;padding:10px;text-align:center;}
+.mq-stat-val{font-size:16px;font-weight:700;color:var(--t1);}
+.mq-stat-lbl{font-size:10px;color:var(--t3);margin-top:3px;}
+.mq-plan{background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:7px;}
+.mq-plan-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.mq-plan-title{font-size:13px;font-weight:700;color:var(--t1);}
+.mq-plan-date{font-size:11px;color:var(--t3);}
+.mq-plan-detail{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.mq-detail-item{background:var(--bg1);border-radius:8px;padding:8px 10px;}
+.mq-detail-lbl{font-size:10px;color:var(--t4);margin-bottom:2px;}
+.mq-detail-val{font-size:13px;font-weight:600;color:var(--t2);}
+.mq-progress{height:6px;background:var(--bg3);border-radius:3px;margin-top:8px;overflow:hidden;}
+.mq-progress-bar{height:100%;border-radius:3px;background:#3dc87a;transition:width .3s;}
+.mq-progress-bar.warn{background:#e05555;}
+.mq-slot-list{margin-top:10px;}
+.mq-slot-title{font-size:11px;color:var(--t4);font-weight:600;margin-bottom:6px;}
+.mq-slot-row{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:12px;color:var(--t3);}
+.mq-slot-row:last-child{border:none;}
+.mq-slot-date{color:var(--t2);font-weight:600;min-width:70px;}
+.mq-empty{text-align:center;padding:3rem 0;color:var(--t4);font-size:14px;}
+.mq-result-ttl{font-size:12px;color:var(--t3);margin-bottom:12px;}
 </style>
 
 <!-- Firebase SDK -->
@@ -854,6 +888,120 @@ function openCal(){
 }
 
 
+
+// ── 회원 조회 ──────────────────────────────────────────────────────────────
+let mqKeyword='';
+function renderMemberSearch(ct){
+  // 검색창
+  const sw=ct.appendChild(el('div','msearch-wrap'));
+  const si=sw.appendChild(el('input','msearch-input'));
+  si.type='text';si.placeholder='회원 이름 검색...';si.value=mqKeyword;
+  si.oninput=e=>{mqKeyword=e.target.value;};
+  si.onkeydown=e=>{if(e.key==='Enter')doSearch();};
+  sw.appendChild(mk('button','msearch-btn','조회')).onclick=doSearch;
+
+  const resultArea=ct.appendChild(el('div'));resultArea.id='mq-result';
+  doSearch(); // 진입 시 바로 전체 조회
+
+  function doSearch(){
+    const kw=mqKeyword.trim();
+    const ra=document.getElementById('mq-result');if(!ra)return;
+    ra.innerHTML='';
+    const matched=kw
+      ?members.filter(m=>m.name.includes(kw)||(m.phone||'').includes(kw))
+      :[...members].sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+    if(!matched.length){ra.appendChild(mk('div','mq-empty','등록된 회원이 없습니다.'));return;}
+    ra.appendChild(mk('div','mq-result-ttl',(kw?'검색 결과':'전체 회원 ')+matched.length+'명'));
+    matched.forEach(mb=>renderMemberQueryCard(ra,mb));
+  }
+}
+
+function renderMemberQueryCard(ct,mb){
+  const tr=trainers.find(t=>t.id===mb.trainerId);
+  const col=tr?getTrainerColor(tr):COLORS[0];
+  const plans=mb.plans||[];
+
+  // 전체 통계
+  const totalSessions=plans.reduce((s,p)=>s+p.sessions,0);
+  const totalUsed=plans.reduce((s,p)=>s+getPlanUsed(p.id),0);
+  const totalRemain=totalSessions-totalUsed;
+  const totalPaid=plans.reduce((s,p)=>s+(p.totalPrice||0),0);
+
+  const card=ct.appendChild(el('div','mq-card'));
+
+  // 헤더
+  const hdr=card.appendChild(el('div','mq-header'));
+  const av=hdr.appendChild(el('div','mq-av'));
+  av.style.cssText='background:'+col.bg+';color:'+col.text+';';
+  av.textContent=initials(mb.name);
+  const inf=hdr.appendChild(el('div','mq-info'));
+  inf.appendChild(mk('div','mq-name',mb.name));
+  inf.appendChild(mk('div','mq-sub',(tr?'담당: '+tr.name:''))); 
+  if(mb.phone){
+    const phEl=inf.appendChild(mk('div','mq-sub',mb.phone));
+    phEl.style.cssText='cursor:pointer;color:#4a9eff;margin-top:2px;';
+    phEl.onclick=()=>window.open('tel:'+mb.phone.replace(/-/g,''));
+  }
+
+  // 요약 통계 카드
+  const stats=card.appendChild(el('div','mq-stat-row'));
+  [{v:totalSessions+'회',l:'총 구매'},{v:totalUsed+'회',l:'수업 완료'},{v:totalRemain+'회',l:'잔여'}]
+    .forEach(s=>{
+      const sc=stats.appendChild(el('div','mq-stat'));
+      const vEl=sc.appendChild(mk('div','mq-stat-val',s.v));
+      if(s.l==='잔여'&&totalRemain<3)vEl.style.color='#e05555';
+      sc.appendChild(mk('div','mq-stat-lbl',s.l));
+    });
+
+  // 권종별 상세
+  if(plans.length){
+    card.appendChild(mk('div','sec','수업권 내역')).style.marginTop='8px';
+    plans.forEach((p,i)=>{
+      const used=getPlanUsed(p.id);
+      const remain=getPlanRemain(p);
+      const pct=Math.round(used/p.sessions*100);
+      const addedDate=p.addedAt?new Date(p.addedAt).toLocaleDateString('ko-KR'):'';
+      const pc=card.appendChild(el('div','mq-plan'));
+
+      // 권종 헤더
+      const ph=pc.appendChild(el('div','mq-plan-hdr'));
+      ph.appendChild(mk('div','mq-plan-title',(p.duration||'?')+'분 '+p.sessions+'회권 #'+(i+1)));
+      ph.appendChild(mk('div','mq-plan-date',addedDate));
+
+      // 상세 그리드
+      const dg=pc.appendChild(el('div','mq-plan-detail'));
+      [{l:'등록 금액',v:(p.totalPrice||0).toLocaleString()+'원'},
+       {l:'회당 단가',v:(p.pricePerSession||0).toLocaleString()+'원'},
+       {l:'사용',v:used+'회'},
+       {l:'잔여',v:remain+'회',warn:remain<3}]
+        .forEach(d=>{
+          const di=dg.appendChild(el('div','mq-detail-item'));
+          di.appendChild(mk('div','mq-detail-lbl',d.l));
+          const dv=di.appendChild(mk('div','mq-detail-val',d.v));
+          if(d.warn)dv.style.color='#e05555';
+        });
+
+      // 진행바
+      const pg=pc.appendChild(el('div','mq-progress'));
+      const bar=pg.appendChild(el('div','mq-progress-bar'+(remain<3?' warn':'')));
+      bar.style.width=pct+'%';
+
+      // 수업 이력 (최근 5개)
+      const planSlots=slots.filter(s=>s.planId===p.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+      if(planSlots.length){
+        const sl=pc.appendChild(el('div','mq-slot-list'));
+        sl.appendChild(mk('div','mq-slot-title','최근 수업 이력 (최대 5건)'));
+        planSlots.forEach(s=>{
+          const sr=sl.appendChild(el('div','mq-slot-row'));
+          sr.appendChild(mk('div','mq-slot-date',s.date));
+          sr.appendChild(mk('div','',s.time));
+          sr.appendChild(mk('div','',s.type));
+        });
+      }
+    });
+  }
+}
+
 // ── 상담 관리 ──────────────────────────────────────────────────────────────
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
@@ -1122,11 +1270,12 @@ function renderMem(){
   if(mvTr){if(!canAccessTrainer(mvTr)){mvTr=null;renderMem();return;}renderMemView(ct);return;}
   // 서브탭
   const stWrap=ct.appendChild(el('div','mem-subtabs'));
-  [['member','회원 관리'],['consult','상담 관리']].forEach(([v,l])=>{
+  [['member','회원 관리'],['consult','상담 관리'],['search','회원 조회']].forEach(([v,l])=>{
     const b=stWrap.appendChild(mk('button','mem-stab'+(memSubTab===v?' on':''),l));
     b.onclick=()=>{memSubTab=v;renderMem();};
   });
   if(memSubTab==='consult'){renderConsult(ct);return;}
+  if(memSubTab==='search'){renderMemberSearch(ct);return;}
   ct.appendChild(mk('div','sec-header','담당자 선택'));
   const grid=ct.appendChild(el('div','trgrid'));
   trainers.filter(tr=>tr.showInMem!==false).forEach(tr=>{
