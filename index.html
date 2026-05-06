@@ -1863,9 +1863,19 @@ function renderPlanForm(sheet){
     const dur=parseInt(dsel.value);const se=document.getElementById('pf-s');const sess=se?parseInt(se.value):0;
     const p=document.getElementById('pf-pw');p.innerHTML='';
     const match=packages.filter(x=>x.duration===dur&&x.sessions===sess);
-    if(!match.length){const i=p.appendChild(el('input'));i.type='text';i.id='pf-p';i.placeholder='예: 450,000';i.style.cssText=iSt;i.oninput=function(){this.value=fmtMoney(this.value);};}
-    else if(match.length===1){p.appendChild(mk('div','pkg-auto',fmtMoney(match[0].price)+'원'));const hi=p.appendChild(el('input'));hi.type='hidden';hi.id='pf-p';hi.value=match[0].price;}
-    else{const sel=p.appendChild(el('select'));sel.id='pf-p';sel.style.cssText=iSt;match.forEach(x=>{const o=sel.appendChild(document.createElement('option'));o.value=x.price;o.textContent=fmtMoney(x.price)+'원';});}
+    if(!match.length){
+      const i=p.appendChild(el('input'));i.type='text';i.id='pf-p';i.placeholder='예: 450,000';i.style.cssText=iSt;i.oninput=function(){this.value=fmtMoney(this.value);};
+    } else if(match.length===1){
+      // 자동 채워지지만 직접 수정 가능
+      const i=p.appendChild(el('input'));i.type='text';i.id='pf-p';i.style.cssText=iSt;
+      i.value=fmtMoney(match[0].price);
+      i.oninput=function(){this.value=fmtMoney(this.value);};
+      const hint=p.appendChild(mk('div','','패키지 기준가 · 직접 수정 가능'));
+      hint.style.cssText='font-size:11px;color:#555;margin-top:4px;';
+    } else {
+      const sel=p.appendChild(el('select'));sel.id='pf-p';sel.style.cssText=iSt;
+      match.forEach(x=>{const o=sel.appendChild(document.createElement('option'));o.value=x.price;o.textContent=fmtMoney(x.price)+'원';});
+    }
   }
   dsel.onchange=buildSess;buildSess();
 }
