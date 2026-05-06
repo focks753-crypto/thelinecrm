@@ -1707,7 +1707,7 @@ function computeSales(){
       (mb.plans||[]).forEach(plan=>{
         const pDate=new Date(plan.addedAt||0);if(pDate<sd||pDate>ed)return;
         const ds=pDate.getFullYear()+'-'+String(pDate.getMonth()+1).padStart(2,'0')+'-'+String(pDate.getDate()).padStart(2,'0');
-        rows.push({date:ds,time:p2(pDate.getHours())+':'+p2(pDate.getMinutes()),trainerId:mb.trainerId,trainerName:tr?tr.name:'?',memberName:mb.name,type:plan.duration+'분',planLabel:plan.sessions+'회권',revenue:plan.totalPrice||0,groupKey:getGroupKey(ds)});
+        rows.push({date:ds,time:p2(pDate.getHours())+':'+p2(pDate.getMinutes()),trainerId:mb.trainerId,trainerName:tr?tr.name:'?',memberName:mb.name,type:plan.duration+'분',planLabel:plan.sessions+'회권',revenue:plan.totalPrice||0,groupKey:getGroupKey(ds),inflow:mb.inflow||'',payment:mb.payment||''});
       });
     });
   } else {
@@ -1754,7 +1754,7 @@ function renderSales(){
   const dlBtn=ct.appendChild(mk('button','sal-dl-btn','엑셀 다운로드 (.xlsx)'));dlBtn.onclick=()=>dlSalesCSV(rows,totalRevenue);
   const tWrap=ct.appendChild(el('div','sal-table-wrap'));const tbl=tWrap.appendChild(el('table','sal-table'));
   const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
-  (isSes?['날짜','시간','트레이너','회원','유형','권종','금액']:['등록일','시간','트레이너','회원','분','수업권','결제금액']).forEach(h=>hr.appendChild(mk('th','',h)));
+  (isSes?['날짜','시간','트레이너','회원','유형','권종','금액']:['등록일','시간','트레이너','회원','유입','결제방법','수업권','결제금액']).forEach(h=>hr.appendChild(mk('th','',h)));
   const tbody=tbl.appendChild(el('tbody'));
   rows.forEach(r=>{const row=tbody.appendChild(el('tr'));[r.date,r.time,r.trainerName,r.memberName,r.type,r.planLabel,''].forEach((v,i)=>{if(i===6)row.appendChild(mk('td','amount',r.revenue?r.revenue.toLocaleString()+'원':''));else row.appendChild(mk('td','',v));});});
   const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
@@ -1906,7 +1906,7 @@ function dlSalesCSV(rows,total){
       const mb=members.find(m=>m.name===r.memberName&&m.trainerId===r.trainerId);
       const plan=mb?(mb.plans||[]).find(p=>(p.sessions+'회권')===r.planLabel):null;
       wsData.push([null,r.date,r.memberName,plan?plan.sessions:0,plan?plan.totalPrice:0,r.revenue,r.revenue]);
-    } else {wsData.push([null,r.date,r.trainerName,r.memberName,r.type,r.planLabel,r.revenue||0]);}
+    } else {wsData.push([null,r.date,r.trainerName,r.memberName,r.inflow||'',r.payment||'',r.planLabel,r.revenue||0]);}
   });
   wsData.push([null,null,null,null,null,null,null]);
   wsData.push([null,null,null,null,null,'합계',total]);
