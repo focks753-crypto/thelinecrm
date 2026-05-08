@@ -1362,9 +1362,10 @@ function renderMemView(ct){
     const card=ct.appendChild(el('div','memcard'));
     const top=card.appendChild(el('div','memtop'));
     top.appendChild(mk('div','memnm',m.name));
-    top.appendChild(mk('button','memeditbtn','수정')).onclick=()=>openEditMember(m.id);
-    top.appendChild(mk('button','memplanbtb','+ 권종추가')).onclick=()=>openAddPlan(m.id);
-    top.appendChild(mk('button','mdel','×')).onclick=()=>{if(confirm(m.name+' 삭제?')){members=members.filter(x=>x.id!==m.id);sv('og10_mb',members);renderMem();}};
+    const topBtns=top.appendChild(el('div'));topBtns.style.cssText='display:flex;gap:5px;align-items:center;';
+    topBtns.appendChild(mk('button','memeditbtn','회원수정')).onclick=()=>openEditMember(m.id);
+    topBtns.appendChild(mk('button','memplanbtb','+ 권종추가')).onclick=()=>openAddPlan(m.id);
+    topBtns.appendChild(mk('button','mdel','×')).onclick=()=>{if(confirm(m.name+' 삭제?')){members=members.filter(x=>x.id!==m.id);sv('og10_mb',members);renderMem();}};
     const minfo=card.appendChild(el('div',''));minfo.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;';
     if(m.phone)minfo.appendChild(mk('div','mphone',m.phone));
     if(m.inflow){const ib=minfo.appendChild(mk('div','',m.inflow));ib.style.cssText='font-size:11px;color:#ce93d8;background:rgba(171,71,188,.12);padding:2px 7px;border-radius:5px;font-weight:600;';}
@@ -1452,7 +1453,13 @@ function openEditPlan(memberId,planId){
     SESSION_OPTIONS.forEach(n=>{const o=ssel.appendChild(document.createElement('option'));o.value=n;o.textContent=n+'회권';if(n===p.sessions)o.selected=true;});
     sheet.appendChild(mk('label','','결제 금액'));
     const pInput=sheet.appendChild(el('input'));pInput.type='text';pInput.style.cssText=iSt;
-    pInput.value=fmtMoney(p.totalPrice||0);pInput.oninput=function(){this.value=fmtMoney(this.value);};
+    pInput.value=fmtMoney(p.totalPrice||0);
+    const priceHint=sheet.appendChild(mk('div','',''));
+    priceHint.style.cssText='font-size:11px;color:#555;margin-top:3px;margin-bottom:4px;';
+    function updateHint(){const total=parseMoney(pInput.value);const sess=parseInt(ssel.value)||1;priceHint.textContent=total?'회당 단가: '+fmtMoney(Math.round(total/sess))+'원':'';}
+    pInput.oninput=function(){this.value=fmtMoney(this.value);updateHint();};
+    ssel.onchange=updateHint;
+    updateHint();
     sheet.appendChild(mk('label','','결제방법'));
     const pymSel=sheet.appendChild(el('select'));pymSel.style.cssText=iSt;
     const nOpt=pymSel.appendChild(document.createElement('option'));nOpt.value='';nOpt.textContent='선택안함';
@@ -1461,6 +1468,7 @@ function openEditPlan(memberId,planId){
     const dateInput=sheet.appendChild(el('input'));dateInput.type='date';dateInput.style.cssText=iSt;
     if(p.paymentDate){dateInput.value=p.paymentDate;}
     else if(p.addedAt){const d=new Date(p.addedAt);dateInput.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+    else{const d=new Date();dateInput.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
     const btns=sheet.appendChild(el('div','shbtns'));
     btns.appendChild(mk('button','shno','취소')).onclick=close;
     btns.appendChild(mk('button','shok','저장')).onclick=()=>{
