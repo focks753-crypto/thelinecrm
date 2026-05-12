@@ -176,7 +176,7 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .abadge{font-size:11px;color:#ce93d8;border:1px solid #ce93d8;border-radius:6px;padding:3px 10px;font-weight:700;}
 .aout{font-size:12px;color:var(--t3);background:var(--bg2);border:1px solid var(--bd2);border-radius:8px;padding:5px 12px;cursor:pointer;}
 .pwbtn{font-size:12px;color:var(--t4);background:transparent;border:none;cursor:pointer;text-decoration:underline;margin-top:10px;display:block;}
-.admsubtabs{display:flex;gap:5px;margin-bottom:16px;background:var(--bg2);border-radius:12px;padding:4px;}
+.admsubtabs{display:flex;gap:5px;margin-bottom:16px;background:var(--bg2);border-radius:12px;padding:4px;position:sticky;top:0;z-index:20;}
 .admsubtab{flex:1;padding:9px 4px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:transparent;color:var(--t3);}
 .admsubtab.on{background:var(--bg0);color:var(--t1);}
 .pkgcard{background:var(--bg1);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
@@ -272,7 +272,7 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 
 /* ── 매출 ── */
 .sal-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
-.sal-mode-tabs{display:flex;gap:0;background:var(--bg2);border-radius:10px;padding:3px;margin-bottom:6px;}
+.sal-mode-tabs{display:flex;gap:0;background:var(--bg2);border-radius:10px;padding:3px;margin-bottom:6px;position:sticky;top:0;z-index:20;}
 .sal-mtab{flex:1;padding:9px 6px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:transparent;color:var(--t3);text-align:center;white-space:nowrap;}
 .sal-mtab.on{background:#fff;color:#000;}
 .sal-mode-desc{font-size:11px;color:var(--t4);text-align:center;padding:0 0 8px;}
@@ -345,11 +345,11 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .tab.on{background:#fff;color:#000;}
 
 /* ── 상담 서브탭 ── */
-.mem-subtabs{display:flex;gap:0;background:var(--bg2);border-radius:10px;padding:3px;margin-bottom:16px;}
+.mem-subtabs{display:flex;gap:0;background:var(--bg2);border-radius:10px;padding:3px;margin-bottom:16px;position:sticky;top:0;z-index:20;}
 .mem-stab{flex:1;padding:9px 4px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:var(--t3);font-family:inherit;}
 .mem-stab.on{background:#fff;color:#000;}
 .today-section{background:#1a1200;border:1px solid #3a2e00;border-radius:14px;padding:14px 16px;margin-bottom:16px;}
-.today-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.today-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
 .today-badge{font-size:11px;font-weight:700;background:#e8892a;color:#000;border-radius:6px;padding:2px 8px;}
 .today-ttl{font-size:14px;font-weight:700;color:var(--gold);}
 .today-empty{font-size:13px;color:#555;padding:4px 0;}
@@ -1028,6 +1028,8 @@ function renderConsult(ct){
   const th=todaySec.appendChild(el('div','today-header'));
   th.appendChild(mk('div','today-badge','TODAY'));
   th.appendChild(mk('div','today-ttl','금일 연락 대상 '+todayList.length+'명'));
+  const thRight=th.appendChild(el('div'));thRight.style.cssText='margin-left:auto;flex-shrink:0;';
+  if(isAdminUser()||curUser){const addBtn=thRight.appendChild(mk('button','memplanbtb','+ 상담 등록'));addBtn.style.cssText='white-space:nowrap;font-size:12px;';addBtn.onclick=openAddConsult;}
   if(pastList.length>0){const pb=th.appendChild(mk('div','today-badge',''));pb.textContent='미연락 '+pastList.length+'명';pb.style.background='#e05555';}
   if(missedList.length>0){const mb2=th.appendChild(mk('div','today-badge',''));mb2.textContent='부재중 '+missedList.length+'명';mb2.style.background='#6496ff';}
   if(todayList.length===0&&pastList.length===0&&missedList.length===0){
@@ -1036,7 +1038,7 @@ function renderConsult(ct){
     [...pastList,...todayList].forEach(c=>renderConCard(todaySec,c,today,true));
     if(missedList.length>0){const ml=todaySec.appendChild(mk('div','','부재중'));ml.style.cssText='font-size:11px;color:#6496ff;font-weight:700;margin:10px 0 6px;';missedList.forEach(c=>renderConCard(todaySec,c,today,false));}
   }
-  if(isAdminUser()||curUser)ct.appendChild(mk('button','add-con-btn','+ 상담 문의자 등록')).onclick=openAddConsult;
+
   if(upcoming.length>0){ct.appendChild(mk('div','sec','예정된 상담'));upcoming.forEach(c=>renderConCard(ct,c,today,false));}
 
   if(consultations.length===0)ct.appendChild(mk('div','nempty','등록된 상담 문의자가 없습니다.'));
@@ -1351,6 +1353,7 @@ function renderMemView(ct){
   const hdr=ct.appendChild(el('div','mvhdr'));
   hdr.appendChild(mk('button','backbtn','← 뒤로')).onclick=()=>{mvTr=null;renderMem();};
   hdr.appendChild(mk('div','mvttl',tr.name+' 트레이너'));
+  if(canAccessTrainer(mvTr)){const addBtn=hdr.appendChild(mk('button','memplanbtb','+ 회원 등록'));addBtn.style.cssText='white-space:nowrap;flex-shrink:0;';addBtn.onclick=()=>openAddMem(mvTr);}
   const dlbar=ct.appendChild(el('div','dlbar'));
   const dlsel=dlbar.appendChild(el('select','dlsel'));
   const now=new Date();
@@ -1382,7 +1385,7 @@ function renderMemView(ct){
     });
     if(getMemberWarn(m))card.appendChild(mk('div','memwarn','⚠ 연장 상담 대상자'));
   });
-  if(canAccessTrainer(mvTr))ct.appendChild(mk('button','addmem','+ 회원 등록')).onclick=()=>openAddMem(mvTr);
+
 }
 
 function openEditMember(memberId){
