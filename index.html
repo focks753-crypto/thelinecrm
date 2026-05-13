@@ -464,6 +464,15 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .week-inner{display:flex;flex-direction:column;flex:1;overflow:hidden;}
 .week-body{display:flex;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 .week-hdr-row{display:flex;position:sticky;top:0;z-index:10;background:var(--bg0);border-bottom:1px solid var(--bd);}
+
+/* ── 스와이프 슬라이드 애니메이션 ── */
+@keyframes slideInRight{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideInLeft{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideOutRight{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}
+@keyframes slideOutLeft{from{transform:translateX(0);opacity:1}to{transform:translateX(-100%);opacity:0}}
+.week-body.slide-in-right{animation:slideInRight .25s cubic-bezier(.4,0,.2,1) forwards;}
+.week-body.slide-in-left{animation:slideInLeft .25s cubic-bezier(.4,0,.2,1) forwards;}
+#tlist{position:relative;overflow:hidden;}
 </style>
 
 <!-- Firebase SDK -->
@@ -783,7 +792,7 @@ function switchTab(id){
 
 
 // ── WEEK NAV ──
-function chW(d){weekOff+=d;renderDays();renderTimes();}
+function chW(d){animWeekChange(d);}
 function goToday(){weekOff=0;selDay=(new Date().getDay()+6)%7;renderDays();renderTimes();}
 function renderDays(){
   const wd=getWeekDates(weekOff);const{m,s}=fmtWeek(wd);
@@ -800,13 +809,44 @@ function renderDays(){
   });
 }
 // 주간 스와이프
-let touchStartX=0;
+let touchStartX=0;let touchStartY=0;let isSwiping=false;
 function initSwipe(el2){
-  el2.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX;},{passive:true});
-  el2.addEventListener('touchend',e=>{
-    const dx=e.changedTouches[0].clientX-touchStartX;
-    if(Math.abs(dx)>50){if(dx<0)chW(1);else chW(-1);}
+  el2.addEventListener('touchstart',e=>{
+    touchStartX=e.touches[0].clientX;
+    touchStartY=e.touches[0].clientY;
+    isSwiping=false;
   },{passive:true});
+  el2.addEventListener('touchmove',e=>{
+    const dx=Math.abs(e.touches[0].clientX-touchStartX);
+    const dy=Math.abs(e.touches[0].clientY-touchStartY);
+    if(dx>dy&&dx>10)isSwiping=true;
+  },{passive:true});
+  el2.addEventListener('touchend',e=>{
+    if(!isSwiping)return;
+    const dx=e.changedTouches[0].clientX-touchStartX;
+    if(Math.abs(dx)>50){animWeekChange(dx<0?1:-1);}
+    isSwiping=false;
+  },{passive:true});
+}
+
+function animWeekChange(dir){
+  // dir: 1=다음주(오른쪽→왼쪽), -1=이전주(왼쪽→오른쪽)
+  const body=document.querySelector('.week-body');
+  if(!body){weekOff+=dir;renderDays();renderTimes();return;}
+  // 현재 바디를 슬라이드 아웃
+  body.style.animation=dir>0
+    ?'slideOutLeft .2s cubic-bezier(.4,0,.2,1) forwards'
+    :'slideOutRight .2s cubic-bezier(.4,0,.2,1) forwards';
+  setTimeout(()=>{
+    weekOff+=dir;renderDays();renderTimes();
+    // 새 바디 슬라이드 인
+    const newBody=document.querySelector('.week-body');
+    if(newBody){
+      newBody.style.animation=dir>0
+        ?'slideInRight .25s cubic-bezier(.4,0,.2,1) forwards'
+        :'slideInLeft .25s cubic-bezier(.4,0,.2,1) forwards';
+    }
+  },180);
 }
 
 function renderTimes(){
