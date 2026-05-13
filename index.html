@@ -66,7 +66,7 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .pad{padding:14px 16px 100px;}
 
 /* ── DAY SELECTOR ── */
-.day-wrap{background:var(--bg0);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:10;}
+.day-wrap{background:var(--bg0);border-bottom:1px solid var(--bd);}
 .wnav{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;}
 .winfo{cursor:pointer;padding:4px 8px;border-radius:8px;}
 .winfo:active{background:var(--bg2);}
@@ -463,7 +463,7 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .week-wrap{display:flex;overflow:hidden;touch-action:pan-y;}
 .week-inner{display:flex;flex-direction:column;flex:1;overflow:hidden;}
 .week-body{display:flex;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
-.week-hdr-row{display:flex;position:sticky;top:0;z-index:10;background:var(--bg0);border-bottom:1px solid var(--bd);}
+.week-hdr-row{display:flex;position:sticky;top:0;z-index:15;background:var(--bg0);border-bottom:2px solid var(--bd2);box-shadow:0 2px 8px rgba(0,0,0,.5);}
 
 /* ── 스와이프 슬라이드 애니메이션 ── */
 @keyframes slideInRight{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
@@ -564,9 +564,8 @@ function initFB(){
           <button class="warr" onclick="chW(1)">&#9654;</button>
         </div>
       </div>
-      <div class="dtabs" id="dtabs"></div>
     </div>
-    <div id="tlist" style="flex:1;overflow:hidden;display:flex;flex-direction:column;"></div>
+    <div id="tlist" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;"></div>
   </div>
   <div class="pg" id="pg-mem"><div class="pad"></div></div>
   <div class="pg" id="pg-not"><div class="pad"></div></div>
@@ -797,16 +796,19 @@ function goToday(){weekOff=0;selDay=(new Date().getDay()+6)%7;renderDays();rende
 function renderDays(){
   const wd=getWeekDates(weekOff);const{m,s}=fmtWeek(wd);
   document.getElementById('wm').textContent=m;document.getElementById('ws').textContent=s;
-  const tabs=document.getElementById('dtabs');tabs.innerHTML='';
-  wd.forEach((d,i)=>{
-    const tab=el('div','dtab'+(isToday(d)?' tod':'')+(i===selDay?' sel':''));
-    tab.appendChild(mk('div','dw',DAYS[d.getDay()]));tab.appendChild(mk('div','dn',''+d.getDate()));
-    // 수업 있으면 점 표시
-    const dkey=dateKey(d);const hasSch=slots.some(s=>s.date===dkey);
-    const dot=tab.appendChild(el('div','ddot'));dot.style.visibility=hasSch?'visible':'hidden';
-    tab.onclick=()=>{selDay=i;renderDays();renderTimes();};
-    tabs.appendChild(tab);
-  });
+  // dtabs 없으면 그냥 무시
+  const tabs=document.getElementById('dtabs');
+  if(tabs){
+    tabs.innerHTML='';
+    wd.forEach((d,i)=>{
+      const tab=el('div','dtab'+(isToday(d)?' tod':'')+(i===selDay?' sel':''));
+      tab.appendChild(mk('div','dw',DAYS[d.getDay()]));tab.appendChild(mk('div','dn',''+d.getDate()));
+      const dkey=dateKey(d);const hasSch=slots.some(s=>s.date===dkey);
+      const dot=tab.appendChild(el('div','ddot'));dot.style.visibility=hasSch?'visible':'hidden';
+      tab.onclick=()=>{selDay=i;renderDays();renderTimes();};
+      tabs.appendChild(tab);
+    });
+  }
 }
 // 주간 스와이프
 let touchStartX=0;let touchStartY=0;let isSwiping=false;
@@ -871,6 +873,7 @@ function renderTimes(){
 
   // ── 바디 (시간 + 7열 그리드) ──
   const body=list.appendChild(el('div','week-body'));
+  body.style.cssText='flex:1;display:flex;overflow-y:auto;-webkit-overflow-scrolling:touch;';
   initSwipe(body);
 
   // 시간 컬럼
