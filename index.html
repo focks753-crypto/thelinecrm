@@ -436,6 +436,34 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .chist-hist-type{font-weight:600;}
 .chist-hist-type.done{color:#3dc87a;}
 .chist-hist-type.missed{color:#6496ff;}
+
+/* ── 주간 뷰 ── */
+.week-grid{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x;}
+.week-grid::-webkit-scrollbar{display:none;}
+.week-col{flex:0 0 calc(100%/7);min-width:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;}
+.week-col:last-child{border-right:none;}
+.week-col-hdr{text-align:center;padding:6px 2px;background:var(--bg1);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:5;}
+.week-col-day{font-size:10px;color:var(--t4);font-weight:600;}
+.week-col-num{font-size:16px;font-weight:700;color:var(--t3);line-height:1.2;}
+.week-col-hdr.today .week-col-num{color:#fff;}
+.week-col-hdr.sel{background:var(--bg2);}
+.week-col-hdr.sel .week-col-num{color:#fff;}
+.week-col-dot{width:4px;height:4px;border-radius:50%;background:var(--t4);margin:2px auto 0;}
+.week-col-hdr.today .week-col-dot{background:#aaa;}
+.week-time-col{display:flex;width:44px;flex-shrink:0;flex-direction:column;background:var(--bg1);border-right:1px solid var(--bd);}
+.week-row{display:flex;border-bottom:1px solid #1a1a1a;min-height:44px;}
+.week-row.hr{border-bottom:1px solid #222;}
+.week-time-lbl{font-size:10px;font-weight:700;color:var(--t3);padding:4px 4px 0;text-align:right;white-space:nowrap;}
+.week-time-lbl.half{font-size:9px;font-weight:400;color:#444;}
+.week-cell{flex:1;border-right:1px solid var(--bd);min-width:0;padding:2px;display:flex;flex-direction:column;gap:2px;cursor:pointer;position:relative;}
+.week-cell:last-child{border-right:none;}
+.week-cell:active{background:var(--bg2);}
+.wslot{border-radius:4px;padding:2px 3px;font-size:9px;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1.4;}
+.week-add-hint{font-size:8px;color:#333;text-align:center;padding:1px 0;}
+.week-wrap{display:flex;overflow:hidden;touch-action:pan-y;}
+.week-inner{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+.week-body{display:flex;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
+.week-hdr-row{display:flex;position:sticky;top:0;z-index:10;background:var(--bg0);border-bottom:1px solid var(--bd);}
 </style>
 
 <!-- Firebase SDK -->
@@ -529,7 +557,7 @@ function initFB(){
       </div>
       <div class="dtabs" id="dtabs"></div>
     </div>
-    <div class="tlist" id="tlist"></div>
+    <div id="tlist" style="flex:1;overflow:hidden;display:flex;flex-direction:column;"></div>
   </div>
   <div class="pg" id="pg-mem"><div class="pad"></div></div>
   <div class="pg" id="pg-not"><div class="pad"></div></div>
@@ -771,36 +799,83 @@ function renderDays(){
     tabs.appendChild(tab);
   });
 }
+// 주간 스와이프
+let touchStartX=0;
+function initSwipe(el2){
+  el2.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX;},{passive:true});
+  el2.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-touchStartX;
+    if(Math.abs(dx)>50){if(dx<0)chW(1);else chW(-1);}
+  },{passive:true});
+}
+
 function renderTimes(){
-  const wd=getWeekDates(weekOff);const key=dateKey(wd[selDay]);
+  const wd=getWeekDates(weekOff);
   const list=document.getElementById('tlist');if(!list)return;list.innerHTML='';
+  list.style.cssText='display:flex;flex-direction:column;overflow:hidden;';
+
+  // ── 요일 헤더 ──
+  const hdrRow=list.appendChild(el('div','week-hdr-row'));
+  const timePad=hdrRow.appendChild(el('div'));timePad.style.cssText='width:44px;flex-shrink:0;background:var(--bg1);border-right:1px solid var(--bd);';
+
+  wd.forEach((d,i)=>{
+    const isT=isToday(d);
+    const hdr=hdrRow.appendChild(el('div','week-col-hdr'+(isT?' today':'')+(i===selDay?' sel':'')));
+    hdr.style.cssText='flex:1;min-width:0;';
+    hdr.appendChild(mk('div','week-col-day',['월','화','수','목','금','토','일'][d.getDay()==0?6:d.getDay()-1]));
+    hdr.appendChild(mk('div','week-col-num',''+d.getDate()));
+    const hasSch=slots.some(s=>s.date===dateKey(d));
+    const dot=hdr.appendChild(el('div','week-col-dot'));dot.style.visibility=hasSch?'visible':'hidden';
+    hdr.onclick=()=>{selDay=i;renderDays();renderTimes();};
+  });
+
+  // ── 바디 (시간 + 7열 그리드) ──
+  const body=list.appendChild(el('div','week-body'));
+  initSwipe(body);
+
+  // 시간 컬럼
+  const timeCol=body.appendChild(el('div','week-time-col'));
+
+  // 날짜별 컬럼
+  const dayCols=wd.map(()=>{
+    const col=body.appendChild(el('div',''));
+    col.style.cssText='flex:1;min-width:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;';
+    return col;
+  });
+  dayCols[dayCols.length-1].style.cssText='flex:1;min-width:0;display:flex;flex-direction:column;';
+
   TIMES.forEach(time=>{
     const half=time.endsWith(':30');
-    const row=list.appendChild(el('div','trow'+(half?'':' hr')));
-    row.appendChild(el('div','tcol')).appendChild(mk('span','tlbl'+(half?' half':''),time));
-    const sc=row.appendChild(el('div','scol'));
-    slots.filter(s=>s.date===key&&s.time===time).forEach(s=>{
-      const tr=trainers.find(t=>t.id===s.trainerId);if(!tr)return;
-      const col=getTrainerColor(tr);
-      const slot=sc.appendChild(el('div','slot'));slot.style.background=col.bg;slot.style.color=col.text;
-      const si=slot.appendChild(el('div','si'));
-      si.appendChild(mk('div','sname',tr.name));
-      const mb=s.memberId?members.find(m=>m.id===s.memberId):null;
-      const plan=s.planId&&mb?(mb.plans||[]).find(p=>p.id===s.planId):null;
-      if(mb){
-        si.appendChild(mk('div','smem',mb.name+(s.memo?' · '+s.memo:'')));
-        const bdgs=si.appendChild(el('div','sbdgs'));
-        if(s.type==='OT'){bdgs.appendChild(mk('span','tbdg','OT'));bdgs.appendChild(mk('span','ot-bdg','차감없음'));}
-        else if(plan){const rem=getPlanRemain(plan);bdgs.appendChild(mk('span','tbdg',plan.sessions+'회권'));bdgs.appendChild(mk('span','rbdg'+(rem<3?' warn':''),'잔여 '+rem+'회'));}
-        else{bdgs.appendChild(mk('span','tbdg',s.type));}
-      } else {
-        if(s.memo)si.appendChild(mk('div','smem',s.memo));
-        si.appendChild(el('div','sbdgs')).appendChild(mk('span','tbdg',s.type));
-      }
-      if(canEditSlot(s)){const dx=slot.appendChild(mk('button','delx','×'));dx.onclick=()=>{if(confirm('삭제할까요?')){slots=slots.filter(x=>x.id!==s.id);sv('og10_sl',slots);renderTimes();}};}
+    // 시간 라벨
+    const tlbl=timeCol.appendChild(el('div','week-time-lbl'+(half?' half':'')));
+    tlbl.textContent=half?'':time;
+    tlbl.style.cssText='font-size:10px;'+(half?'color:#444;font-weight:400;':'color:var(--t3);font-weight:700;')+'padding:4px 4px 0;text-align:right;white-space:nowrap;min-height:44px;border-bottom:1px solid '+(half?'#1a1a1a':'#222')+';';
+
+    wd.forEach((d,i)=>{
+      const key=dateKey(d);
+      const cell=dayCols[i].appendChild(el('div','week-cell'));
+      cell.style.cssText='min-height:44px;border-bottom:1px solid '+(half?'#1a1a1a':'#222')+';padding:2px;display:flex;flex-direction:column;gap:1px;';
+
+      // 이 셀의 슬롯들
+      const cellSlots=slots.filter(s=>s.date===key&&s.time===time);
+      cellSlots.forEach(s=>{
+        const tr=trainers.find(t=>t.id===s.trainerId);if(!tr)return;
+        const col=getTrainerColor(tr);
+        const mb=s.memberId?members.find(m=>m.id===s.memberId):null;
+        const wslot=cell.appendChild(el('div','wslot'));
+        wslot.style.cssText='background:'+col.bg+';color:'+col.text+';border-radius:3px;padding:2px 3px;font-size:9px;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;';
+        wslot.textContent=(mb?mb.name:tr.name);
+        wslot.title=tr.name+(mb?' · '+mb.name:'')+(s.memo?' · '+s.memo:'');
+        if(canEditSlot(s)){
+          wslot.onclick=e=>{e.stopPropagation();if(confirm(tr.name+(mb?' · '+mb.name:'')+'  삭제?')){slots=slots.filter(x=>x.id!==s.id);sv('og10_sl',slots);renderTimes();}};
+        } else {
+          wslot.onclick=e=>e.stopPropagation();
+        }
+      });
+
+      // 클릭으로 추가
+      cell.onclick=()=>{selDay=i;reqLogin(()=>openAddSheet(time));};
     });
-    const ab=sc.appendChild(mk('button','addbtn','+ 추가'));
-    ab.onclick=(t=>{return()=>reqLogin(()=>openAddSheet(t));})(time);
   });
 }
 
