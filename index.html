@@ -568,6 +568,59 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .pcg-btn:hover{background:#333;}
 .pcg-btn:active{background:#555;}
 .pcg-err{color:#e74c3c;font-size:12px;margin-top:10px;min-height:18px;text-align:center;font-weight:500;}
+
+/* ── PC 모달 ── */
+.pcm-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.pcm-box{background:#111318;border:1px solid #1e2026;border-radius:16px;padding:32px;width:540px;max-height:82vh;overflow-y:auto;position:relative;}
+.pcm-box::-webkit-scrollbar{width:4px;}
+.pcm-box::-webkit-scrollbar-thumb{background:#1e2026;border-radius:2px;}
+.pcm-ttl{font-size:18px;font-weight:800;color:#e2e8f0;margin-bottom:6px;}
+.pcm-sub{font-size:12px;color:#4a5068;margin-bottom:24px;}
+.pcm-step-bar{display:flex;gap:8px;margin-bottom:28px;}
+.pcm-step{flex:1;height:4px;border-radius:2px;background:#1e2026;transition:background .3s;}
+.pcm-step.on{background:#818cf8;}
+.pcm-close{position:absolute;top:20px;right:20px;width:28px;height:28px;border-radius:50%;background:#1e2026;border:none;color:#6b7494;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pcm-close:hover{background:#252830;color:#c4cde8;}
+.pcm-field{margin-bottom:16px;}
+.pcm-label{font-size:12px;font-weight:600;color:#6b7494;margin-bottom:6px;display:block;}
+.pcm-label .req{color:#818cf8;}
+.pcm-input{width:100%;padding:12px 14px;border:1px solid #1e2026;border-radius:9px;background:#0f1117;color:#e2e8f0;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;box-sizing:border-box;}
+.pcm-input:focus{border-color:#818cf8;}
+.pcm-select{width:100%;padding:12px 14px;border:1px solid #1e2026;border-radius:9px;background:#0f1117;color:#e2e8f0;font-size:14px;font-family:inherit;outline:none;cursor:pointer;box-sizing:border-box;}
+.pcm-textarea{width:100%;padding:12px 14px;border:1px solid #1e2026;border-radius:9px;background:#0f1117;color:#e2e8f0;font-size:14px;font-family:inherit;outline:none;resize:none;min-height:70px;box-sizing:border-box;}
+.pcm-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.pcm-gender-btns{display:flex;gap:8px;}
+.pcm-gender-btn{flex:1;padding:11px;border-radius:9px;border:1px solid #1e2026;background:#0f1117;color:#6b7494;font-size:14px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.pcm-gender-btn.on{border-color:#818cf8;background:rgba(129,140,248,.1);color:#818cf8;font-weight:700;}
+.pcm-btns{display:flex;gap:10px;margin-top:24px;}
+.pcm-btn-pri{flex:1;padding:13px;border-radius:10px;border:none;background:#818cf8;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+.pcm-btn-pri:hover{background:#6d59f0;}
+.pcm-btn-sec{padding:13px 20px;border-radius:10px;border:1px solid #1e2026;background:transparent;color:#6b7494;font-size:14px;cursor:pointer;font-family:inherit;}
+.pcm-btn-sec:hover{background:#16181f;color:#c4cde8;}
+/* 회원 상세 패널 */
+.pc-cust-wrap{display:flex;gap:16px;height:calc(100vh - 200px);}
+.pc-cust-list-area{flex:1;min-width:0;overflow-y:auto;}
+.pc-cust-detail-panel{width:340px;flex-shrink:0;background:#111318;border:1px solid #1e2026;border-radius:12px;overflow-y:auto;display:flex;flex-direction:column;}
+.pcdp-head{padding:20px;border-bottom:1px solid #1e2026;}
+.pcdp-av{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;background:#1c1f28;color:#818cf8;margin-bottom:12px;}
+.pcdp-name{font-size:18px;font-weight:800;color:#e2e8f0;}
+.pcdp-info{font-size:12px;color:#4a5068;margin-top:4px;line-height:1.8;}
+.pcdp-section{padding:16px 20px;border-bottom:1px solid #1e2026;}
+.pcdp-section-ttl{font-size:11px;font-weight:700;color:#4a5068;letter-spacing:1px;margin-bottom:12px;text-transform:uppercase;}
+.pcdp-plan{background:#0f1117;border-radius:9px;padding:12px 14px;margin-bottom:8px;}
+.pcdp-plan-name{font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:4px;}
+.pcdp-plan-detail{font-size:11px;color:#4a5068;line-height:1.7;}
+.pcdp-plan-bar{height:4px;background:#1e2026;border-radius:2px;overflow:hidden;margin-top:8px;}
+.pcdp-plan-fill{height:100%;border-radius:2px;background:#818cf8;}
+.pcdp-empty{font-size:12px;color:#2a2d45;text-align:center;padding:20px 0;}
+.pcdp-add-btn{width:100%;padding:11px;border-radius:9px;border:1px solid #1e2026;background:transparent;color:#818cf8;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:4px;}
+.pcdp-add-btn:hover{background:rgba(129,140,248,.08);}
+/* 상품 카드 */
+.pc-prod-card{background:#111318;border:1px solid #1e2026;border-radius:10px;padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .15s;}
+.pc-prod-card:hover{border-color:#252830;}
+.pc-prod-card.sel{border-color:#818cf8;background:rgba(129,140,248,.06);}
+.pc-prod-type{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;background:rgba(129,140,248,.15);color:#818cf8;}
+.pc-prod-type.ms{background:rgba(52,211,153,.15);color:#34d399;}
 </style>
 
 <!-- Firebase SDK -->
@@ -718,6 +771,7 @@ async function pushAllToFirebase(){
     {k:'og10_nt',v:notices},
     {k:'og10_pkg',v:packages},
     {k:'og10_cs',v:consultations},
+    {k:'og10_pr',v:products},
   ];
   // 개별 순차 저장 (batch 대신)
   for(let i=0;i<items.length;i++){
@@ -785,6 +839,7 @@ let members=ld('og10_mb',[]);
 let notices=ld('og10_nt',[]);
 let packages=ld('og10_pkg',[]);
 let consultations=ld('og10_cs',[]);
+let products=ld('og10_pr',[]);
 let centerCode=localStorage.getItem('og10_cc')||'0000';
 let codeVerified=false; // 매번 코드 입력 필요
 let curUser=ld('og10_cu',null);
@@ -2463,33 +2518,504 @@ function renderPcHome(ct,acts){
   const n=new Date(),y=n.getFullYear(),m2=n.getMonth();let mRev=0,mCnt=0;members.forEach(mb=>{(mb.plans||[]).forEach(p=>{const d=new Date(p.addedAt||0);if(d.getFullYear()===y&&d.getMonth()===m2){mRev+=p.totalPrice||0;mCnt++;}});});
   const sc=g3.appendChild(_mk('div','pc-card'));sc.innerHTML='<div class="pc-card-ttl">이번달 수업권 매출</div><div style="font-size:26px;font-weight:800;color:#818cf8;margin:8px 0 4px;">'+mRev.toLocaleString()+'원</div><div style="font-size:12px;color:#35383f;margin-bottom:16px;">수업권 '+mCnt+'건</div><div class="pc-bar" style="height:7px;"><div class="pc-bar-fill" style="width:'+Math.min(mRev/2000000*100,100).toFixed(1)+'%;background:#818cf8;"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:#252830;margin-top:5px;"><span>'+(m2+1)+'월</span><span>목표 200만원</span></div>';
 }
+// ═══ 고객관리 전체 시스템 ═══
+
+// ── PC 모달 유틸 ──────────────────────────────────────────────────────────
+function pcModal(builder,opts){
+  opts=opts||{};
+  const ov=document.createElement('div');
+  ov.className='pcm-ov';
+  const box=document.createElement('div');
+  box.className='pcm-box';
+  if(opts.wide)box.style.width='720px';
+  if(opts.full)box.style.cssText+=';width:92vw;max-width:1100px;';
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  const close=()=>{if(document.body.contains(ov))document.body.removeChild(ov);};
+  ov.onclick=e=>{if(e.target===ov)close();};
+  const xBtn=box.appendChild(document.createElement('button'));
+  xBtn.className='pcm-close';xBtn.textContent='×';xBtn.onclick=close;
+  builder(box,close);
+  return close;
+}
+function _f(label,required){
+  const d=document.createElement('div');d.className='pcm-field';
+  const lb=document.createElement('label');lb.className='pcm-label';
+  lb.innerHTML=label+(required?'<span class="req"> *</span>':'');
+  d.appendChild(lb);return d;
+}
+function _inp(placeholder,type){
+  const i=document.createElement('input');i.className='pcm-input';
+  i.placeholder=placeholder||'';i.type=type||'text';return i;
+}
+function _sel(options){
+  const s=document.createElement('select');s.className='pcm-select';
+  options.forEach(o=>{const op=document.createElement('option');op.value=o.v!==undefined?o.v:o;op.textContent=o.l||o;s.appendChild(op);});
+  return s;
+}
+
+// ── 회원 등록 (2단계) ────────────────────────────────────────────────────
+let pcDetailMbId=null;
+function openPcAddMember(){
+  const reg={name:'',phone:'',gender:'',trainerId:'',inflow:'',purpose:'',birthdate:'',address:'',email:'',notes:''};
+  pcModal((box,close)=>{
+    renderRegStep1(box,close,reg);
+  },{wide:true});
+}
+
+function renderRegStep1(box,close,reg){
+  box.innerHTML='';
+  const xBtn=box.appendChild(document.createElement('button'));xBtn.className='pcm-close';xBtn.textContent='×';xBtn.onclick=close;
+  box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'신규 회원 추가'}));
+  box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:'기본 정보를 입력해 주세요'}));
+  // 단계 바
+  const sb=box.appendChild(document.createElement('div'));sb.className='pcm-step-bar';
+  [true,false].forEach(on=>{const s=sb.appendChild(document.createElement('div'));s.className='pcm-step'+(on?' on':'');});
+
+  // 2열 레이아웃
+  const grid=box.appendChild(document.createElement('div'));
+  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:20px;';
+
+  // 왼쪽
+  const left=grid.appendChild(document.createElement('div'));
+  const nameF=left.appendChild(_f('이름',true));
+  const nameI=nameF.appendChild(_inp('이름 입력'));nameI.value=reg.name;
+
+  const phoneF=left.appendChild(_f('휴대폰 번호',true));
+  const phoneI=phoneF.appendChild(_inp('010-0000-0000'));
+  phoneI.value=reg.phone;phoneI.oninput=function(){this.value=fmtPhone(this.value);};
+
+  const trainerF=left.appendChild(_f('담당자'));
+  const trainerS=trainerF.appendChild(_sel([{v:'',l:'담당자 없음'},...trainers.map(t=>({v:t.id,l:t.name}))]));
+  if(reg.trainerId)trainerS.value=reg.trainerId;
+
+  const inflowF=left.appendChild(_f('방문 경로'));
+  const inflowS=inflowF.appendChild(_sel([{v:'',l:'선택 안함'},...(INFLOW_OPTIONS||['워크인','플러팅','구글폼','골프상담','기타']).map(v=>({v,l:v}))]));
+  if(reg.inflow)inflowS.value=reg.inflow;
+
+  const purposeF=left.appendChild(_f('운동 목적'));
+  const purposeS=purposeF.appendChild(_sel([{v:'',l:'선택 안함'},'다이어트','근육 증가','재활','건강 관리','기타'].map(v=>typeof v==='string'?{v,l:v}:v)));
+  if(reg.purpose)purposeS.value=reg.purpose;
+
+  // 오른쪽 - 성별
+  const right=grid.appendChild(document.createElement('div'));
+  const genF=right.appendChild(_f('성별'));
+  const genRow=genF.appendChild(document.createElement('div'));genRow.className='pcm-gender-btns';
+  let selGender=reg.gender;
+  const gBtns=[];
+  [{v:'남',l:'남  자'},{v:'여',l:'여  자'}].forEach(g=>{
+    const btn=genRow.appendChild(document.createElement('button'));
+    btn.className='pcm-gender-btn'+(selGender===g.v?' on':'');
+    btn.innerHTML='<div style="font-size:28px;margin-bottom:6px;">'+(g.v==='남'?'👨':'👩')+'</div><div>'+g.l+'</div>';
+    btn.style.padding='16px 10px';
+    btn.onclick=()=>{selGender=g.v;gBtns.forEach(b=>b.classList.remove('on'));btn.classList.add('on');};
+    gBtns.push(btn);
+  });
+
+  // 버튼
+  const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';
+  btns.style.marginTop='28px';
+  btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+  const nextBtn=btns.appendChild(document.createElement('button'));nextBtn.className='pcm-btn-pri';nextBtn.textContent='다음 →';
+  nextBtn.onclick=()=>{
+    const name=nameI.value.trim();const phone=phoneI.value.trim();
+    if(!name){alert('이름을 입력해주세요.');return;}
+    if(!phone){alert('연락처를 입력해주세요.');return;}
+    reg.name=name;reg.phone=phone;reg.gender=selGender;
+    reg.trainerId=trainerS.value;reg.inflow=inflowS.value;reg.purpose=purposeS.value;
+    renderRegStep2(box,close,reg);
+  };
+}
+
+function renderRegStep2(box,close,reg){
+  box.innerHTML='';
+  const xBtn=box.appendChild(document.createElement('button'));xBtn.className='pcm-close';xBtn.textContent='×';xBtn.onclick=close;
+  box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'신규 회원 추가'}));
+  box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:'추가 정보를 입력해 주세요 (선택)'}));
+  const sb=box.appendChild(document.createElement('div'));sb.className='pcm-step-bar';
+  [true,true].forEach(on=>{const s=sb.appendChild(document.createElement('div'));s.className='pcm-step'+(on?' on':'');});
+
+  const bdF=box.appendChild(_f('생년월일'));
+  const bdI=bdF.appendChild(_inp(''));bdI.type='date';bdI.value=reg.birthdate||'';
+
+  const adF=box.appendChild(_f('주소'));
+  const adI=adF.appendChild(_inp('예) 서울시 강남구'));adI.value=reg.address||'';
+
+  const emF=box.appendChild(_f('이메일'));
+  const emI=emF.appendChild(_inp('example@email.com','email'));emI.value=reg.email||'';
+
+  const noF=box.appendChild(_f('특이사항'));
+  const noTA=noF.appendChild(document.createElement('textarea'));
+  noTA.className='pcm-textarea';noTA.placeholder='특이사항 입력...';noTA.value=reg.notes||'';
+
+  const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='28px';
+  btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'← 이전'})).onclick=()=>renderRegStep1(box,close,reg);
+  const okBtn=btns.appendChild(document.createElement('button'));okBtn.className='pcm-btn-pri';okBtn.textContent='생성 완료';
+  okBtn.onclick=()=>{
+    reg.birthdate=bdI.value;reg.address=adI.value.trim();reg.email=emI.value.trim();reg.notes=noTA.value.trim();
+    const newMb={id:'m'+Date.now(),trainerId:reg.trainerId,name:reg.name,phone:reg.phone,
+      gender:reg.gender,birthdate:reg.birthdate,address:reg.address,email:reg.email,
+      inflow:reg.inflow,purpose:reg.purpose,notes:reg.notes,
+      plans:[],registeredAt:Date.now()};
+    members.push(newMb);sv('og10_mb',members);
+    close();pcDetailMbId=newMb.id;renderPcContent();
+  };
+}
+
+// ── 고객 목록 ────────────────────────────────────────────────────────────
 function renderPcCust(ct,acts){
-  if(acts&&(curUser||isAdminUser())){const ab=acts.appendChild(_mk('button','pc-tbtn pri','+ 회원 등록'));ab.onclick=()=>{const tid=isAdminUser()?(trainers[0]&&trainers[0].id):curUser;if(tid)openAddMem(tid);};}
+  if(acts){const ab=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 회원 등록'}));ab.onclick=()=>openPcAddMember();}
   const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'}];
-  const sb=ct.appendChild(_mk('div','pc-sub-tabs'));subs.forEach(s=>{
+  const sb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-sub-tabs'}));
+  subs.forEach(s=>{
     let cnt;
     if(s.id==='all')cnt=members.length;
-    else if(s.id==='expiring')cnt=members.filter(m=>{const plans=m.plans||[];let tot=0;plans.forEach(p=>{tot+=getPlanRemain(p);});return tot>0&&tot<=3;}).length;
+    else if(s.id==='expiring')cnt=members.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;}).length;
     else cnt=members.filter(m=>pcMbStatus(m)===s.id).length;
-    const tab=sb.appendChild(_mk('div','pc-stab'+(pcSV===s.id?' on':''),s.label+' '+cnt));
-    tab.onclick=()=>{pcSV=s.id;renderPcContent();};
+    const tab=sb.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(pcSV===s.id?' on':''),textContent:s.label+' '+cnt}));
+    tab.onclick=()=>{pcSV=s.id;pcDetailMbId=null;renderPcContent();};
   });
-  const fb=ct.appendChild(_mk('div','pc-fbar'));const si=fb.appendChild(document.createElement('input'));si.placeholder='이름 또는 연락처...';si.value=pcCustKw;si.oninput=e=>pcCustKw=e.target.value;si.onkeydown=e=>{if(e.key==='Enter')renderPcContent();};fb.appendChild(_mk('button','pc-tbtn','조회')).onclick=()=>renderPcContent();
+  const fb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-fbar'}));
+  const si=fb.appendChild(document.createElement('input'));si.className='pcm-input';si.style.cssText='width:220px;padding:9px 12px;font-size:13px;';
+  si.placeholder='이름 또는 연락처...';si.value=pcCustKw;
+  si.oninput=e=>pcCustKw=e.target.value;si.onkeydown=e=>{if(e.key==='Enter')renderPcContent();};
+  fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'조회'})).onclick=()=>renderPcContent();
+
   let list=members;
-  if(pcSV==='expiring')list=list.filter(m=>{const plans=m.plans||[];let tot=0;plans.forEach(p=>{tot+=getPlanRemain(p);});return tot>0&&tot<=3;});
+  if(pcSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;});
   else if(pcSV&&pcSV!=='all')list=list.filter(m=>pcMbStatus(m)===pcSV);
   if(pcCustKw)list=list.filter(m=>m.name.includes(pcCustKw)||(m.phone||'').includes(pcCustKw));
-  const tw=ct.appendChild(_mk('div','pc-tw'));const tbl=tw.appendChild(_mk('table','pc-tbl'));
+
+  const tw=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-tw'}));
+  const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
   const thead=tbl.appendChild(document.createElement('thead'));const hr=thead.appendChild(document.createElement('tr'));
-  ['No','상태','이름','연락처','담당','유입','결제방법','수업권','잔여'].forEach(h=>{const th=document.createElement('th');th.textContent=h;hr.appendChild(th);});
+  ['No','상태','이름','연락처','성별','담당','유입','수업권','잔여'].forEach(h=>{hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));});
   const tbody=tbl.appendChild(document.createElement('tbody'));
   list.forEach((mb,i)=>{
-    const tr2=trainers.find(t=>t.id===mb.trainerId);const st=pcMbStatus(mb);const plans=mb.plans||[];const latest=plans[plans.length-1];const rem=plans.reduce((s,p)=>s+getPlanRemain(p),0);
-    const row=tbody.appendChild(document.createElement('tr'));row.style.cursor='pointer';row.onclick=()=>openEditMember(mb.id);
-    [i+1,'',mb.name,mb.phone||'-',tr2?tr2.name:'-',mb.inflow||'-',mb.payment||'-',latest?(latest.duration+'분 '+latest.sessions+'회권'):'-',rem+'회'].forEach((v,ci)=>{const td=document.createElement('td');if(ci===1){td.innerHTML='<span class="pbs '+pcSCls(st)+'">'+pcSLbl(st)+'</span>';}else td.textContent=v;row.appendChild(td);});
+    const tr2=trainers.find(t=>t.id===mb.trainerId);const st=pcMbStatus(mb);
+    const plans=mb.plans||[];const latest=plans[plans.length-1];const rem=plans.reduce((s,p)=>s+getPlanRemain(p),0);
+    const row=tbody.appendChild(document.createElement('tr'));row.style.cursor='pointer';
+    row.onclick=()=>openPcMemberDetail(mb.id);
+    [i+1,'',mb.name,mb.phone||'-',mb.gender||'-',tr2?tr2.name:'-',mb.inflow||'-',latest?(latest.duration+'분 '+latest.sessions+'회권'):'-',rem+'회'].forEach((v,ci)=>{
+      const td=document.createElement('td');if(ci===1)td.innerHTML='<span class="pbs '+pcSCls(st)+'">'+pcSLbl(st)+'</span>';else td.textContent=v;row.appendChild(td);
+    });
   });
-  if(!list.length){const tr3=tbody.appendChild(document.createElement('tr'));const td=_mk('td','','회원이 없습니다.');td.colSpan=9;td.style.cssText='text-align:center;padding:40px;color:#252830;';tr3.appendChild(td);}
+  if(!list.length){const tr3=tbody.appendChild(document.createElement('tr'));const td=document.createElement('td');td.colSpan=9;td.style.cssText='text-align:center;padding:40px;color:#2a2d45;';td.textContent='회원이 없습니다.';tr3.appendChild(td);}
 }
+
+// ── 회원 상세 모달 (Image 3 참고) ────────────────────────────────────────
+function openPcMemberDetail(mbId){
+  const close=pcModal((box,c)=>{
+    box.style.cssText+=';padding:0;overflow:hidden;display:flex;width:860px;max-height:85vh;';
+    renderMbDetailModal(box,c,mbId);
+  },{full:false});
+}
+
+function renderMbDetailModal(box,close,mbId){
+  box.innerHTML='';
+  const mb=members.find(m=>m.id===mbId);if(!mb)return;
+  const tr2=trainers.find(t=>t.id===mb.trainerId);
+  const st=pcMbStatus(mb);
+  const xBtn=box.appendChild(document.createElement('button'));xBtn.className='pcm-close';xBtn.textContent='×';xBtn.style.cssText='position:absolute;top:12px;right:12px;z-index:10;';xBtn.onclick=close;
+
+  // 2열: 왼쪽 정보 + 오른쪽 콘텐츠
+  const left=box.appendChild(document.createElement('div'));
+  left.style.cssText='width:240px;flex-shrink:0;background:#0f1117;border-right:1px solid #1e2026;padding:24px 20px;overflow-y:auto;';
+
+  // 아바타
+  const av=left.appendChild(document.createElement('div'));
+  av.style.cssText='width:56px;height:56px;border-radius:50%;background:#1c1f28;color:#818cf8;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;margin-bottom:12px;';
+  av.textContent=(mb.name||'?')[0];
+  left.appendChild(Object.assign(document.createElement('div'),{textContent:mb.name})).style.cssText='font-size:16px;font-weight:800;color:#e2e8f0;margin-bottom:4px;';
+  const stBdg=left.appendChild(document.createElement('div'));stBdg.className='pbs '+pcSCls(st);stBdg.textContent=pcSLbl(st);stBdg.style.marginBottom='16px';
+
+  // 정보 리스트
+  const infoItems=[
+    ['성별',mb.gender||'미입력'],['생년월일',mb.birthdate||'미입력'],
+    ['연락처',mb.phone||'미입력'],['주소',mb.address||'미입력'],
+    ['담당자',tr2?tr2.name:'없음'],['특이사항',mb.notes||'-'],
+    ['방문경로',mb.inflow||'선택 안함'],['운동목적',mb.purpose||'선택 안함'],
+    ['등록일',mb.registeredAt?new Date(mb.registeredAt).toLocaleDateString('ko-KR'):''],
+  ];
+  infoItems.forEach(([k,v])=>{
+    const row=left.appendChild(document.createElement('div'));row.style.cssText='margin-bottom:8px;';
+    row.innerHTML='<div style="font-size:10px;color:#3a3f58;font-weight:700;letter-spacing:.5px;margin-bottom:2px;">'+k+'</div><div style="font-size:12px;color:#8892aa;">'+v+'</div>';
+  });
+  // 수정 버튼
+  left.appendChild(Object.assign(document.createElement('button'),{className:'pcdp-add-btn',textContent:'회원 정보 수정'})).onclick=()=>openPcEditMemberModal(mbId,box,close);
+
+  // 오른쪽
+  const right=box.appendChild(document.createElement('div'));
+  right.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;';
+
+  // 탭
+  let activeTab='dashboard';
+  const tabBar=right.appendChild(document.createElement('div'));
+  tabBar.style.cssText='display:flex;border-bottom:1px solid #1e2026;padding:0 20px;background:#111318;flex-shrink:0;';
+  const tabContent=right.appendChild(document.createElement('div'));tabContent.style.cssText='flex:1;overflow-y:auto;padding:20px;';
+
+  const tabs=[{id:'dashboard',label:'대시보드'},{id:'payment',label:'결제 내역'}];
+  const tabBtns=[];
+  tabs.forEach(t=>{
+    const btn=tabBar.appendChild(document.createElement('div'));
+    btn.style.cssText='padding:14px 16px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid '+(activeTab===t.id?'#818cf8':'transparent')+';color:'+(activeTab===t.id?'#818cf8':'#4a5068')+';transition:all .15s;white-space:nowrap;';
+    btn.textContent=t.label;tabBtns.push(btn);
+    btn.onclick=()=>{activeTab=t.id;tabBtns.forEach((b,i)=>{b.style.borderBottomColor=i===tabs.indexOf(t)?'#818cf8':'transparent';b.style.color=i===tabs.indexOf(t)?'#818cf8':'#4a5068';});renderMbTab(tabContent,mb,activeTab,box,close);};
+  });
+  renderMbTab(tabContent,mb,activeTab,box,close);
+}
+
+function renderMbTab(ct,mb,tab,box,close){
+  ct.innerHTML='';
+  if(tab==='dashboard'){
+    // 유효 상품 / 만료 상품
+    const plans=mb.plans||[];
+    const active=plans.filter(p=>getPlanRemain(p)>0);const expired=plans.filter(p=>getPlanRemain(p)<=0);
+    // 헤더 카운트
+    const hdr=ct.appendChild(document.createElement('div'));
+    hdr.style.cssText='display:flex;align-items:center;gap:16px;margin-bottom:20px;';
+    hdr.innerHTML='<span style="font-size:14px;font-weight:700;color:#e2e8f0;">유효 상품 <span style="color:#818cf8;">'+active.length+'</span></span><span style="font-size:14px;color:#4a5068;">만료 상품 '+expired.length+'</span>';
+
+    // 이용권 카드들
+    if(!plans.length){
+      const emp=ct.appendChild(document.createElement('div'));
+      emp.style.cssText='background:#0f1117;border:1px dashed #1e2026;border-radius:10px;padding:32px;text-align:center;color:#2a2d45;font-size:13px;margin-bottom:12px;';
+      emp.textContent='이용권(0)';
+    }
+    plans.forEach(p=>{
+      const card=ct.appendChild(document.createElement('div'));
+      card.style.cssText='background:#0f1117;border:1px solid #1e2026;border-radius:10px;padding:14px 16px;margin-bottom:8px;';
+      const rem=getPlanRemain(p);const used=getPlanUsed(p.id);const pct=p.sessions>0?Math.round(used/p.sessions*100):0;
+      const isActive=rem>0;
+      card.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+        +'<div style="font-size:13px;font-weight:700;color:#e2e8f0;">'+(p.productName||p.duration+'분 '+p.sessions+'회권')+'</div>'
+        +'<span class="pbs '+(isActive?'pbs-on':'pbs-off')+'">'+(isActive?'유효':'만료')+'</span></div>'
+        +'<div style="font-size:11px;color:#4a5068;line-height:1.8;">'
+        +'결제금액: '+(p.totalPrice||0).toLocaleString()+'원'+(p.paymentMethod?' · '+p.paymentMethod:'')+'<br>'
+        +'사용 '+used+'회 / 잔여 '+rem+'회</div>'
+        +'<div style="height:4px;background:#1e2026;border-radius:2px;overflow:hidden;margin-top:8px;">'
+        +'<div style="height:100%;width:'+pct+'%;background:'+(isActive?'#818cf8':'#3a3f58')+';border-radius:2px;"></div></div>';
+    });
+
+    // 이용권 추가 버튼
+    ct.appendChild(Object.assign(document.createElement('button'),{className:'pcdp-add-btn',textContent:'+ 이용권 추가하기'})).onclick=()=>openPcPayment(mb.id,box,close);
+
+    // 결제 내역 통계
+    const sec2=ct.appendChild(document.createElement('div'));sec2.style.marginTop='20px';
+    sec2.innerHTML='<div style="font-size:11px;font-weight:700;color:#3a3f58;letter-spacing:1px;margin-bottom:12px;">결제 내역 통계</div>';
+    const totalPaid=(mb.plans||[]).reduce((s,p)=>s+(p.totalPrice||0),0);
+    if(!totalPaid){sec2.innerHTML+='<div style="font-size:12px;color:#2a2d45;">결제 내역이 없습니다</div>';}
+    else{sec2.innerHTML+='<div style="font-size:20px;font-weight:800;color:#818cf8;">'+totalPaid.toLocaleString()+'원</div><div style="font-size:11px;color:#3a3f58;margin-top:4px;">총 '+plans.length+'건 결제</div>';}
+  } else {
+    // 결제 내역 탭
+    const plans=mb.plans||[];
+    if(!plans.length){const emp=ct.appendChild(document.createElement('div'));emp.style.cssText='text-align:center;padding:40px;color:#2a2d45;font-size:13px;';emp.textContent='결제 내역이 없습니다';}
+    plans.slice().reverse().forEach((p,i)=>{
+      const card=ct.appendChild(document.createElement('div'));
+      card.style.cssText='background:#0f1117;border:1px solid #1e2026;border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;';
+      const d=p.addedAt?new Date(p.addedAt).toLocaleDateString('ko-KR'):'';
+      card.innerHTML='<div><div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:3px;">'+(p.productName||p.duration+'분 '+p.sessions+'회권')+'</div><div style="font-size:11px;color:#4a5068;">'+d+(p.paymentMethod?' · '+p.paymentMethod:'')+'</div></div>'
+        +'<div style="font-size:15px;font-weight:800;color:#e2e8f0;">'+(p.totalPrice||0).toLocaleString()+'원</div>';
+    });
+  }
+}
+
+// ── 이용권 추가 / 결제 (Image 4 참고) ────────────────────────────────────
+function openPcPayment(mbId,parentBox,parentClose){
+  const mb=members.find(m=>m.id===mbId);if(!mb)return;
+  let selProductId=null;let selPayMethod='카드';
+
+  pcModal((box,close)=>{
+    box.style.cssText+=';padding:0;overflow:hidden;display:flex;width:900px;max-height:88vh;';
+    const xBtn=box.appendChild(document.createElement('button'));xBtn.className='pcm-close';xBtn.textContent='×';xBtn.style.cssText='position:absolute;top:12px;right:12px;z-index:10;';xBtn.onclick=close;
+
+    // 왼쪽: 상품 목록
+    const left=box.appendChild(document.createElement('div'));
+    left.style.cssText='flex:1;overflow-y:auto;padding:24px;';
+
+    // 헤더
+    const head=left.appendChild(document.createElement('div'));
+    head.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;';
+    head.appendChild(Object.assign(document.createElement('div'),{textContent:'현장 판매'})).style.cssText='font-size:16px;font-weight:800;color:#e2e8f0;';
+    const createBtn=head.appendChild(document.createElement('button'));createBtn.className='pc-tbtn pri';createBtn.textContent='+ 상품 생성';
+    createBtn.onclick=()=>openPcCreateProduct(()=>{left.innerHTML='';renderProductList(left,cards,mb,selProductId,onSel);});
+
+    // 종목 탭
+    let activeType='pt';
+    const typeTabs=left.appendChild(document.createElement('div'));typeTabs.style.cssText='display:flex;gap:4px;margin-bottom:16px;';
+
+    const cards=left.appendChild(document.createElement('div'));cards.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:12px;';
+
+    function onSel(pid){selProductId=pid;updateRightPanel();}
+
+    function renderTypeTabs(){
+      typeTabs.innerHTML='';
+      [{id:'pt',l:'PT 수강권'},{id:'membership',l:'헬스 이용권'}].forEach(t=>{
+        const btn=typeTabs.appendChild(document.createElement('button'));
+        btn.className='pc-tbtn'+(activeType===t.id?' pri':'');btn.textContent=t.l;
+        btn.onclick=()=>{activeType=t.id;renderTypeTabs();renderProductGrid();};
+      });
+      // 상품 생성 있을때만
+      if(products.length===0)typeTabs.appendChild(Object.assign(document.createElement('span'),{textContent:'등록된 상품이 없습니다'})).style.cssText='font-size:12px;color:#3a3f58;padding:8px;';
+    }
+
+    function renderProductGrid(){
+      cards.innerHTML='';
+      const list=products.filter(p=>p.type===activeType);
+      if(!list.length){
+        const emp=cards.appendChild(document.createElement('div'));emp.style.cssText='grid-column:1/-1;text-align:center;padding:40px;color:#2a2d45;font-size:13px;';
+        emp.innerHTML='등록된 상품이 없습니다<br><small style="color:#1e2026;">상품 생성 버튼을 눌러 추가하세요</small>';
+        return;
+      }
+      list.forEach(p=>{
+        const card=cards.appendChild(document.createElement('div'));
+        card.className='pc-prod-card'+(selProductId===p.id?' sel':'');
+        card.onclick=()=>{selProductId=selProductId===p.id?null:p.id;renderProductGrid();updateRightPanel();};
+        const typeLbl=card.appendChild(document.createElement('div'));
+        typeLbl.className='pc-prod-type'+(p.type==='membership'?' ms':'');
+        typeLbl.textContent=p.type==='pt'?'PT 수강권':'헬스 이용권';
+        card.appendChild(Object.assign(document.createElement('div'),{textContent:p.name})).style.cssText='font-size:14px;font-weight:700;color:#e2e8f0;margin:8px 0 4px;';
+        card.appendChild(Object.assign(document.createElement('div'),{textContent:(p.sessions?p.sessions+'회 ':'')+p.price.toLocaleString()+'원'})).style.cssText='font-size:13px;color:#818cf8;font-weight:700;';
+        if(p.sessions)card.appendChild(Object.assign(document.createElement('div'),{textContent:'회당 '+Math.round(p.price/p.sessions).toLocaleString()+'원'})).style.cssText='font-size:11px;color:#4a5068;margin-top:2px;';
+      });
+    }
+
+    renderTypeTabs();renderProductGrid();
+
+    // 오른쪽: 결제 패널
+    const right=box.appendChild(document.createElement('div'));
+    right.style.cssText='width:260px;flex-shrink:0;background:#0f1117;border-left:1px solid #1e2026;padding:20px;display:flex;flex-direction:column;';
+
+    right.appendChild(Object.assign(document.createElement('div'),{textContent:'상품 구매 회원'})).style.cssText='font-size:11px;font-weight:700;color:#3a3f58;letter-spacing:1px;margin-bottom:10px;';
+    const mbCard=right.appendChild(document.createElement('div'));
+    mbCard.style.cssText='background:#111318;border:1px solid #1e2026;border-radius:8px;padding:12px;margin-bottom:16px;';
+    mbCard.innerHTML='<div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:3px;">'+mb.name+'</div><div style="font-size:11px;color:#4a5068;">'+(mb.phone||'')+(mb.gender?' · '+mb.gender:'')+'</div>';
+
+    right.appendChild(Object.assign(document.createElement('div'),{textContent:'결제 수단'})).style.cssText='font-size:11px;font-weight:700;color:#3a3f58;letter-spacing:1px;margin-bottom:8px;';
+    const payRow=right.appendChild(document.createElement('div'));payRow.style.cssText='display:flex;gap:6px;margin-bottom:16px;';
+    ['카드','현금','계좌이체'].forEach(pm=>{
+      const btn=payRow.appendChild(document.createElement('button'));
+      btn.className='pc-tbtn'+(selPayMethod===pm?' pri':'');btn.textContent=pm;btn.style.padding='7px 10px;font-size:12px;';
+      btn.onclick=()=>{selPayMethod=pm;payRow.querySelectorAll('button').forEach(b=>b.className='pc-tbtn');btn.className='pc-tbtn pri';};
+    });
+
+    right.appendChild(Object.assign(document.createElement('div'),{textContent:'결제할 상품'})).style.cssText='font-size:11px;font-weight:700;color:#3a3f58;letter-spacing:1px;margin-bottom:8px;';
+    const selArea=right.appendChild(document.createElement('div'));selArea.style.cssText='flex:1;';
+
+    const payBtn=right.appendChild(document.createElement('button'));
+    payBtn.style.cssText='width:100%;padding:14px;border-radius:10px;border:none;background:#818cf8;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:12px;font-family:inherit;';
+    payBtn.textContent='결제하기';
+
+    function updateRightPanel(){
+      selArea.innerHTML='';
+      if(!selProductId){selArea.innerHTML='<div style="font-size:12px;color:#2a2d45;text-align:center;padding:20px;">상품을 선택해 주세요</div>';payBtn.textContent='결제하기';return;}
+      const prod=products.find(p=>p.id===selProductId);if(!prod)return;
+      const c=selArea.appendChild(document.createElement('div'));
+      c.style.cssText='background:#111318;border:1px solid #818cf8;border-radius:8px;padding:12px;';
+      c.innerHTML='<div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:3px;">'+prod.name+'</div><div style="font-size:12px;color:#818cf8;font-weight:700;">'+prod.price.toLocaleString()+'원</div>';
+      payBtn.textContent=prod.price.toLocaleString()+'원 결제하기';
+    }
+    updateRightPanel();
+
+    payBtn.onclick=()=>{
+      const prod=products.find(p=>p.id===selProductId);
+      if(!prod){alert('상품을 선택해주세요.');return;}
+      const now=new Date();
+      const plan={id:'pl'+Date.now(),productId:prod.id,productName:prod.name,productType:prod.type,
+        duration:prod.duration||50,sessions:prod.sessions||1,totalPrice:prod.price,
+        pricePerSession:prod.sessions?Math.round(prod.price/prod.sessions):prod.price,
+        paymentMethod:selPayMethod,paymentDate:now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'),
+        addedAt:now.getTime()};
+      mb.plans=mb.plans||[];mb.plans.push(plan);
+      sv('og10_mb',members);
+      alert('결제 완료! '+prod.name+' '+prod.price.toLocaleString()+'원 ('+selPayMethod+')');
+      close();
+      if(parentBox)renderMbDetailModal(parentBox,parentClose,mbId);
+      else renderPcContent();
+    };
+
+  },{});
+}
+
+// ── 상품 생성 ────────────────────────────────────────────────────────────
+function openPcCreateProduct(onCreated){
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'상품 생성'}));
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:'새 이용권 또는 수강권을 등록합니다'}));
+
+    const nameF=box.appendChild(_f('상품명',true));const nameI=nameF.appendChild(_inp('예) PT 10회권'));
+    const priceF=box.appendChild(_f('가격',true));const priceI=priceF.appendChild(_inp('예) 450,000'));
+    priceI.oninput=function(){this.value=fmtMoney(this.value);};
+
+    const typeF=box.appendChild(_f('종목',true));
+    const typeRow=typeF.appendChild(document.createElement('div'));typeRow.style.cssText='display:flex;gap:8px;';
+    let selType='pt';
+    const typeBtns=[];
+    [{v:'pt',l:'PT 수강권'},{v:'membership',l:'헬스 이용권'}].forEach(t=>{
+      const btn=typeRow.appendChild(document.createElement('button'));btn.className='pcm-gender-btn'+(selType===t.v?' on':'');
+      btn.style.cssText='flex:1;padding:12px;border-radius:9px;border:1px solid '+(selType===t.v?'#818cf8':'#1e2026')+';background:'+(selType===t.v?'rgba(129,140,248,.1)':'#0f1117')+';color:'+(selType===t.v?'#818cf8':'#6b7494')+';font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+      btn.textContent=t.l;typeBtns.push(btn);
+      btn.onclick=()=>{selType=t.v;typeBtns.forEach(b=>{b.style.borderColor='#1e2026';b.style.background='#0f1117';b.style.color='#6b7494';});btn.style.borderColor='#818cf8';btn.style.background='rgba(129,140,248,.1)';btn.style.color='#818cf8';sessRow.style.display=t.v==='pt'?'block':'none';};
+    });
+
+    const sessRow=box.appendChild(_f('횟수 (PT만 해당)'));
+    const sessS=sessRow.appendChild(_sel(SESSION_OPTIONS.map(n=>({v:n,l:n+'회'}))));
+
+    const durF=box.appendChild(_f('수업 시간 (PT만 해당)'));
+    const durS=durF.appendChild(_sel([{v:25,l:'25분'},{v:50,l:'50분'}]));
+
+    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='24px';
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'상품 등록'})).onclick=()=>{
+      const name=nameI.value.trim();const price=parseMoney(priceI.value);
+      if(!name){alert('상품명을 입력해주세요.');return;}
+      if(!price){alert('가격을 입력해주세요.');return;}
+      const prod={id:'pr'+Date.now(),name,price,type:selType,
+        sessions:selType==='pt'?parseInt(sessS.value):undefined,
+        duration:selType==='pt'?parseInt(durS.value):undefined,
+        createdAt:Date.now()};
+      products.push(prod);sv('og10_pr',products);
+      close();if(onCreated)onCreated();
+    };
+  },{});
+}
+
+// ── 회원 정보 수정 ────────────────────────────────────────────────────────
+function openPcEditMemberModal(mbId,parentBox,parentClose){
+  const mb=members.find(m=>m.id===mbId);if(!mb)return;
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'회원 정보 수정'}));
+
+    const r2=box.appendChild(document.createElement('div'));r2.className='pcm-row2';
+    const nameF=r2.appendChild(_f('이름',true));const nameI=nameF.appendChild(_inp('이름'));nameI.value=mb.name;
+    const phoneF=r2.appendChild(_f('연락처'));const phoneI=phoneF.appendChild(_inp('010-'));phoneI.value=mb.phone||'';phoneI.oninput=function(){this.value=fmtPhone(this.value);};
+
+    const r3=box.appendChild(document.createElement('div'));r3.className='pcm-row2';
+    const genF=r3.appendChild(_f('성별'));const genI=genF.appendChild(_sel([{v:'',l:'선택 안함'},{v:'남',l:'남'},{v:'여',l:'여'}]));if(mb.gender)genI.value=mb.gender;
+    const infF=r3.appendChild(_f('유입경로'));const infI=infF.appendChild(_sel([{v:'',l:'선택 안함'},...(INFLOW_OPTIONS||[]).map(v=>({v,l:v}))]));if(mb.inflow)infI.value=mb.inflow;
+
+    const r4=box.appendChild(document.createElement('div'));r4.className='pcm-row2';
+    const trF=r4.appendChild(_f('담당자'));const trI=trF.appendChild(_sel([{v:'',l:'없음'},...trainers.map(t=>({v:t.id,l:t.name}))]));if(mb.trainerId)trI.value=mb.trainerId;
+    const purF=r4.appendChild(_f('운동목적'));const purI=purF.appendChild(_sel([{v:'',l:'선택 안함'},'다이어트','근육 증가','재활','건강 관리','기타'].map(v=>typeof v==='string'?{v,l:v}:v)));if(mb.purpose)purI.value=mb.purpose;
+
+    const bdF=box.appendChild(_f('생년월일'));const bdI=bdF.appendChild(_inp(''));bdI.type='date';bdI.value=mb.birthdate||'';
+    const adF=box.appendChild(_f('주소'));const adI=adF.appendChild(_inp(''));adI.value=mb.address||'';
+    const noF=box.appendChild(_f('특이사항'));const noTA=noF.appendChild(document.createElement('textarea'));noTA.className='pcm-textarea';noTA.value=mb.notes||'';
+
+    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='24px';
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'저장'})).onclick=()=>{
+      const name=nameI.value.trim();if(!name){alert('이름을 입력해주세요.');return;}
+      mb.name=name;mb.phone=phoneI.value.trim();mb.gender=genI.value;mb.inflow=infI.value;
+      mb.trainerId=trI.value;mb.purpose=purI.value;mb.birthdate=bdI.value;mb.address=adI.value.trim();mb.notes=noTA.value.trim();
+      sv('og10_mb',members);close();
+      if(parentBox)renderMbDetailModal(parentBox,parentClose,mbId);
+      else renderPcContent();
+    };
+  },{wide:true});
+}
+
+
 function renderPcCal(ct,acts){
   if(acts){acts.appendChild(_mk('button','pc-tbtn pri','+ 일정 추가')).onclick=()=>reqLogin(()=>openAddSheet('09:00'));}
   const hdr=ct.appendChild(_mk('div',''));hdr.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:16px;';
