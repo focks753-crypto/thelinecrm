@@ -2558,61 +2558,23 @@ function renderPcSettings(ct,acts){
 function showPcGate(){const g=document.getElementById('pcg');if(g){g.style.display='flex';}setTimeout(()=>{const i=document.getElementById('pcg-input');if(i){i.value='';i.focus();}},100);}
 function hidePcGate(){const g=document.getElementById('pcg');if(g)g.style.display='none';}
 function pcgLogin(){
-  const input=document.getElementById('pcg-input');
+  const val=document.getElementById('pcg-input').value;
+  const cc=localStorage.getItem('og10_cc')||'0000';
   const err=document.getElementById('pcg-err');
-  const val=(input?input.value:'').replace(/\D/g,'');
-  const cc=(localStorage.getItem('og10_cc')||'0000').toString().trim();
-  if(val.length<4){if(err)err.textContent='4자리를 입력해주세요.';return;}
   if(val===cc){
-    const g=document.getElementById('pcg');
-    if(g)g.style.display='none';
-    try{initPcNav();renderPcContent();}catch(e){console.error('PC 렌더 오류:',e);}
+    document.getElementById('pcg').style.display='none';
+    initPcNav();
+    renderPcContent();
   } else {
-    if(err)err.textContent='코드가 올바르지 않습니다. (현재코드: '+cc+')';
-    if(input){input.value='';input.focus();}
-    setTimeout(()=>{if(err)err.textContent='';},3000);
+    err.textContent='코드가 올바르지 않습니다.';
+    document.getElementById('pcg-input').value='';
+    document.getElementById('pcg-input').focus();
+    setTimeout(()=>{err.textContent='';},2000);
   }
 }
 function initPcLayout(){const isPC=window.innerWidth>=960;const pl=document.getElementById('pc-layout');if(!pl)return;if(isPC){pl.style.display='flex';showPcGate();}else pl.style.display='none';}
 window.addEventListener('resize',()=>{const isPC=window.innerWidth>=960;const pl=document.getElementById('pc-layout');if(!pl)return;if(isPC){pl.style.display='flex';initPcNav();renderPcContent();}else pl.style.display='none';},{passive:true});
 </script>
-
-
-    <div class="pc-gate-pins" id="pc-pin-dots">
-      <div class="pc-gate-pin" id="pc-d0"></div>
-      <div class="pc-gate-pin" id="pc-d1"></div>
-      <div class="pc-gate-pin" id="pc-d2"></div>
-      <div class="pc-gate-pin" id="pc-d3"></div>
-    </div>
-    <div class="pc-gate-keypad">
-      <button class="pc-gate-key" onclick="pcGateKey('1')">1</button>
-      <button class="pc-gate-key" onclick="pcGateKey('2')">2</button>
-      <button class="pc-gate-key" onclick="pcGateKey('3')">3</button>
-      <button class="pc-gate-key" onclick="pcGateKey('4')">4</button>
-      <button class="pc-gate-key" onclick="pcGateKey('5')">5</button>
-      <button class="pc-gate-key" onclick="pcGateKey('6')">6</button>
-      <button class="pc-gate-key" onclick="pcGateKey('7')">7</button>
-      <button class="pc-gate-key" onclick="pcGateKey('8')">8</button>
-      <button class="pc-gate-key" onclick="pcGateKey('9')">9</button>
-      <button class="pc-gate-key del" onclick="pcGateKey('del')">⌫</button>
-      <button class="pc-gate-key zero" onclick="pcGateKey('0')">0</button>
-    </div>
-    <div class="pc-gate-err" id="pc-gate-err"></div>
-    <div class="pc-gate-hint">센터 코드 4자리를 입력하세요</div>
-  </div>
-</div>
-
-
-    <div class="pcg-label">센터 코드</div>
-    <input class="pcg-input" id="pcg-input" type="password" maxlength="4" placeholder="••••"
-      oninput="this.value=this.value.replace(/[^0-9]/g,'')"
-      onkeydown="if(event.key==='Enter')pcgLogin()">
-    <button class="pcg-btn" onclick="pcgLogin()">로그인</button>
-    <div class="pcg-err" id="pcg-err"></div>
-    <div class="pcg-hint">센터 코드 4자리를 입력하세요</div>
-  </div>
-</div>
-
 
 <div id="pcg" class="pcg-overlay">
   <div class="pcg-card">
