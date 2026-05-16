@@ -560,7 +560,7 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 /* ── PC 로그인 게이트 ── */
 .pcg-overlay{position:fixed;inset:0;background:#f0f2f5;z-index:9999;display:flex;align-items:center;justify-content:center;}
 .pcg-card{background:#fff;border-radius:20px;padding:52px 48px 44px;width:400px;display:flex;flex-direction:column;align-items:center;box-shadow:0 8px 40px rgba(0,0,0,.12);}
-.pcg-logo{max-width:200px;max-height:100px;object-fit:contain;margin-bottom:36px;}
+.pcg-logo{max-width:260px;max-height:130px;object-fit:contain;margin-bottom:40px;}
 .pcg-label{font-size:12px;font-weight:700;color:#888;width:100%;margin-bottom:8px;letter-spacing:.3px;}
 .pcg-input{width:100%;padding:14px 18px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fafafa;color:#111;font-size:22px;font-family:inherit;text-align:center;letter-spacing:12px;outline:none;transition:border-color .2s;box-sizing:border-box;}
 .pcg-input:focus{border-color:#333;background:#fff;}
@@ -2555,22 +2555,22 @@ function renderPcSettings(ct,acts){
 
 
 // ── PC 로그인 게이트 ────────────────────────────────────────────────────
-function showPcGate(){const g=document.getElementById('pcg');if(g)g.style.display='flex';setTimeout(()=>{const i=document.getElementById('pcg-input');if(i)i.focus();},100);}
-function hidePcGate(){const g=document.getElementById('pcg');if(g)g.style.display='none';initPcNav();renderPcContent();}
+function showPcGate(){const g=document.getElementById('pcg');if(g){g.style.display='flex';}setTimeout(()=>{const i=document.getElementById('pcg-input');if(i){i.value='';i.focus();}},100);}
+function hidePcGate(){const g=document.getElementById('pcg');if(g)g.style.display='none';}
 function pcgLogin(){
   const input=document.getElementById('pcg-input');const err=document.getElementById('pcg-err');
   if(!input)return;
   const val=input.value.trim();
   const cc=localStorage.getItem('og10_cc')||'0000';
   if(val===cc){
-    hidePcGate();initPcLayout();
+    hidePcGate();initPcNav();renderPcContent();
   } else {
     if(err)err.textContent='센터 코드가 올바르지 않습니다.';
     input.value='';input.focus();
     setTimeout(()=>{if(err)err.textContent='';},2000);
   }
 }
-function initPcLayout(){const isPC=window.innerWidth>=960;const pl=document.getElementById('pc-layout');const pg=document.getElementById('pcg');if(!pl)return;if(isPC){if(pg)pg.style.display='flex';pl.style.display='flex';}else{if(pg)pg.style.display='none';pl.style.display='none';}}
+function initPcLayout(){const isPC=window.innerWidth>=960;const pl=document.getElementById('pc-layout');if(!pl)return;if(isPC){pl.style.display='flex';showPcGate();}else pl.style.display='none';}
 window.addEventListener('resize',()=>{const isPC=window.innerWidth>=960;const pl=document.getElementById('pc-layout');if(!pl)return;if(isPC){pl.style.display='flex';initPcNav();renderPcContent();}else pl.style.display='none';},{passive:true});
 </script>
 
