@@ -2446,7 +2446,7 @@ let pcSalStart='';let pcSalEnd='';let pcSalTr='';
 let pcCalY=new Date().getFullYear();let pcCalM=new Date().getMonth();
 const PC_NAV=[
   {id:'home',label:'홈',icon:''},
-  {id:'customers',label:'고객관리',icon:'',subs:[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'}]},
+  {id:'customers',label:'고객관리',icon:'',subs:[{id:'members',label:'고객 관리'},{id:'consult',label:'상담 관리'},{id:'consult_hist',label:'상담 내역'}]},
   {id:'calendar',label:'캘린더',icon:''},
   {id:'sales',label:'매출관리',icon:'',subs:[{id:'all',label:'매출내역'},{id:'bypkg',label:'상품별내역'},{id:'bypay',label:'결제수단별'}]},
   {id:'settings',label:'센터설정',icon:'',subs:[{id:'staff',label:'직원관리'},{id:'pkg',label:'패키지관리'}]},
@@ -2476,6 +2476,8 @@ function renderPcContent(){
   const nav=PC_NAV.find(n=>n.id===pcV);
   if(ttl)ttl.textContent=nav?nav.label:'홈';
   if(pcV==='home')renderPcHome(ct,acts);
+  else if(pcV==='customers'&&pcSV==='consult')renderPcConsult(ct,acts);
+  else if(pcV==='customers'&&pcSV==='consult_hist')renderPcConsultHist(ct,acts);
   else if(pcV==='customers')renderPcCust(ct,acts);
   else if(pcV==='calendar')renderPcCal(ct,acts);
   else if(pcV==='sales')renderPcSales(ct,acts);
@@ -2555,6 +2557,7 @@ function _sel(options){
 }
 
 // ── 회원 등록 (2단계) ────────────────────────────────────────────────────
+let custSV='all';
 let pcDetailMbId=null;
 function openPcAddMember(){
   const reg={name:'',phone:'',gender:'',trainerId:'',inflow:'',purpose:'',birthdate:'',address:'',email:'',notes:''};
@@ -2680,8 +2683,8 @@ function renderPcCust(ct,acts){
     if(s.id==='all')cnt=members.length;
     else if(s.id==='expiring')cnt=members.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;}).length;
     else cnt=members.filter(m=>pcMbStatus(m)===s.id).length;
-    const tab=sb.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(pcSV===s.id?' on':''),textContent:s.label+' '+cnt}));
-    tab.onclick=()=>{pcSV=s.id;pcDetailMbId=null;renderPcContent();};
+    const tab=sb.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(custSV===s.id?' on':''),textContent:s.label+' '+cnt}));
+    tab.onclick=()=>{custSV=s.id;pcDetailMbId=null;renderPcContent();};
   });
   const fb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-fbar'}));
   const si=fb.appendChild(document.createElement('input'));si.className='pcm-input';si.style.cssText='width:220px;padding:9px 12px;font-size:13px;';
@@ -2690,8 +2693,8 @@ function renderPcCust(ct,acts){
   fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'조회'})).onclick=()=>renderPcContent();
 
   let list=members;
-  if(pcSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;});
-  else if(pcSV&&pcSV!=='all')list=list.filter(m=>pcMbStatus(m)===pcSV);
+  if(custSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;});
+  else if(custSV&&custSV!=='all')list=list.filter(m=>pcMbStatus(m)===custSV);
   if(pcCustKw)list=list.filter(m=>m.name.includes(pcCustKw)||(m.phone||'').includes(pcCustKw));
 
   const tw=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-tw'}));
@@ -3108,6 +3111,237 @@ function pcgLogin(){
 }
 function initPcLayout(){const isPC=window.innerWidth>=960;const pl=document.getElementById('pc-layout');if(!pl)return;if(isPC){pl.style.display='flex';showPcGate();}else pl.style.display='none';}
 window.addEventListener('resize',()=>{const isPC=window.innerWidth>=960;const pl=document.getElementById('pc-layout');if(!pl)return;if(isPC){pl.style.display='flex';initPcNav();renderPcContent();}else pl.style.display='none';},{passive:true});
+
+// ═══ PC 상담 관리 ═══
+let pcConKw='';let pcConInflow='';let pcConStatus='';
+
+function todayStrPC(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+function renderPcConsult(ct,acts){
+  // 등록 버튼
+  if(acts){acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 상담 등록'})).onclick=()=>openPcAddConsult(()=>renderPcContent());}
+
+  const today=todayStrPC();
+  const todayList=consultations.filter(c=>c.contactDate===today&&c.status==='pending');
+  const missedList=consultations.filter(c=>c.status==='missed');
+  const pastList=consultations.filter(c=>c.contactDate<today&&c.status==='pending');
+  const upcomingList=consultations.filter(c=>c.contactDate>today&&c.status==='pending');
+
+  // TODAY 카드
+  const todayCard=ct.appendChild(document.createElement('div'));
+  todayCard.style.cssText='background:#111318;border:1px solid #1e2026;border-radius:12px;padding:16px 20px;margin-bottom:16px;';
+  const th=todayCard.appendChild(document.createElement('div'));
+  th.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:14px;';
+  th.innerHTML='<span style="background:#818cf8;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;">TODAY</span>'
+    +'<span style="font-size:14px;font-weight:700;color:#e2e8f0;">금일 연락 대상 '+todayList.length+'명</span>'
+    +(pastList.length>0?'<span style="background:#f87171;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;">미연락 '+pastList.length+'명</span>':'')
+    +(missedList.length>0?'<span style="background:#6496ff;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;">부재중 '+missedList.length+'명</span>':'');
+
+  if(todayList.length===0&&pastList.length===0&&missedList.length===0){
+    todayCard.appendChild(Object.assign(document.createElement('div'),{textContent:'오늘 연락할 상담자가 없습니다.'})).style.cssText='font-size:13px;color:#3a3f58;';
+  } else {
+    // 테이블 형태
+    renderConsultTable(todayCard,[...pastList,...todayList,...missedList]);
+  }
+
+  // 예정된 상담
+  if(upcomingList.length){
+    ct.appendChild(Object.assign(document.createElement('div'),{textContent:'예정된 상담'})).style.cssText='font-size:11px;font-weight:700;color:#3a3f58;letter-spacing:1px;margin:16px 0 8px;';
+    const tw=ct.appendChild(document.createElement('div'));tw.className='pc-tw';
+    renderConsultTable(tw,upcomingList);
+  }
+}
+
+function renderConsultTable(container,list){
+  const tw=container.appendChild?container:container;
+  const tbl=tw.appendChild(document.createElement('table'));tbl.className='pc-tbl';tbl.style.cssText='font-size:12px;';
+  const thead=tbl.appendChild(document.createElement('thead'));const hr=thead.appendChild(document.createElement('tr'));
+  ['이름','연락처','유입경로','연락예정일','상태','메모','액션'].forEach(h=>{hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));});
+  const tbody=tbl.appendChild(document.createElement('tbody'));
+  const stMap={pending:'대기',missed:'부재중',done:'완료'};
+  const stCls={pending:'pbs-pd',missed:'pbs-ex',done:'pbs-on'};
+  list.forEach(c=>{
+    const row=tbody.appendChild(document.createElement('tr'));
+    const today=todayStrPC();const isPast=c.contactDate<today&&c.status==='pending';
+    [c.name,c.phone||'-',c.inflow||'-',c.contactDate||'-'].forEach(v=>{row.appendChild(Object.assign(document.createElement('td'),{textContent:v}));});
+    const stTd=row.appendChild(document.createElement('td'));stTd.innerHTML='<span class="pbs '+stCls[c.status||'pending']+'">'+stMap[c.status||'pending']+'</span>';
+    const mTd=row.appendChild(document.createElement('td'));mTd.textContent=(c.memo||'').slice(0,20)+(c.memo&&c.memo.length>20?'...':'');mTd.style.color='#6b7494';
+    // 액션
+    const actTd=row.appendChild(document.createElement('td'));
+    actTd.style.cssText='white-space:nowrap;';
+    if(c.status!=='done'){
+      const doneBtn=actTd.appendChild(document.createElement('button'));doneBtn.className='pc-tbtn';doneBtn.style.cssText='padding:5px 10px;font-size:11px;margin-right:4px;border-color:#34d399;color:#34d399;';doneBtn.textContent='완료';
+      doneBtn.onclick=()=>openPcConsultHistory(c.id,'done',()=>renderPcContent());
+      if(c.status==='pending'){
+        const missBtn=actTd.appendChild(document.createElement('button'));missBtn.className='pc-tbtn';missBtn.style.cssText='padding:5px 10px;font-size:11px;margin-right:4px;border-color:#6496ff;color:#6496ff;';missBtn.textContent='부재중';
+        missBtn.onclick=()=>openPcConsultHistory(c.id,'missed',()=>renderPcContent());
+      }
+      if(c.status==='missed'){
+        actTd.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'재연락'})).style.cssText='padding:5px 10px;font-size:11px;margin-right:4px;';
+        actTd.lastChild.onclick=()=>openPcEditConsult(c.id,()=>renderPcContent());
+      }
+    }
+    const editBtn=actTd.appendChild(document.createElement('button'));editBtn.className='pc-tbtn';editBtn.style.cssText='padding:5px 10px;font-size:11px;margin-right:4px;';editBtn.textContent='수정';
+    editBtn.onclick=()=>openPcEditConsult(c.id,()=>renderPcContent());
+    const trBtn=actTd.appendChild(document.createElement('button'));trBtn.className='pc-tbtn';trBtn.style.cssText='padding:5px 10px;font-size:11px;border-color:#ab47bc;color:#ce93d8;margin-right:4px;';trBtn.textContent='지정';
+    trBtn.onclick=()=>openPcAssignTrainer(c.id,()=>renderPcContent());
+    const delBtn=actTd.appendChild(document.createElement('button'));delBtn.style.cssText='padding:5px 8px;font-size:11px;border-radius:6px;border:1px solid #1e2026;background:transparent;color:#f87171;cursor:pointer;';delBtn.textContent='×';
+    delBtn.onclick=()=>{if(confirm(c.name+' 삭제?')){consultations=consultations.filter(x=>x.id!==c.id);sv('og10_cs',consultations);renderPcContent();}};
+  });
+  if(!list.length){const tr2=tbody.appendChild(document.createElement('tr'));const td=tr2.appendChild(document.createElement('td'));td.colSpan=7;td.style.cssText='text-align:center;padding:20px;color:#2a2d45;font-size:12px;';td.textContent='없음';}
+}
+
+// ─ 상담 내역 ────────────────────────────────────────────────────────────
+function renderPcConsultHist(ct,acts){
+  if(acts){
+    acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 상담 등록'})).onclick=()=>openPcAddConsult(()=>renderPcContent());
+    acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'})).onclick=()=>dlConsultXLSX();
+  }
+
+  const fb=ct.appendChild(document.createElement('div'));fb.className='pc-fbar';
+  const si=fb.appendChild(document.createElement('input'));si.className='pcm-input';si.style.cssText='width:200px;padding:9px 12px;font-size:13px;';si.placeholder='이름 또는 연락처...';si.value=pcConKw;si.oninput=e=>pcConKw=e.target.value;si.onkeydown=e=>{if(e.key==='Enter')renderPcContent();};
+
+  const isel=fb.appendChild(document.createElement('select'));isel.className='pcm-select';isel.style.cssText='width:130px;padding:9px 12px;';
+  [{v:'',l:'전체 유입경로'},...(INFLOW_OPTIONS||[]).map(v=>({v,l:v}))].forEach(({v,l})=>{const o=isel.appendChild(document.createElement('option'));o.value=v;o.textContent=l;if(v===pcConInflow)o.selected=true;});isel.onchange=e=>pcConInflow=e.target.value;
+
+  const ssel=fb.appendChild(document.createElement('select'));ssel.className='pcm-select';ssel.style.cssText='width:110px;padding:9px 12px;';
+  [{v:'',l:'전체 상태'},{v:'pending',l:'대기'},{v:'missed',l:'부재중'},{v:'done',l:'완료'}].forEach(({v,l})=>{const o=ssel.appendChild(document.createElement('option'));o.value=v;o.textContent=l;if(v===pcConStatus)o.selected=true;});ssel.onchange=e=>pcConStatus=e.target.value;
+
+  fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'조회'})).onclick=()=>renderPcContent();
+
+  const kw=pcConKw.trim();
+  const list=consultations.filter(c=>{
+    if(kw&&!c.name.includes(kw)&&!(c.phone||'').includes(kw))return false;
+    if(pcConInflow&&c.inflow!==pcConInflow)return false;
+    if(pcConStatus&&c.status!==pcConStatus)return false;
+    return true;
+  }).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+
+  ct.appendChild(Object.assign(document.createElement('div'),{textContent:(kw||pcConInflow||pcConStatus?'검색 결과 ':'전체 ')+list.length+'명'})).style.cssText='font-size:12px;color:#4a5068;margin-bottom:8px;';
+
+  const tw=ct.appendChild(document.createElement('div'));tw.className='pc-tw';
+  const tbl=tw.appendChild(document.createElement('table'));tbl.className='pc-tbl';
+  const thead=tbl.appendChild(document.createElement('thead'));const hr=thead.appendChild(document.createElement('tr'));
+  ['이름','연락처','유입경로','상태','연락예정일','등록일','메모','이력','액션'].forEach(h=>{hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));});
+  const tbody=tbl.appendChild(document.createElement('tbody'));
+  const stMap={pending:'대기',missed:'부재중',done:'완료'};const stCls={pending:'pbs-pd',missed:'pbs-ex',done:'pbs-on'};
+  list.forEach(c=>{
+    const row=tbody.appendChild(document.createElement('tr'));
+    [c.name,c.phone||'-',c.inflow||'-'].forEach(v=>row.appendChild(Object.assign(document.createElement('td'),{textContent:v})));
+    const stTd=row.appendChild(document.createElement('td'));stTd.innerHTML='<span class="pbs '+stCls[c.status||'pending']+'">'+stMap[c.status||'pending']+'</span>';
+    [c.contactDate||'-',c.createdAt?new Date(c.createdAt).toLocaleDateString('ko-KR'):'-'].forEach(v=>row.appendChild(Object.assign(document.createElement('td'),{textContent:v})));
+    const mTd=row.appendChild(document.createElement('td'));mTd.textContent=(c.memo||'').slice(0,25)+(c.memo&&c.memo.length>25?'...':'');mTd.style.color='#6b7494';
+    const hTd=row.appendChild(document.createElement('td'));const hist=c.history||[];hTd.textContent=hist.length?hist.length+'건':'-';hTd.style.cursor=hist.length?'pointer':'default';hTd.style.color=hist.length?'#818cf8':'#4a5068';if(hist.length)hTd.onclick=()=>openPcConsultHistView(c.id);
+    const actTd=row.appendChild(document.createElement('td'));actTd.style.whiteSpace='nowrap';
+    const eb=actTd.appendChild(document.createElement('button'));eb.className='pc-tbtn';eb.style.cssText='padding:5px 10px;font-size:11px;margin-right:4px;';eb.textContent='수정';eb.onclick=()=>openPcEditConsult(c.id,()=>renderPcContent());
+    const db=actTd.appendChild(document.createElement('button'));db.style.cssText='padding:5px 8px;font-size:11px;border-radius:6px;border:1px solid #1e2026;background:transparent;color:#f87171;cursor:pointer;';db.textContent='×';db.onclick=()=>{if(confirm(c.name+' 삭제?')){consultations=consultations.filter(x=>x.id!==c.id);sv('og10_cs',consultations);renderPcContent();}};
+  });
+  if(!list.length){const tr2=tbody.appendChild(document.createElement('tr'));const td=tr2.appendChild(document.createElement('td'));td.colSpan=9;td.style.cssText='text-align:center;padding:32px;color:#2a2d45;';td.textContent='상담 내역이 없습니다.';}
+}
+
+// ─ 상담 등록/수정 모달 ──────────────────────────────────────────────────
+function openPcAddConsult(cb){
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'상담 등록'}));
+    const r2=box.appendChild(document.createElement('div'));r2.className='pcm-row2';
+    const nF=r2.appendChild(_f('이름',true));const nI=nF.appendChild(_inp('이름'));
+    const pF=r2.appendChild(_f('연락처'));const pI=pF.appendChild(_inp('010-'));pI.oninput=function(){this.value=fmtPhone(this.value);};
+    const r3=box.appendChild(document.createElement('div'));r3.className='pcm-row2';
+    const iF=r3.appendChild(_f('유입경로'));const iS=iF.appendChild(_sel([{v:'',l:'선택 안함'},...(INFLOW_OPTIONS||[]).map(v=>({v,l:v}))]));
+    const dF=r3.appendChild(_f('연락 예정일'));const dI=dF.appendChild(_inp(''));dI.type='date';
+    const n=new Date();dI.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+    const mF=box.appendChild(_f('상담 내용'));const mT=mF.appendChild(document.createElement('textarea'));mT.className='pcm-textarea';mT.placeholder='상담 내용 또는 특이사항...';
+    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='20px';
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'등록'})).onclick=()=>{
+      const name=nI.value.trim();if(!name){alert('이름을 입력해주세요.');return;}
+      consultations.unshift({id:'c'+Date.now(),name,phone:pI.value.trim(),inflow:iS.value,memo:mT.value.trim(),contactDate:dI.value,status:'pending',createdAt:Date.now(),history:[]});
+      sv('og10_cs',consultations);close();if(cb)cb();
+    };
+  },{wide:true});
+}
+
+function openPcEditConsult(cid,cb){
+  const c=consultations.find(x=>x.id===cid);if(!c)return;
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'상담자 수정'}));
+    const r2=box.appendChild(document.createElement('div'));r2.className='pcm-row2';
+    const nF=r2.appendChild(_f('이름'));const nI=nF.appendChild(_inp('이름'));nI.value=c.name;
+    const pF=r2.appendChild(_f('연락처'));const pI=pF.appendChild(_inp('010-'));pI.value=c.phone||'';pI.oninput=function(){this.value=fmtPhone(this.value);};
+    const r3=box.appendChild(document.createElement('div'));r3.className='pcm-row2';
+    const iF=r3.appendChild(_f('유입경로'));const iS=iF.appendChild(_sel([{v:'',l:'선택 안함'},...(INFLOW_OPTIONS||[]).map(v=>({v,l:v}))]));if(c.inflow)iS.value=c.inflow;
+    const dF=r3.appendChild(_f('연락 예정일'));const dI=dF.appendChild(_inp(''));dI.type='date';dI.value=c.contactDate||'';
+    const mF=box.appendChild(_f('상담 내용'));const mT=mF.appendChild(document.createElement('textarea'));mT.className='pcm-textarea';mT.value=c.memo||'';
+    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='20px';
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'저장'})).onclick=()=>{
+      c.name=nI.value.trim()||c.name;c.phone=pI.value.trim();c.inflow=iS.value;c.memo=mT.value.trim();c.contactDate=dI.value;
+      sv('og10_cs',consultations);close();if(cb)cb();
+    };
+  },{wide:true});
+}
+
+function openPcConsultHistory(cid,action,cb){
+  const c=consultations.find(x=>x.id===cid);if(!c)return;
+  const isDone=action==='done';
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:isDone?'연락 완료 기록':'부재중 기록'}));
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:c.name+' · '+(c.phone||'')}));
+    const mF=box.appendChild(_f('메모 (선택)'));const mT=mF.appendChild(document.createElement('textarea'));mT.className='pcm-textarea';mT.style.minHeight='60px';mT.placeholder=isDone?'상담 내용 메모...':'부재중 메모...';
+    let dI=null;
+    if(!isDone){
+      const dF=box.appendChild(_f('다음 연락 예정일'));dI=dF.appendChild(_inp(''));dI.type='date';
+      const tmr=new Date();tmr.setDate(tmr.getDate()+1);dI.value=tmr.getFullYear()+'-'+String(tmr.getMonth()+1).padStart(2,'0')+'-'+String(tmr.getDate()).padStart(2,'0');
+    }
+    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='20px';
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'저장'})).onclick=()=>{
+      c.history=c.history||[];c.history.push({type:action,memo:mT.value.trim(),ts:Date.now()});
+      if(isDone){c.status='done';c.doneAt=Date.now();}
+      else{c.status='pending';if(dI&&dI.value)c.contactDate=dI.value;}
+      sv('og10_cs',consultations);close();if(cb)cb();
+    };
+  },{});
+}
+
+function openPcConsultHistView(cid){
+  const c=consultations.find(x=>x.id===cid);if(!c)return;
+  const hist=c.history||[];
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'상담 이력'}));
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:c.name+' · '+(c.phone||'')+(c.inflow?' · '+c.inflow:'')}));
+    if(!hist.length){box.appendChild(Object.assign(document.createElement('div'),{textContent:'이력이 없습니다.'})).style.cssText='color:#3a3f58;font-size:13px;padding:20px 0;';}
+    hist.slice().reverse().forEach(h=>{
+      const row=box.appendChild(document.createElement('div'));row.style.cssText='padding:12px 0;border-bottom:1px solid #1e2026;';
+      const top=row.appendChild(document.createElement('div'));top.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:5px;';
+      top.innerHTML='<span class="pbs '+(h.type==='done'?'pbs-on':'pbs-ex')+'">'+(h.type==='done'?'연락완료':'부재중')+'</span><span style="font-size:11px;color:#3a3f58;">'+fmtTs(h.ts)+'</span>';
+      if(h.memo)row.appendChild(Object.assign(document.createElement('div'),{textContent:h.memo})).style.cssText='font-size:13px;color:#8892aa;';
+    });
+    box.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'닫기'})).onclick=close;
+    box.lastChild.style.marginTop='16px';
+  },{});
+}
+
+function openPcAssignTrainer(cid,cb){
+  const c=consultations.find(x=>x.id===cid);if(!c)return;
+  let selTrId=c.assignedTrainer||'';
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'트레이너 지정'}));
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:c.name+' · '+(c.phone||'')}));
+    const trGrid=box.appendChild(document.createElement('div'));trGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;';
+    const trBtns=[];
+    trainers.filter(t=>t.showInMem!==false).forEach(tr=>{
+      const col=getTrainerColor(tr);const btn=trGrid.appendChild(document.createElement('button'));
+      btn.style.cssText='padding:12px;border-radius:9px;border:1.5px solid '+(selTrId===tr.id?col.dot:'#1e2026')+';background:'+(selTrId===tr.id?'rgba('+parseInt(col.dot.slice(1,3),16)+','+parseInt(col.dot.slice(3,5),16)+','+parseInt(col.dot.slice(5,7),16)+',0.1)':'#0f1117')+';color:'+(selTrId===tr.id?col.dot:'#6b7494')+';font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+      btn.textContent=tr.name;trBtns.push({btn,tr,col});
+      btn.onclick=()=>{selTrId=tr.id;trBtns.forEach(({btn:b,tr:t2,col:c2})=>{b.style.borderColor=selTrId===t2.id?c2.dot:'#1e2026';b.style.color=selTrId===t2.id?c2.dot:'#6b7494';});};
+    });
+    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'지정만'})).onclick=()=>{c.assignedTrainer=selTrId;sv('og10_cs',consultations);close();if(cb)cb();};
+  },{wide:true});
+}
+
 </script>
 
 <div id="pcg" class="pcg-overlay">
