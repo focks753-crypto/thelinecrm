@@ -283,38 +283,59 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 
 
 /* ── 매출 ── */
-.sal-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.sal-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.sal-sub-tabs{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.sal-sub-tabs::-webkit-scrollbar{display:none;}
+.sal-stab{flex-shrink:0;padding:8px 14px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:var(--bg2);color:var(--t3);font-family:inherit;}
+.sal-stab.on{background:#fff;color:#000;}
+.sal-quick-row{display:flex;gap:5px;margin-bottom:10px;}
+.sal-qbtn{flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--bd2);background:transparent;color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+.sal-qbtn:active{background:var(--bg2);}
 .sal-mode-tabs{display:flex;gap:0;background:var(--bg2);border-radius:10px;padding:3px;margin-bottom:6px;position:sticky;top:0;z-index:20;}
 .sal-mtab{flex:1;padding:9px 6px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:transparent;color:var(--t3);text-align:center;white-space:nowrap;}
 .sal-mtab.on{background:#fff;color:#000;}
-.sal-mode-desc{font-size:11px;color:var(--t4);text-align:center;padding:0 0 8px;}
-.sal-period-tabs{display:flex;gap:5px;}
-.sal-ptab{flex:1;padding:9px 4px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:var(--bg2);color:var(--t3);}
-.sal-ptab.on{background:#fff;color:#000;}
 .sal-row{display:flex;gap:8px;align-items:center;}
-.sal-row input[type=date],.sal-row select{flex:1;padding:10px 12px;border:1px solid var(--bd2);border-radius:9px;background:var(--bg2);color:var(--t1);font-size:14px;font-weight:500;letter-spacing:0.3px;}
+.sal-row input[type=date],.sal-row select{flex:1;padding:10px 12px;border:1px solid var(--bd2);border-radius:9px;background:var(--bg2);color:var(--t1);font-size:13px;}
 .sal-row input[type=text]{flex:1;padding:10px 12px;border:1px solid var(--bd2);border-radius:9px;background:var(--bg2);color:var(--t1);font-size:13px;}
 .sal-row input::placeholder{color:var(--t4);}
-.sal-search-btn{padding:10px 14px;border-radius:9px;border:none;background:var(--bg3);color:var(--t2);font-size:13px;cursor:pointer;}
-.sal-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;}
-.sal-card{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:14px 10px;text-align:center;}
-.sal-card-val{font-size:16px;font-weight:700;color:var(--t1);margin-bottom:4px;}
+.sal-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.sal-card{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:12px 8px;text-align:center;}
+.sal-card-val{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:3px;}
 .sal-card-lbl{font-size:10px;color:var(--t3);}
+.sal-net-card{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:12px;}
+.sal-net-top{display:flex;align-items:flex-end;justify-content:space-between;}
+.sal-net-val{font-size:22px;font-weight:800;color:var(--t1);}
+.sal-net-lbl{font-size:11px;color:var(--t3);}
+.sal-net-subs{display:flex;gap:12px;margin-top:8px;}
+.sal-net-sub{font-size:11px;color:var(--t3);}
 .sal-chart-wrap{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px;}
 .sal-chart-title{font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px;}
 .sal-canvas{width:100%;display:block;border-radius:6px;}
-.sal-dl-btn{width:100%;padding:12px;background:var(--bg2);border:1px solid var(--bd2);border-radius:10px;color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;}
+.sal-dl-btn{width:100%;padding:12px;background:var(--bg2);border:1px solid var(--bd2);border-radius:10px;color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px;}
 .sal-dl-btn:active{background:var(--bg3);}
-.sal-table-wrap{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:16px;}
+.sal-table-wrap{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;overflow:hidden;overflow-x:auto;margin-bottom:14px;}
 .sal-table{width:100%;border-collapse:collapse;font-size:12px;}
-.sal-table th{background:var(--bg2);color:var(--t3);padding:10px 8px;text-align:left;font-weight:600;border-bottom:1px solid var(--bd);}
-.sal-table td{padding:9px 8px;border-bottom:1px solid var(--bd);color:var(--t2);}
+.sal-table th{background:var(--bg2);color:var(--t3);padding:9px 8px;text-align:left;font-weight:600;border-bottom:1px solid var(--bd);white-space:nowrap;}
+.sal-table td{padding:8px 8px;border-bottom:1px solid var(--bd);color:var(--t2);white-space:nowrap;}
 .sal-table tr:last-child td{border-bottom:none;}
 .sal-table .amount{color:var(--t1);font-weight:600;text-align:right;}
 .sal-table .total-row{background:var(--bg2);}
 .sal-table .total-row td{font-weight:700;color:var(--t1);}
-.sal-empty{text-align:center;padding:2rem;color:var(--t4);font-size:13px;}
-.sal-tr-section{font-size:11px;color:var(--t4);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:8px 8px 4px;background:var(--bg2);}
+.sal-empty{text-align:center;padding:2.5rem 0;color:var(--t4);font-size:13px;}
+.sal-ref-card{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:8px;}
+.sal-ref-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.sal-ref-type{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;flex-shrink:0;}
+.sal-ref-type.refund{background:rgba(248,113,113,.15);color:#f87171;}
+.sal-ref-type.transfer{background:rgba(129,140,248,.15);color:#818cf8;}
+.sal-ref-name{font-size:14px;font-weight:700;color:var(--t1);flex:1;}
+.sal-ref-amt{font-size:15px;font-weight:800;color:#f87171;}
+.sal-ref-info{font-size:11px;color:var(--t3);line-height:1.8;}
+.sal-cancel-btn{margin-top:10px;padding:7px 14px;border-radius:7px;border:1px solid rgba(251,191,36,.4);background:transparent;color:#fbbf24;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+.sal-ref-row-red td{color:#f87171!important;}
+@media(max-width:640px){
+  .pcm-ov{align-items:flex-end;}
+  .pcm-box{width:100%!important;border-radius:20px 20px 0 0!important;max-height:88vh;padding:24px 18px 32px;}
+}
 
 /* ── CALENDAR ── */
 .calbg{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
@@ -1949,6 +1970,7 @@ function renderMemView(ct){
       const pright=pr.appendChild(el('div'));pright.style.cssText='display:flex;align-items:center;gap:6px;';
       pright.appendChild(mk('div','planrem'+(rem<3&&rem>=0?' warn':' ok'),'잔여 '+rem+'회'));
       pright.appendChild(mk('button','memeditbtn','수정')).onclick=()=>openEditPlan(m.id,p.id);
+      if(!p.refunded){const refBtn=pright.appendChild(mk('button','memeditbtn','환불'));refBtn.style.cssText='color:#f87171;border-color:rgba(248,113,113,.4);white-space:nowrap;';refBtn.onclick=()=>openPcRefund(m,p,null,null);}
     });
     if(getMemberWarn(m))card.appendChild(mk('div','memwarn','⚠ 연장 상담 대상자'));
   });
@@ -2303,6 +2325,7 @@ function openComposeNotice(){
 // ── 매출 ──────────────────────────────────────────────────────────────────
 let salPeriod='daily';
 let salMode='sales';
+let salSubTab='sales'; // 매출내역|sessions|bypkg|bypay|refund
 let salStartDate='';let salEndDate='';let salTrainer='';let salSearch='';
 
 function initSalDates(){
@@ -2377,54 +2400,214 @@ function computeSales(){
 
 function renderSales(){
   const ct=document.getElementById('pg-sal').querySelector('.pad');ct.innerHTML='';initSalDates();
+  // ── 서브탭 ──
+  const stabs=ct.appendChild(el('div','sal-sub-tabs'));
+  [['sales','매출내역'],['sessions','수업진행'],['bypkg','상품별'],['bypay','결제수단별'],['refund','환불내역']].forEach(([v,l])=>{
+    const b=stabs.appendChild(mk('button','sal-stab'+(salSubTab===v?' on':''),l));b.onclick=()=>{salSubTab=v;renderSales();};
+  });
+  // ── 환불내역 탭 ──
+  if(salSubTab==='refund'){renderMobRefundHist(ct);return;}
+  // ── 필터 영역 ──
   const fil=ct.appendChild(el('div','sal-filters'));
-  const modeWrap=fil.appendChild(el('div','sal-mode-tabs'));
-  [['sales','수업권 판매'],['sessions','수업 진행']].forEach(([v,l])=>{const b=modeWrap.appendChild(mk('button','sal-mtab'+(salMode===v?' on':''),l));b.onclick=()=>{salMode=v;renderSales();};});
-  fil.appendChild(mk('div','sal-mode-desc',salMode==='sales'?'수업권 구매 시점 · 실제 결제 금액':'수업 진행 날짜 · 회당 단가 합계'));
+  // 퀵버튼
+  const qrow=fil.appendChild(el('div','sal-quick-row'));
+  function fmtD(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function setQ(s,e){salStartDate=s;salEndDate=e;renderSales();}
+  [{l:'오늘',fn:()=>{const t=new Date();setQ(fmtD(t),fmtD(t));}},
+   {l:'이번주',fn:()=>{const t=new Date();const d=t.getDay()||7;const m=new Date(t);m.setDate(t.getDate()-d+1);const s=new Date(m);s.setDate(m.getDate()+6);setQ(fmtD(m),fmtD(s));}},
+   {l:'이번달',fn:()=>{const t=new Date();setQ(fmtD(new Date(t.getFullYear(),t.getMonth(),1)),fmtD(new Date(t.getFullYear(),t.getMonth()+1,0)));}}
+  ].forEach(({l,fn})=>{qrow.appendChild(mk('button','sal-qbtn',l)).onclick=fn;});
   const dr=fil.appendChild(el('div','sal-row'));
   const sd1=dr.appendChild(el('input'));sd1.type='date';sd1.value=salStartDate;sd1.onchange=e=>salStartDate=e.target.value;
-  dr.appendChild(mk('span','','~')).style.cssText='color:#555;flex-shrink:0;';
+  dr.appendChild(mk('span','','~')).style.cssText='color:#555;flex-shrink:0;font-size:13px;';
   const sd2=dr.appendChild(el('input'));sd2.type='date';sd2.value=salEndDate;sd2.onchange=e=>salEndDate=e.target.value;
   const fr2=fil.appendChild(el('div','sal-row'));
-  const trsel=fr2.appendChild(el('select'));trsel.appendChild(document.createElement('option')).textContent='전체 트레이너';
+  const trsel=fr2.appendChild(el('select'));
+  const to=trsel.appendChild(document.createElement('option'));to.textContent='전체 트레이너';to.value='';
   trainers.forEach(t=>{const o=trsel.appendChild(document.createElement('option'));o.value=t.id;o.textContent=t.name;if(t.id===salTrainer)o.selected=true;});
   trsel.onchange=e=>salTrainer=e.target.value;
-  const srch=fr2.appendChild(el('input'));srch.type='text';srch.placeholder='회원명 검색';srch.value=salSearch;srch.oninput=e=>salSearch=e.target.value;
+  const srch=fr2.appendChild(el('input'));srch.type='text';srch.placeholder='회원명';srch.value=salSearch||'';srch.oninput=e=>salSearch=e.target.value;
   const qBtn=fil.appendChild(mk('button','','조회'));qBtn.style.cssText='width:100%;padding:11px;border-radius:9px;border:none;background:#fff;color:#000;font-size:14px;font-weight:700;cursor:pointer;';qBtn.onclick=renderSales;
-  const{rows,grouped,totalRevenue,totalSessions,uniqueMembers}=computeSales();const isSes=salMode==='sessions';
-  const cards=ct.appendChild(el('div','sal-cards'));
-  [{val:totalRevenue.toLocaleString()+'원',lbl:isSes?'수업 진행 금액':'결제 매출'},{val:totalSessions+(isSes?'회':'건'),lbl:isSes?'수업 횟수':'수업권 판매'},{val:uniqueMembers+'명',lbl:'회원 수'}].forEach(c=>{const card=cards.appendChild(el('div','sal-card'));card.appendChild(mk('div','sal-card-val',c.val));card.appendChild(mk('div','sal-card-lbl',c.lbl));});
-  if(rows.length===0){ct.appendChild(mk('div','sal-empty','해당 기간 데이터가 없습니다.'));return;}
-  const dlBtn=ct.appendChild(mk('button','sal-dl-btn','엑셀 다운로드 (.xlsx)'));dlBtn.onclick=()=>dlSalesCSV(rows,totalRevenue);
-  const tWrap=ct.appendChild(el('div','sal-table-wrap'));const tbl=tWrap.appendChild(el('table','sal-table'));
-  const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
-  (isSes?['날짜','시간','트레이너','회원','유형','권종','금액']:['등록일','시간','트레이너','회원','연락처','유입','결제방법','수업권','결제금액']).forEach(h=>hr.appendChild(mk('th','',h)));
-  const tbody=tbl.appendChild(el('tbody'));
-  rows.forEach(r=>{
-    const row=tbody.appendChild(el('tr'));
-    if(isSes){
-      [r.date,r.time,r.trainerName,r.memberName,r.type,r.planLabel,''].forEach((v,i)=>{
-        if(i===6)row.appendChild(mk('td','amount',r.revenue?r.revenue.toLocaleString()+'원':''));
-        else row.appendChild(mk('td','',v));
-      });
-    } else {
-      [r.date,r.time,r.trainerName,r.memberName,r.phone||'-',r.inflow||'-',r.payment||'-',r.planLabel,''].forEach((v,i)=>{
-        if(i===8)row.appendChild(mk('td','amount',r.revenue?r.revenue.toLocaleString()+'원':''));
-        else row.appendChild(mk('td','',v));
-      });
-    }
+  // ── 데이터 계산 ──
+  const sd=parseSalDate(salStartDate),ed=parseSalDate(salEndDate);ed.setHours(23,59,59);
+  // 매출 rows
+  const salRows=[];let salTotal=0;
+  members.forEach(mb=>{
+    if(salTrainer&&mb.trainerId!==salTrainer)return;
+    if(salSearch&&!mb.name.includes(salSearch))return;
+    const tr2=trainers.find(t=>t.id===mb.trainerId);
+    (mb.plans||[]).forEach(p=>{
+      const pd=new Date(p.addedAt||0);if(pd<sd||pd>ed)return;
+      const ds=pd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
+      const tm=String(pd.getHours()).padStart(2,'0')+':'+String(pd.getMinutes()).padStart(2,'0');
+      salRows.push({mb,p,tr2,ds,tm,amt:p.totalPrice||0,pay:p.paymentMethod||mb.payment||'카드'});
+      salTotal+=p.totalPrice||0;
+    });
   });
-  const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
-  ['합계','','','',totalSessions+(isSes?'회':'건'),'',totalRevenue.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===6?'amount':'',v)));
-  const gKeys=Object.keys(grouped).sort();
-  if(gKeys.length>0){
-    const cWrap=ct.appendChild(el('div','sal-chart-wrap'));
-    const pLabel=salPeriod==='daily'?'일별':salPeriod==='weekly'?'주별':'월별';
-    cWrap.appendChild(mk('div','sal-chart-title',pLabel+' '+(isSes?'수업 진행':'수업권 판매')+' 매출'));
-    const canvas=cWrap.appendChild(el('canvas','sal-canvas'));canvas.style.width='100%';
-    setTimeout(()=>drawSalChart(canvas,gKeys,grouped),80);
+  // 환불 total
+  const refTotal=refunds.filter(r=>{if(!r.processedAt)return false;const d=new Date(r.processedAt);return d>=sd&&d<=ed;}).reduce((s,r)=>s+(r.refundAmount||0),0);
+  // 수업 진행 rows
+  const sesRows=[];let sesTotal=0;
+  slots.forEach(s=>{
+    if(s.type==='OT'||s.type==='상담'||!s.memberId)return;
+    if(salTrainer&&s.trainerId!==salTrainer)return;
+    const parts=s.date.split('-').map(Number);const slotDate=new Date(parts[0],parts[1]-1,parts[2]);
+    if(slotDate<sd||slotDate>ed)return;
+    const mb2=members.find(m=>m.id===s.memberId);
+    if(salSearch&&mb2&&!mb2.name.includes(salSearch))return;
+    const plan2=mb2?(mb2.plans||[]).find(p=>p.id===s.planId):null;
+    const tr2=trainers.find(t=>t.id===s.trainerId);
+    const rev=plan2?(plan2.pricePerSession||0):0;
+    sesRows.push({date:s.date,time:s.time,tr:tr2?tr2.name:'?',mbName:mb2?mb2.name:'?',type:s.type,planLabel:plan2?(plan2.productName||plan2.sessions+'회권'):'-',rev});
+    sesTotal+=rev;
+  });
+  // ── 탭별 렌더 ──
+  if(salSubTab==='sales'){
+    // 순매출 카드
+    const nc=ct.appendChild(el('div','sal-net-card'));
+    const nt=nc.appendChild(el('div','sal-net-top'));
+    const nl=nt.appendChild(el('div'));
+    nl.appendChild(mk('div','sal-net-lbl','순 매출 (환불 제외)'));
+    nl.appendChild(mk('div','sal-net-val',(salTotal-refTotal).toLocaleString()+'원'));
+    const nr=nt.appendChild(el('div'));nr.style.textAlign='right';
+    nr.appendChild(mk('div','sal-net-lbl','총 결제')).style.marginBottom='2px';
+    nr.appendChild(Object.assign(mk('div','',salTotal.toLocaleString()+'원'))).style.cssText='font-size:13px;font-weight:700;color:var(--t2);';
+    if(refTotal>0){const ns=nc.appendChild(el('div','sal-net-subs'));ns.appendChild(mk('div','sal-net-sub','환불: -'+refTotal.toLocaleString()+'원')).style.color='#f87171';}
+    // 요약 카드
+    const cards=ct.appendChild(el('div','sal-cards'));
+    [{v:salRows.length+'건',l:'판매 건수'},{v:new Set(salRows.map(r=>r.mb.name)).size+'명',l:'회원 수'},{v:salRows.length?Math.round(salTotal/salRows.length).toLocaleString()+'원':'-',l:'건당 평균'}].forEach(c=>{
+      const card=cards.appendChild(el('div','sal-card'));
+      card.appendChild(mk('div','sal-card-val',c.v));card.appendChild(mk('div','sal-card-lbl',c.l));
+    });
+    if(!salRows.length){ct.appendChild(mk('div','sal-empty','해당 기간 매출 데이터가 없습니다.'));return;}
+    ct.appendChild(mk('button','sal-dl-btn','엑셀 다운로드')).onclick=()=>{salMode='sales';const r=computeSales();dlSalesCSV(r.rows,r.totalRevenue);};
+    const tw=ct.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
+    const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
+    ['등록일','트레이너','회원','수업권','결제수단','금액'].forEach(h=>hr.appendChild(mk('th','',h)));
+    const tbody=tbl.appendChild(el('tbody'));
+    // 매출 + 환불 합쳐서 날짜순
+    const allRows=[...salRows.map(r=>({ds:r.ds,tm:r.tm,tr:r.tr2?r.tr2.name:'-',mbName:r.mb.name,plan:(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권'),pay:r.pay,amt:r.amt,isRefund:false,addedAt:r.p.addedAt||0}))];
+    refunds.filter(r=>{if(!r.processedAt)return false;const d=new Date(r.processedAt);return d>=sd&&d<=ed;}).forEach(r=>{
+      const rd=new Date(r.processedAt);
+      allRows.push({ds:rd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}),tm:String(rd.getHours()).padStart(2,'0')+':'+String(rd.getMinutes()).padStart(2,'0'),tr:'-',mbName:r.memberName,plan:(r.type==='transfer'?'[양도]':'[환불]')+' '+r.planName,pay:'-',amt:-(r.refundAmount||0),isRefund:true,addedAt:r.processedAt});
+    });
+    allRows.sort((a,b)=>b.addedAt-a.addedAt);
+    allRows.forEach(r=>{
+      const row=tbody.appendChild(el('tr'));
+      if(r.isRefund)row.style.cssText='background:rgba(248,113,113,.06);';
+      [r.ds,r.tr,r.mbName,r.plan,r.pay,''].forEach((v,i)=>{
+        if(i===5){const td=document.createElement('td');td.className='amount';td.textContent=(r.isRefund?'-':'')+Math.abs(r.amt).toLocaleString()+'원';if(r.isRefund)td.style.color='#f87171';row.appendChild(td);}
+        else row.appendChild(mk('td','',v));
+      });
+    });
+    const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
+    ['합계','','',allRows.length+'건','',salTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===5?'amount':'',v)));
+  } else if(salSubTab==='sessions'){
+    const cards=ct.appendChild(el('div','sal-cards'));
+    [{v:sesTotal.toLocaleString()+'원',l:'수업 매출'},{v:sesRows.length+'회',l:'수업 횟수'},{v:new Set(sesRows.map(r=>r.mbName)).size+'명',l:'회원 수'}].forEach(c=>{
+      const card=cards.appendChild(el('div','sal-card'));card.appendChild(mk('div','sal-card-val',c.v));card.appendChild(mk('div','sal-card-lbl',c.l));
+    });
+    if(!sesRows.length){ct.appendChild(mk('div','sal-empty','해당 기간 수업 데이터가 없습니다.'));return;}
+    ct.appendChild(mk('button','sal-dl-btn','엑셀 다운로드')).onclick=()=>{salMode='sessions';const r=computeSales();dlSalesCSV(r.rows,r.totalRevenue);};
+    const tw=ct.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
+    const sesHead=tbl.appendChild(el('thead'));const sesHr=sesHead.appendChild(el('tr'));
+    ['날짜','시간','트레이너','회원','수업권','금액'].forEach(h=>sesHr.appendChild(mk('th','',h)));
+    const tbody=tbl.appendChild(el('tbody'));
+    sesRows.sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time)).forEach(r=>{
+      const row=tbody.appendChild(el('tr'));
+      [r.date,r.time,r.tr,r.mbName,r.planLabel,''].forEach((v,i)=>{
+        if(i===5){const td=document.createElement('td');td.className='amount';td.textContent=r.rev?r.rev.toLocaleString()+'원':'-';row.appendChild(td);}
+        else row.appendChild(mk('td','',v));
+      });
+    });
+    const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
+    ['합계','','','',sesRows.length+'회',sesTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===5?'amount':'',v)));
+  } else if(salSubTab==='bypkg'){
+    if(!salRows.length){ct.appendChild(mk('div','sal-empty','해당 기간 데이터가 없습니다.'));return;}
+    const pkgMap={};
+    salRows.forEach(r=>{const k=(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권');if(!pkgMap[k])pkgMap[k]={cnt:0,tot:0};pkgMap[k].cnt++;pkgMap[k].tot+=r.amt;});
+    const tw=ct.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
+    const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
+    ['No','수업권','건수','합계'].forEach(h=>hr.appendChild(mk('th','',h)));
+    const tbody=tbl.appendChild(el('tbody'));
+    Object.entries(pkgMap).sort((a,b)=>b[1].tot-a[1].tot).forEach(([k,v],i)=>{
+      const row=tbody.appendChild(el('tr'));
+      [i+1,k,v.cnt+'건',''].forEach((val,ci)=>{
+        if(ci===3){const td=document.createElement('td');td.className='amount';td.textContent=v.tot.toLocaleString()+'원';row.appendChild(td);}
+        else row.appendChild(mk('td','',''+val));
+      });
+    });
+    const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
+    ['','합계',salRows.length+'건',salTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===3?'amount':'',v)));
+  } else if(salSubTab==='bypay'){
+    if(!salRows.length){ct.appendChild(mk('div','sal-empty','해당 기간 데이터가 없습니다.'));return;}
+    const pmMap={};
+    salRows.forEach(r=>{const k=r.pay||'카드';if(!pmMap[k])pmMap[k]={cnt:0,tot:0};pmMap[k].cnt++;pmMap[k].tot+=r.amt;});
+    const tw=ct.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
+    const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
+    ['No','결제수단','건수','합계'].forEach(h=>hr.appendChild(mk('th','',h)));
+    const tbody=tbl.appendChild(el('tbody'));
+    Object.entries(pmMap).sort((a,b)=>b[1].tot-a[1].tot).forEach(([k,v],i)=>{
+      const row=tbody.appendChild(el('tr'));
+      [i+1,k,v.cnt+'건',''].forEach((val,ci)=>{
+        if(ci===3){const td=document.createElement('td');td.className='amount';td.style.color='#818cf8';td.textContent=v.tot.toLocaleString()+'원';row.appendChild(td);}
+        else row.appendChild(mk('td','',''+val));
+      });
+    });
+    const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
+    ['','합계',salRows.length+'건',salTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===3?'amount':'',v)));
+  }
+  // 차트 (매출내역, 수업진행 탭)
+  if(salSubTab==='sales'||salSubTab==='sessions'){
+    const isSes=salSubTab==='sessions';
+    salMode=isSes?'sessions':'sales';
+    const{grouped}=computeSales();
+    const gKeys=Object.keys(grouped).sort();
+    if(gKeys.length>1){
+      const cWrap=ct.appendChild(el('div','sal-chart-wrap'));
+      const pLabel=salPeriod==='daily'?'일별':salPeriod==='weekly'?'주별':'월별';
+      cWrap.appendChild(mk('div','sal-chart-title',pLabel+' '+(isSes?'수업 진행':'매출')+'추이'));
+      const canvas=cWrap.appendChild(el('canvas','sal-canvas'));canvas.style.width='100%';
+      setTimeout(()=>drawSalChart(canvas,gKeys,grouped),80);
+    }
   }
 }
+
+// ── 모바일 환불내역 탭 ──
+function renderMobRefundHist(ct){
+  ct.appendChild(mk('div','',refunds.length+'건의 환불/양도 내역')).style.cssText='font-size:12px;color:var(--t3);margin-bottom:12px;';
+  if(!refunds.length){ct.appendChild(mk('div','sal-empty','환불/양도 내역이 없습니다.'));return;}
+  ct.appendChild(mk('button','sal-dl-btn','엑셀 다운로드')).onclick=()=>{
+    if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
+    const wb=XLSX.utils.book_new();
+    const wsData=[['TheLine CRM - 환불/양도 내역'],['처리일','유형','회원','연락처','이용권','결제금액','사용횟수','잔여횟수','환불금액','메모']];
+    refunds.forEach(r=>wsData.push([r.processedDate||'-',r.type==='refund'?'환불':'양도',r.memberName,r.phone||'',r.planName||'',r.paidAmount||0,r.usedSessions,r.remainSessions,r.refundAmount||0,r.memo||'']));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(wsData),'환불내역');
+    XLSX.writeFile(wb,'환불내역.xlsx');
+  };
+  refunds.forEach((r,i)=>{
+    const card=ct.appendChild(el('div','sal-ref-card'));
+    const top=card.appendChild(el('div','sal-ref-top'));
+    const typeBdg=top.appendChild(mk('span','sal-ref-type '+(r.type==='refund'?'refund':'transfer'),r.type==='refund'?'환불':'양도'));
+    top.appendChild(mk('span','sal-ref-name',r.memberName));
+    top.appendChild(mk('span','sal-ref-amt','-'+(r.refundAmount||0).toLocaleString()+'원'));
+    const info=card.appendChild(el('div','sal-ref-info'));
+    info.innerHTML=(r.processedDate||'-')+' · '+( r.planName||'-')+'<br>'
+      +'결제: '+(r.paidAmount||0).toLocaleString()+'원 · 사용 '+(r.usedSessions||0)+'회 · 잔여 '+(r.remainSessions||0)+'회'
+      +(r.memo?'<br>메모: '+r.memo:'');
+    if(r.type==='refund'&&isAdminUser()){
+      const cancelBtn=card.appendChild(mk('button','sal-cancel-btn','환불 취소 (수업권 복구)'));
+      cancelBtn.onclick=()=>{
+        if(!confirm(r.memberName+' 환불을 취소하고 수업권을 복구할까요?'))return;
+        const mb2=members.find(m=>m.id===r.memberId);
+        if(mb2){const plan2=(mb2.plans||[]).find(p=>p.id===r.planId);if(plan2&&plan2.refunded){plan2.refunded=false;plan2.sessions=r.usedSessions+r.remainSessions;delete plan2.refundedAt;delete plan2.refundAmount;sv('og10_mb',members);}}
+        refunds=refunds.filter(x=>x.id!==r.id);sv('og10_rf',refunds);
+        alert('환불이 취소되고 수업권이 복구되었습니다.');renderSales();
+      };
+    }
+  });
+}
+
 
 function drawSalChart(canvas,keys,grouped){
   const W=canvas.width=canvas.offsetWidth||300;const H=canvas.height=180;const ctx=canvas.getContext('2d');if(!ctx)return;
@@ -4104,6 +4287,7 @@ function openPcRefund(mb, plan, parentBox, parentClose) {
       close();
       alert('✅ ' + (refType==='refund'?'환불':'양도') + ' 처리 완료!\n' + amt.toLocaleString() + '원');
       if (parentBox && parentClose) renderMbDetailModal(parentBox, parentClose, mb.id);
+      else if(window.innerWidth<700){renderMem();}
       else renderPcContent();
     };
   }, {wide: true});
