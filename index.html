@@ -761,6 +761,13 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
   animation:pcPageFadeInFast .2s cubic-bezier(.22,1,.36,1) forwards;
 }
 
+/* date input 다크모드 캘린더 아이콘 */
+input[type=date]{color-scheme:dark;cursor:pointer;}
+input[type=date]::-webkit-calendar-picker-indicator{
+  cursor:pointer;filter:invert(0.8);opacity:0.8;
+}
+input[type=date]::-webkit-calendar-picker-indicator:hover{opacity:1;}
+
 </style>
 
 <!-- Firebase SDK -->
@@ -2158,7 +2165,7 @@ function renderMemView(ct){
     top.appendChild(mk('div','memnm',m.name));
     const topBtns=top.appendChild(el('div'));topBtns.style.cssText='display:flex;gap:5px;align-items:center;';
     topBtns.appendChild(mk('button','memeditbtn','회원수정')).onclick=()=>openEditMember(m.id);
-    topBtns.appendChild(mk('button','memplanbtb','+ 권종추가')).onclick=()=>openAddPlan(m.id);
+    topBtns.appendChild(mk('button','memplanbtb','+ 현장판매')).onclick=()=>openPcPayment(m.id,null,null);
     topBtns.appendChild(mk('button','mdel','×')).onclick=()=>{if(confirm(m.name+' 삭제?')){members=members.filter(x=>x.id!==m.id);sv('og10_mb',members);renderMem();}};
     const minfo=card.appendChild(el('div',''));minfo.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;';
     if(m.phone)minfo.appendChild(mk('div','mphone',m.phone));
@@ -2330,7 +2337,7 @@ function renderAdm(){
   const bar=ct.appendChild(el('div','adminbar'));bar.appendChild(mk('span','abadge','관리자 모드'));
   const stbar=ct.appendChild(el('div','admsubtabs'));
   const admTabOrder=['staff','pkg','code'];
-  [['staff','직원'],['pkg','패키지'],['code','설정']].forEach(([id,lbl])=>{stbar.appendChild(mk('button','admsubtab'+(admSubTab===id?' on':''),lbl)).onclick=()=>{
+  [['staff','직원'],['pkg','상품관리'],['code','설정']].forEach(([id,lbl])=>{stbar.appendChild(mk('button','admsubtab'+(admSubTab===id?' on':''),lbl)).onclick=()=>{
     const oldIdx=admTabOrder.indexOf(admSubTab);const newIdx=admTabOrder.indexOf(id);
     window._admSlideDir=newIdx>oldIdx?'right':'left';admSubTab=id;renderAdm();
   };});
@@ -2412,33 +2419,84 @@ function addStaff(){
 }
 
 function renderAdmPkg(ct){
-  ct.appendChild(mk('div','sec','패키지 추가'));
+  // ── 상품관리 (모바일) - PC products 배열과 공유 ──
+  ct.appendChild(mk('div','sec','상품 추가'));
   const form=ct.appendChild(el('div','sform'));
-  const dsel=form.appendChild(el('select'));dsel.id='pk-d';[{v:25,l:'25분 수업'},{v:50,l:'50분 수업'}].forEach(opt=>{const o=dsel.appendChild(document.createElement('option'));o.value=opt.v;o.textContent=opt.l;});
+
+  // 상품명
+  const ni=form.appendChild(el('input'));ni.placeholder='상품명 (예: 25분 10회권)';ni.type='text';
+  const iSt='width:100%;padding:12px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;';
+  ni.style.cssText=iSt;
+
+  // 종류 + 금액
   const r2b=form.appendChild(el('div','r2'));
-  const si=r2b.appendChild(el('select'));si.id='pk-s';si.style.cssText='width:100%;padding:12px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;';
-  SESSION_OPTIONS.forEach(n=>{const o=si.appendChild(document.createElement('option'));o.value=n;o.textContent=n+'회권';});
-  const pi=r2b.appendChild(el('input'));pi.id='pk-p';pi.type='text';pi.placeholder='예: 450,000';pi.style.cssText='width:100%;padding:12px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;';
-  pi.oninput=function(){this.value=fmtMoney(this.value);};
-  form.appendChild(mk('button','sbtn','+ 패키지 추가')).onclick=()=>{
-    const dur=parseInt(dsel.value),sess=parseInt(si.value||'0'),price=parseMoney(pi.value);
-    if(!sess||!price){alert('횟수와 금액을 입력해주세요.');return;}
-    const newPkg={id:'p'+Date.now(),duration:dur,sessions:sess,price};
-    packages.push(newPkg);
-    // 현장판매 상품목록에도 자동 등록
-    const autoProd={id:'pr_pkg_'+newPkg.id,name:'PT '+sess+'회권 ('+dur+'분)',price,type:'pt',sessions:sess,duration:dur,fromPkg:newPkg.id,createdAt:Date.now()};
-    products.push(autoProd);
-    sv('og10_pkg',packages);sv('og10_pr',products);pi.value='';renderAdm();
+  const typeS=r2b.appendChild(el('select'));typeS.style.cssText=iSt;
+  [{v:'pt',l:'PT 수강권'},{v:'membership',l:'헬스 이용권'}].forEach(({v,l})=>{
+    const o=typeS.appendChild(document.createElement('option'));o.value=v;o.textContent=l;
+  });
+  const priceI=r2b.appendChild(el('input'));priceI.type='text';priceI.placeholder='금액 (예: 450,000)';priceI.style.cssText=iSt;
+  priceI.oninput=function(){this.value=fmtMoney(this.value);};
+
+  // PT 횟수 / 헬스 기간
+  const r3b=form.appendChild(el('div','r2'));
+  const sessI=r3b.appendChild(el('input'));sessI.type='number';sessI.placeholder='횟수 (PT만)';sessI.style.cssText=iSt;
+  const durS=r3b.appendChild(el('select'));durS.style.cssText=iSt;
+  [{v:0,l:'수업시간 없음'},{v:25,l:'25분'},{v:50,l:'50분'}].forEach(({v,l})=>{
+    const o=durS.appendChild(document.createElement('option'));o.value=v;o.textContent=l;
+  });
+
+  form.appendChild(mk('button','sbtn','+ 상품 추가')).onclick=()=>{
+    const name=ni.value.trim();const price=parseMoney(priceI.value);
+    if(!name||!price){alert('상품명과 금액을 입력해주세요.');return;}
+    const prod={
+      id:'pr_mob_'+Date.now(),name,price,type:typeS.value,
+      sessions:parseInt(sessI.value)||0,
+      duration:parseInt(durS.value)||0,
+      createdAt:Date.now()
+    };
+    products.push(prod);
+    // PT 수강권이면 packages에도 등록 (기존 모바일 권종 폼 호환)
+    if(prod.type==='pt'&&prod.sessions&&prod.duration){
+      const pkg={id:'p_mob_'+Date.now(),duration:prod.duration,sessions:prod.sessions,price:prod.price};
+      packages.push(pkg);
+      prod.fromPkg=pkg.id;
+      sv('og10_pkg',packages);
+    }
+    sv('og10_pr',products);ni.value='';priceI.value='';sessI.value='';renderAdm();
   };
-  [25,50].forEach(dur=>{
-    const pkgs=packages.filter(p=>p.duration===dur).sort((a,b)=>a.sessions-b.sessions);
-    ct.appendChild(mk('div','sec',dur+'분 수업 패키지'));
-    if(!pkgs.length){ct.appendChild(mk('div','','등록된 패키지 없음')).style.cssText='color:#555;font-size:13px;padding:4px 0 12px;';return;}
-    pkgs.forEach(p=>{
-      const card=ct.appendChild(el('div','pkgcard'));
-      const info=card.appendChild(el('div'));info.appendChild(mk('div','pkginfo',p.sessions+'회권'));info.appendChild(mk('div','pkgprice',fmtMoney(p.price)+'원 · 회당 '+fmtMoney(Math.round(p.price/p.sessions))+'원'));
-      card.appendChild(mk('button','pkgdel','삭제')).onclick=()=>{if(confirm('패키지 삭제?')){packages=packages.filter(x=>x.id!==p.id);products=products.filter(x=>x.fromPkg!==p.id);sv('og10_pkg',packages);sv('og10_pr',products);renderAdm();}};
-    });
+
+  // 등록된 상품 목록
+  ct.appendChild(mk('div','sec','PT 수강권'));
+  const ptList=products.filter(p=>p.type==='pt');
+  if(!ptList.length){ct.appendChild(mk('div','','등록된 PT 수강권 없음')).style.cssText='color:#555;font-size:13px;padding:4px 0 12px;';}
+  ptList.forEach(p=>{
+    const card=ct.appendChild(el('div','pkgcard'));
+    const info=card.appendChild(el('div'));
+    info.appendChild(mk('div','pkginfo',p.name));
+    info.appendChild(mk('div','pkgprice',p.price.toLocaleString()+'원'+(p.sessions?' · '+p.sessions+'회':'')));
+    card.appendChild(mk('button','pkgdel','삭제')).onclick=()=>{
+      if(confirm(p.name+' 삭제?')){
+        if(p.fromPkg)packages=packages.filter(x=>x.id!==p.fromPkg);
+        products=products.filter(x=>x.id!==p.id);
+        sv('og10_pkg',packages);sv('og10_pr',products);renderAdm();
+      }
+    };
+  });
+
+  ct.appendChild(mk('div','sec','헬스 이용권'));
+  const msList=products.filter(p=>p.type==='membership');
+  if(!msList.length){ct.appendChild(mk('div','','등록된 헬스 이용권 없음')).style.cssText='color:#555;font-size:13px;padding:4px 0 12px;';}
+  msList.forEach(p=>{
+    const card=ct.appendChild(el('div','pkgcard'));
+    const info=card.appendChild(el('div'));
+    info.appendChild(mk('div','pkginfo',p.name));
+    info.appendChild(mk('div','pkgprice',p.price.toLocaleString()+'원'));
+    card.appendChild(mk('button','pkgdel','삭제')).onclick=()=>{
+      if(confirm(p.name+' 삭제?')){
+        products=products.filter(x=>x.id!==p.id);
+        sv('og10_pr',products);renderAdm();
+      }
+    };
   });
 }
 
@@ -4024,9 +4082,9 @@ function openPcPayment(mbId,parentBox,parentClose){
       const df=c.appendChild(document.createElement('div'));
       df.innerHTML='<div style="font-size:11px;color:#3a3f58;margin-bottom:5px;">이용 기간</div>';
       const dr=df.appendChild(document.createElement('div'));dr.style.cssText='display:flex;align-items:center;gap:6px;';
-      const sI=dr.appendChild(document.createElement('input'));sI.type='date';sI.value=selStartDate;sI.style.cssText='flex:1;padding:6px 8px;border:1px solid #1e2026;border-radius:6px;background:#0a0c10;color:#e2e8f0;font-size:12px;outline:none;';
+      const sI=dr.appendChild(document.createElement('input'));sI.type='date';sI.value=selStartDate;sI.style.cssText='flex:1;padding:6px 8px;border:1px solid #1e2026;border-radius:6px;background:#0a0c10;color:#e2e8f0;font-size:12px;outline:none;color-scheme:dark;cursor:pointer;';
       dr.appendChild(Object.assign(document.createElement('span'),{textContent:'~'})).style.color='#3a3f58';
-      const eI=dr.appendChild(document.createElement('input'));eI.type='date';eI.value=selEndDate;eI.style.cssText='flex:1;padding:6px 8px;border:1px solid #1e2026;border-radius:6px;background:#0a0c10;color:#e2e8f0;font-size:12px;outline:none;';
+      const eI=dr.appendChild(document.createElement('input'));eI.type='date';eI.value=selEndDate;eI.style.cssText='flex:1;padding:6px 8px;border:1px solid #1e2026;border-radius:6px;background:#0a0c10;color:#e2e8f0;font-size:12px;outline:none;color-scheme:dark;cursor:pointer;';
       sI.onchange=()=>selStartDate=sI.value;eI.onchange=()=>selEndDate=eI.value;
     }
     payBtn.textContent=prod.price.toLocaleString()+'원  결제하기';
@@ -4077,7 +4135,7 @@ function renderPcSessions(ct,acts){
   trs.appendChild(Object.assign(document.createElement('option'),{value:'',textContent:'전체 트레이너'}));
   trainers.forEach(t=>{const o=trs.appendChild(document.createElement('option'));o.value=t.id;o.textContent=t.name;if(t.id===pcSalTr)o.selected=true;});trs.onchange=e=>pcSalTr=e.target.value;
   fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'조회'})).onclick=()=>renderPcContent();
-  if(acts){acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'})).onclick=()=>dlSessionsXLSX();}
+  fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'})).onclick=()=>dlSessionsXLSX();
   // 슬롯 필터링
   const filtered=slots.filter(s=>{
     const d=new Date(s.date);if(d<sd||d>ed)return false;
@@ -4355,7 +4413,7 @@ function openPcEditMemberModal(mbId,parentBox,parentClose){
     const r4=box.appendChild(document.createElement('div'));r4.className='pcm-row2';
     const trF=r4.appendChild(_f('담당자'));const trI=trF.appendChild(_sel([{v:'',l:'없음'},...trainers.map(t=>({v:t.id,l:t.name}))]));if(mb.trainerId)trI.value=mb.trainerId;
     const purF=r4.appendChild(_f('운동목적'));const purI=purF.appendChild(_sel([{v:'',l:'선택 안함'},'다이어트','근육 증가','재활','건강 관리','골프 퍼포먼스','기타'].map(v=>typeof v==='string'?{v,l:v}:v)));if(mb.purpose)purI.value=mb.purpose;
-    const bdF=box.appendChild(_f('생년월일'));const bdI=bdF.appendChild(_inp(''));bdI.type='date';bdI.value=mb.birthdate||'';
+    const bdF=box.appendChild(_f('생년월일'));const bdI=bdF.appendChild(_inp(''));bdI.type='date';bdI.style.colorScheme='dark';bdI.style.cursor='pointer';bdI.value=mb.birthdate||'';
     const adF=box.appendChild(_f('주소'));const adI=adF.appendChild(_inp(''));adI.value=mb.address||'';
     const noF=box.appendChild(_f('특이사항'));const noTA=noF.appendChild(document.createElement('textarea'));noTA.className='pcm-textarea';noTA.value=mb.notes||'';
     const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='24px';
