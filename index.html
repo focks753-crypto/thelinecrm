@@ -11,9 +11,9 @@
 <meta property="og:site_name" content="TheLine CRM">
 <meta property="og:description" content="TheLine CRM">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="shortcut icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=2">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
+<link rel="shortcut icon" href="icons/icon-192.png?v=2">
 <title>TheLine CRM</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -664,6 +664,103 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 /* ── 모바일 사이드바 ── */
 #mob-sidebar{display:none;}
 .pg{overflow-y:auto;}
+
+/* ══════════════════════════════════════
+   PC 버전 애니메이션
+   ══════════════════════════════════════ */
+
+@keyframes pcPageFadeIn{
+  from{opacity:0;transform:translateY(14px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes pcPageFadeInFast{
+  from{opacity:0;transform:translateY(6px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes pcFadeOnly{
+  from{opacity:0}to{opacity:1}
+}
+@keyframes pcCardIn{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes pcSlideInLeft{
+  from{opacity:0;transform:translateX(-16px)}
+  to{opacity:1;transform:translateX(0)}
+}
+@keyframes pcScaleIn{
+  from{opacity:0;transform:scale(.97)}
+  to{opacity:1;transform:scale(1)}
+}
+
+.pc-content-anim{
+  animation:pcPageFadeIn .28s cubic-bezier(.22,1,.36,1) forwards;
+}
+
+.pc-card-anim{
+  opacity:0;
+  animation:pcCardIn .32s cubic-bezier(.22,1,.36,1) forwards;
+}
+.pc-card-anim:nth-child(1){animation-delay:.03s}
+.pc-card-anim:nth-child(2){animation-delay:.07s}
+.pc-card-anim:nth-child(3){animation-delay:.11s}
+.pc-card-anim:nth-child(4){animation-delay:.15s}
+
+.pc-card{
+  transition:transform .18s cubic-bezier(.22,1,.36,1),
+             box-shadow .18s cubic-bezier(.22,1,.36,1),
+             border-color .15s;
+}
+.pc-card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 8px 28px rgba(0,0,0,.45);
+  border-color:#252830;
+}
+
+.pc-tbl tbody tr{
+  transition:background .1s;
+}
+
+.pc-nav-item{
+  transition:background .16s cubic-bezier(.22,1,.36,1),
+             color .16s,
+             padding-left .16s cubic-bezier(.22,1,.36,1);
+}
+.pc-nav-item:hover{padding-left:18px;}
+.pc-nav-item.on{padding-left:18px;}
+
+.pc-nav-sub-item{
+  transition:background .14s,color .14s,padding-left .14s cubic-bezier(.22,1,.36,1);
+}
+.pc-nav-sub-item:hover{padding-left:18px;}
+.pc-nav-sub-item.on{padding-left:18px;}
+
+.pcm-ov{animation:pcFadeOnly .18s ease forwards;}
+.pcm-box{animation:pcScaleIn .22s cubic-bezier(.22,1,.36,1) forwards;}
+
+.pc-tbtn{
+  transition:background .14s,transform .12s,box-shadow .14s;
+}
+.pc-tbtn:hover{transform:translateY(-1px);box-shadow:0 3px 12px rgba(0,0,0,.35);}
+.pc-tbtn:active{transform:translateY(0);}
+
+.pc-prod-card{
+  transition:border-color .15s,transform .18s cubic-bezier(.22,1,.36,1),box-shadow .18s;
+}
+.pc-prod-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.4);}
+
+.pcdp-anim{animation:pcSlideInLeft .24s cubic-bezier(.22,1,.36,1) forwards;}
+
+.pc-stab{transition:color .15s,border-bottom-color .15s;}
+
+.pc-cal-cell{transition:background .12s,transform .12s;}
+.pc-cal-cell:hover{transform:scale(1.03);}
+
+.pc-row-anim{
+  opacity:0;
+  animation:pcPageFadeInFast .2s cubic-bezier(.22,1,.36,1) forwards;
+}
+
 </style>
 
 <!-- Firebase SDK -->
@@ -2037,7 +2134,7 @@ function openMobMemberDetail(mbId){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;display:flex;align-items:flex-end;';
   document.body.appendChild(ov);
   const box=ov.appendChild(document.createElement('div'));
-  box.style.cssText='background:#111318;width:100%;max-height:90vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:20px;';
+  box.style.cssText='background:#111318;width:100%;max-height:90vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:20px;animation:pcPageFadeIn .28s cubic-bezier(.22,1,.36,1) forwards;';
   const close=()=>{if(document.body.contains(ov))document.body.removeChild(ov);};
   ov.onclick=e=>{if(e.target===ov)close();};
   renderMbDetailModal(box,close,mbId);
@@ -3322,6 +3419,7 @@ function updatePcUser(){
 function renderPcContent(){
   const ct=document.getElementById('pc-ct'),ttl=document.getElementById('pc-ttl'),acts=document.getElementById('pc-acts');
   const stbar=document.getElementById('pc-subtabbar');if(!ct)return;ct.innerHTML='';if(acts)acts.innerHTML='';if(stbar){stbar.innerHTML='';stbar.style.display='none';}
+  ct.classList.remove('pc-content-anim');void ct.offsetHeight;ct.classList.add('pc-content-anim');
   updatePcUser();
   const nav=PC_NAV.find(n=>n.id===pcV);
   if(ttl)ttl.textContent=nav?nav.label:'홈';
@@ -3384,7 +3482,7 @@ function renderPcHome(ct,acts){
    {lbl:'만료임박 회원',val:expiring+'명',sub:'잔여 3회 이하',pct:er,sv:'expiring'},
    {lbl:'만료 회원',val:expired+'명',sub:'전체 대비 '+xr+'%',pct:xr,sv:'expired'}
   ].forEach(c2=>{
-    const card=g4.appendChild(_mk('div','pc-card'));
+    const card=g4.appendChild(_mk('div','pc-card pc-card-anim'));
     card.style.cursor='pointer';
     card.innerHTML='<div class="pc-card-ttl">'+c2.lbl+'</div><div class="pc-card-val" style="color:#e2e8f0;">'+c2.val+'</div><div class="pc-card-sub">'+c2.sub+'</div><div class="pc-bar"><div class="pc-bar-fill" style="width:'+c2.pct+'%;background:#818cf8;"></div></div>';
     card.onmouseenter=()=>{card.style.borderColor='#818cf8';};card.onmouseleave=()=>{card.style.borderColor='';};
@@ -3392,7 +3490,7 @@ function renderPcHome(ct,acts){
   });
 
   // ── 활성비율 바 ──
-  const rc=ct.appendChild(_mk('div','pc-card'));rc.style.marginBottom='16px';
+  const rc=ct.appendChild(_mk('div','pc-card pc-card-anim'));rc.style.marginBottom='16px';
   const barD=[{l:'활성',c:'#34d399',v:active},{l:'만료임박',c:'#fbbf24',v:expiring},{l:'만료',c:'#f87171',v:expired},{l:'미등록',c:'#4a5068',v:none_}];
   rc.innerHTML='<div class="pc-card-ttl">전체 회원 대비 활성 비율</div>'
     +'<div style="display:flex;align-items:center;gap:16px;margin:10px 0 6px;">'
@@ -3404,7 +3502,7 @@ function renderPcHome(ct,acts){
   // ── 2열: 성비 + 유입경로 ──
   const g2=ct.appendChild(_mk('div','pc-dash-g2'));
 
-  const genderCard=g2.appendChild(_mk('div','pc-card'));
+  const genderCard=g2.appendChild(_mk('div','pc-card pc-card-anim'));
   const tot2=total||1;
   const mp=Math.round(maleC/tot2*100),fp=Math.round(femaleC/tot2*100);
   genderCard.innerHTML='<div class="pc-card-ttl">전체 회원 성비</div>'
@@ -3419,7 +3517,7 @@ function renderPcHome(ct,acts){
     +(unknownC>0?'<span style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5068;"><span style="width:10px;height:10px;border-radius:50%;background:#2a2d45;display:inline-block;"></span>미입력 '+unknownC+'명</span>':'')
     +'</div>';
 
-  const ic=g2.appendChild(_mk('div','pc-card'));
+  const ic=g2.appendChild(_mk('div','pc-card pc-card-anim'));
   const entries=Object.entries(inflowMap).sort((a,b)=>b[1]-a[1]);
   const maxInf=Math.max(1,...entries.map(e=>e[1]));
   let inflowHtml='<div class="pc-card-ttl">유입경로 현황</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
@@ -3430,7 +3528,7 @@ function renderPcHome(ct,acts){
   // ── 3열: 트레이너별 회원수 / 트레이너별 이번달 매출 / 이번달 매출요약 ──
   const g3=ct.appendChild(_mk('div','pc-dash-g3'));
 
-  const tc=g3.appendChild(_mk('div','pc-card'));
+  const tc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
   const trList=Object.values(trStats).sort((a,b)=>b.cnt-a.cnt);
   const maxCnt=Math.max(1,...trList.map(t=>t.cnt));
   let trHtml='<div class="pc-card-ttl">트레이너별 회원수</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
@@ -3438,7 +3536,7 @@ function renderPcHome(ct,acts){
   if(!trainers.length)trHtml+='<div style="color:#252830;font-size:12px;">직원 없음</div>';
   tc.innerHTML=trHtml+'</div>';
 
-  const trc=g3.appendChild(_mk('div','pc-card'));
+  const trc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
   const trRevList=Object.values(trStats).sort((a,b)=>b.rev-a.rev);
   const maxRev=Math.max(1,...trRevList.map(t=>t.rev));
   let trRevHtml='<div class="pc-card-ttl">트레이너별 이번달 매출</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
@@ -3446,7 +3544,7 @@ function renderPcHome(ct,acts){
   if(!trainers.length)trRevHtml+='<div style="color:#252830;font-size:12px;">직원 없음</div>';
   trc.innerHTML=trRevHtml+'</div>';
 
-  const sc=g3.appendChild(_mk('div','pc-card'));
+  const sc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
   sc.innerHTML='<div class="pc-card-ttl">이번달 수업권 매출</div>'
     +'<div style="font-size:28px;font-weight:800;color:#e2e8f0;margin:8px 0 4px;">'+mRev.toLocaleString()+'원</div>'
     +'<div style="font-size:12px;color:#4a5068;margin-bottom:16px;">수업권 '+mCnt+'건</div>'
