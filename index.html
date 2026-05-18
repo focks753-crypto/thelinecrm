@@ -2445,11 +2445,38 @@ function renderAdmBookings(ct){
       badge.style.cssText='font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;background:'+(b.status==='approved'?'rgba(61,200,122,.15)':b.status==='rejected'?'rgba(248,113,113,.15)':'rgba(251,191,36,.15)')+';color:'+(b.status==='approved'?'#3dc87a':b.status==='rejected'?'#f87171':'#fbbf24')+';';
       const info=card.appendChild(el('div'));info.style.cssText='font-size:12px;color:var(--t2);';
       info.textContent='트레이너: '+(trainers.find(t=>t.id===b.trainerId)||{name:'-'}).name+' · '+b.duration+'분'+(b.memo?' · '+b.memo:'');
+      if(b.rejectReason&&b.status==='rejected'){
+        const reasonRow=card.appendChild(el('div'));
+        reasonRow.style.cssText='font-size:12px;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:8px;margin-top:2px;';
+        reasonRow.textContent='거절 사유: '+b.rejectReason;
+      }
       if(b.status==='pending'){
-        const btns=card.appendChild(el('div'));btns.style.cssText='display:flex;gap:8px;';
-        btns.appendChild(mk('button','sbtn','✓ 확정')).onclick=()=>{db2.collection('og10_bk').doc(b.id).update({status:'approved'}).then(()=>renderAdm());};
-        const rBtn=btns.appendChild(mk('button','stdel','✗ 거절'));rBtn.style.cssText='padding:8px 14px;border-radius:8px;';
-        rBtn.onclick=()=>{db2.collection('og10_bk').doc(b.id).update({status:'rejected'}).then(()=>renderAdm());};
+        const btns=card.appendChild(el('div'));btns.style.cssText='display:flex;gap:10px;margin-top:4px;';
+        const apvBtn=btns.appendChild(el('button'));
+        apvBtn.style.cssText='flex:1;padding:11px 0;border-radius:10px;border:none;background:rgba(61,200,122,.15);color:#3dc87a;font-size:14px;font-weight:700;cursor:pointer;';
+        apvBtn.textContent='✓ 확정';
+        apvBtn.onclick=()=>{if(confirm(b.memberName+' 예약을 확정하시겠습니까?')){db2.collection('og10_bk').doc(b.id).update({status:'approved'}).then(()=>renderAdm());}};
+        const rBtn=btns.appendChild(el('button'));
+        rBtn.style.cssText='flex:1;padding:11px 0;border-radius:10px;border:none;background:rgba(248,113,113,.12);color:#f87171;font-size:14px;font-weight:700;cursor:pointer;';
+        rBtn.textContent='✗ 거절';
+        rBtn.onclick=()=>{
+          showSheet(function(sheet,close){
+            sheet.appendChild(el('div','shdl'));
+            sheet.appendChild(mk('h3','','예약 거절'));
+            const info=sheet.appendChild(el('div'));info.style.cssText='font-size:13px;color:var(--t2);margin-bottom:16px;';info.textContent=b.memberName+' · '+b.date+' '+b.time;
+            sheet.appendChild(mk('label','','거절 사유 (고객에게 표시됩니다)'));
+            const ta=sheet.appendChild(el('textarea'));
+            ta.placeholder='예) 해당 시간에 이미 다른 수업이 있습니다.';
+            ta.style.cssText='width:100%;padding:13px 14px;border:1px solid var(--bd2);border-radius:10px;background:var(--bg2);color:var(--t1);font-size:15px;resize:none;min-height:80px;outline:none;font-family:inherit;margin-bottom:16px;';
+            const confirmBtn=sheet.appendChild(el('button'));
+            confirmBtn.style.cssText='width:100%;padding:14px;border-radius:10px;border:none;background:rgba(248,113,113,.2);color:#f87171;font-size:15px;font-weight:700;cursor:pointer;';
+            confirmBtn.textContent='거절 확정';
+            confirmBtn.onclick=()=>{
+              const reason=ta.value.trim();
+              db2.collection('og10_bk').doc(b.id).update({status:'rejected',rejectReason:reason||''}).then(()=>{close();renderAdm();});
+            };
+          });
+        };
       }
     });
   }).catch(()=>{ct.innerHTML='';ct.appendChild(mk('div','sal-empty','로드 실패. 다시 시도해주세요.'));});
@@ -4545,14 +4572,85 @@ function renderPcSales(ct,acts){
   if(!rows.length&&pcSV==='all'){const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=10;td.style.cssText='text-align:center;padding:32px;color:#2a2d45;';td.textContent='데이터 없음';}
 }
 
+// ── PC 예약관리 ───────────────────────────────────────────────────────────
+function renderPcBookings(ct){
+  const db2=firebase.firestore();
+  const tw=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-tw'}));
+  const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
+  const thead=tbl.appendChild(document.createElement('thead'));
+  const hr=thead.appendChild(document.createElement('tr'));
+  ['회원명','트레이너','날짜','시간','수업시간','메모','상태','처리'].forEach(h=>{hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));});
+  const tbody=tbl.appendChild(document.createElement('tbody'));
+  const loadRow=tbody.appendChild(document.createElement('tr'));
+  const ltd=loadRow.appendChild(document.createElement('td'));ltd.colSpan=8;ltd.style.cssText='text-align:center;padding:32px;color:#4a5068;';ltd.textContent='로딩 중...';
+  db2.collection('og10_bk').orderBy('requestedAt','desc').limit(100).get().then(snap=>{
+    tbody.innerHTML='';
+    const docs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!docs.length){const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=8;td.style.cssText='text-align:center;padding:48px;color:#4a5068;';td.textContent='예약 신청이 없습니다.';return;}
+    const statusLbl={pending:'대기',approved:'확정',rejected:'거절'};
+    const statusColor={pending:'#fbbf24',approved:'#3dc87a',rejected:'#f87171'};
+    const statusBg={pending:'rgba(251,191,36,.12)',approved:'rgba(61,200,122,.12)',rejected:'rgba(248,113,113,.12)'};
+    docs.forEach(b=>{
+      const row=tbody.appendChild(document.createElement('tr'));
+      const trName=(trainers.find(t=>t.id===b.trainerId)||{name:'-'}).name;
+      const st=b.status||'pending';
+      [b.memberName||'-',trName,b.date||'-',b.time||'-',(b.duration||'-')+'분',b.memo||'-'].forEach(v=>{row.appendChild(Object.assign(document.createElement('td'),{textContent:v}));});
+      // 상태 뱃지
+      const stTd=row.appendChild(document.createElement('td'));
+      const badge=stTd.appendChild(document.createElement('span'));
+      badge.textContent=statusLbl[st]||'대기';
+      badge.style.cssText='font-size:11px;padding:3px 10px;border-radius:20px;font-weight:700;background:'+statusBg[st]+';color:'+statusColor[st]+';';
+      if(b.rejectReason&&st==='rejected'){badge.title='사유: '+b.rejectReason;badge.style.cursor='help';}
+      // 처리 버튼
+      const actTd=row.appendChild(document.createElement('td'));
+      if(st==='pending'){
+        const apvBtn=actTd.appendChild(document.createElement('button'));
+        apvBtn.style.cssText='padding:5px 12px;border-radius:6px;border:none;background:rgba(61,200,122,.15);color:#3dc87a;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;';
+        apvBtn.textContent='✓ 확정';
+        apvBtn.onclick=()=>{if(confirm(b.memberName+' 예약을 확정하시겠습니까?')){db2.collection('og10_bk').doc(b.id).update({status:'approved'}).then(()=>renderPcContent());}};
+        const rejBtn=actTd.appendChild(document.createElement('button'));
+        rejBtn.style.cssText='padding:5px 12px;border-radius:6px;border:none;background:rgba(248,113,113,.15);color:#f87171;font-size:12px;font-weight:700;cursor:pointer;';
+        rejBtn.textContent='✗ 거절';
+        rejBtn.onclick=()=>{
+          pcModal((box,close)=>{
+            box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'예약 거절'}));
+            box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:b.memberName+' · '+b.date+' '+b.time}));
+            const lbl=box.appendChild(document.createElement('div'));lbl.style.cssText='font-size:13px;color:#94a3b8;margin-bottom:8px;';lbl.textContent='거절 사유 (고객에게 표시됩니다)';
+            const ta=box.appendChild(document.createElement('textarea'));
+            ta.placeholder='예) 해당 시간에 이미 다른 수업이 있습니다.';
+            ta.style.cssText='width:100%;padding:12px 14px;border:1px solid #1e2235;border-radius:10px;background:#0f1117;color:#e2e8f0;font-size:14px;resize:none;min-height:80px;outline:none;font-family:inherit;';
+            ta.onfocus=()=>{ta.style.borderColor='#818cf8';};ta.onblur=()=>{ta.style.borderColor='#1e2235';};
+            const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='20px';
+            btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+            const confirmBtn=btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'거절 확정'}));
+            confirmBtn.style.background='rgba(248,113,113,.2)';confirmBtn.style.color='#f87171';confirmBtn.style.border='1px solid rgba(248,113,113,.3)';
+            confirmBtn.onclick=()=>{
+              const reason=ta.value.trim();
+              db2.collection('og10_bk').doc(b.id).update({status:'rejected',rejectReason:reason||''}).then(()=>{close();renderPcContent();});
+            };
+          },{});
+        };
+      } else if(st==='rejected'&&b.rejectReason){
+        const reasonSpan=actTd.appendChild(document.createElement('span'));
+        reasonSpan.style.cssText='font-size:11px;color:#f87171;';
+        reasonSpan.textContent='사유: '+b.rejectReason;
+      } else {
+        actTd.appendChild(Object.assign(document.createElement('span'),{textContent:'-'})).style.cssText='color:#4a5068;font-size:12px;';
+      }
+    });
+  }).catch(()=>{tbody.innerHTML='';const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=8;td.style.cssText='text-align:center;padding:32px;color:#f87171;';td.textContent='로드 실패. 다시 시도해주세요.';});
+}
+
 // ── 센터설정 ─────────────────────────────────────────────────────────────
 function renderPcSettings(ct,acts){
   if(!pcSV)pcSV='staff';
   const stbar2=document.getElementById('pc-subtabbar');
   if(stbar2){stbar2.innerHTML='';stbar2.style.display='flex';stbar2.style.padding='0 24px';
-    [{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'}].forEach(s=>{const tab=stbar2.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(pcSV===s.id?' on':''),textContent:s.label}));tab.onclick=()=>{pcSV=s.id;renderPcContent();};});
+    [{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'},{id:'book',label:'예약관리'}].forEach(s=>{const tab=stbar2.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(pcSV===s.id?' on':''),textContent:s.label}));tab.onclick=()=>{pcSV=s.id;renderPcContent();};});
   }
-  if(pcSV==='staff'){
+  if(pcSV==='book'){
+    renderPcBookings(ct);
+  } else if(pcSV==='staff'){
     if(acts){acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 직원 추가'})).onclick=()=>openPcAddStaff();}
     const tw=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-tw'}));const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
     const thead=tbl.appendChild(document.createElement('thead'));const hr=thead.appendChild(document.createElement('tr'));
