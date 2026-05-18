@@ -792,7 +792,7 @@ function loadFirebaseSDK(cb){
 }
 function initFB(){
   try{
-    var cfg={apiKey:"AIzaSyDfhwH78E308KWi_rt0Ecz411NF_IC1a8g",authDomain:"orangegolfzone.firebaseapp.com",projectId:"orangegolfzone",storageBucket:"orangegolfzone.firebasestorage.app",messagingSenderId:"433401923121",appId:"1:433401923121:web:e0488281021380bd037710"};
+    var cfg={apiKey:"AIzaSyCD-9Whmb6w7ECfhzX0Yg_VBftWvk65g2A",authDomain:"thelineopt.firebaseapp.com",projectId:"thelineopt",storageBucket:"thelineopt.firebasestorage.app",messagingSenderId:"261554876923",appId:"1:261554876923:web:e92a5d31131d24365adb5e",measurementId:"G-4B5CW9SX6K"};
     if(!firebase.apps.length)firebase.initializeApp(cfg);
     db=firebase.firestore();
     console.log('Firebase 연결 성공 ✅');
@@ -2345,8 +2345,8 @@ function renderAdm(){
   if(!isAdminUser()){const lb=ct.appendChild(el('div','lockbox'));lb.appendChild(mk('p','','관리자 권한이 필요합니다.'));lb.appendChild(mk('small','','관리자 계정으로 로그인해주세요.'));return;}
   const bar=ct.appendChild(el('div','adminbar'));bar.appendChild(mk('span','abadge','관리자 모드'));
   const stbar=ct.appendChild(el('div','admsubtabs'));
-  const admTabOrder=['staff','pkg','code'];
-  [['staff','직원'],['pkg','상품관리'],['code','설정']].forEach(([id,lbl])=>{stbar.appendChild(mk('button','admsubtab'+(admSubTab===id?' on':''),lbl)).onclick=()=>{
+  const admTabOrder=['staff','pkg','book','code'];
+  [['staff','직원'],['pkg','상품관리'],['book','예약관리'],['code','설정']].forEach(([id,lbl])=>{stbar.appendChild(mk('button','admsubtab'+(admSubTab===id?' on':''),lbl)).onclick=()=>{
     const oldIdx=admTabOrder.indexOf(admSubTab);const newIdx=admTabOrder.indexOf(id);
     window._admSlideDir=newIdx>oldIdx?'right':'left';admSubTab=id;renderAdm();
   };});
@@ -2357,7 +2357,7 @@ function renderAdm(){
     admContent.style.animation=`${window._admSlideDir==='right'?'slideInRight':'slideInLeft'} .22s ease forwards`;
     window._admSlideDir=null;
   }
-  if(admSubTab==='staff')renderAdmStaff(admContent);else if(admSubTab==='pkg')renderAdmPkg(admContent);else renderAdmCode(admContent);
+  if(admSubTab==='staff')renderAdmStaff(admContent);else if(admSubTab==='pkg')renderAdmPkg(admContent);else if(admSubTab==='book')renderAdmBookings(admContent);else renderAdmCode(admContent);
 }
 
 
@@ -2386,6 +2386,7 @@ function renderAdmStaff(ct){
     info.appendChild(mk('div','strl',tr.role+(tr.phone?' · '+tr.phone:'')+(tr.saban?' · 사번: '+tr.saban:'')));
     const sbtns=card.appendChild(el('div','stbtns'));
     sbtns.appendChild(mk('button','steditbtn','수정')).onclick=()=>openEditStaff(tr.id);
+    sbtns.appendChild(mk('button','steditbtn','Off 설정')).onclick=()=>openTrainerOffSheet(tr.id);
     sbtns.appendChild(mk('button','stdel','×')).onclick=()=>{if(confirm(tr.name+' 삭제?')){trainers=trainers.filter(x=>x.id!==tr.id);sv('og10_tr',trainers);renderAdm();}};
   });
   ct.appendChild(mk('button','pwbtn','관리자 비밀번호 변경')).onclick=()=>{const np=prompt('새 비밀번호:');if(np&&np.trim()){localStorage.setItem('og10_pw',np.trim());alert('변경되었습니다.');}};
@@ -2425,6 +2426,95 @@ function addStaff(){
   if(!name){alert('이름을 입력해주세요.');return;}if(!saban){alert('사번을 입력해주세요.');return;}
   if(trainers.some(t=>t.saban===saban)){alert('이미 사용 중인 사번입니다.');return;}
   trainers.push({id:'t'+Date.now(),name,role,phone,saban,color});sv('og10_tr',trainers);renderAdm();
+}
+
+function renderAdmBookings(ct){
+  ct.appendChild(mk('div','sec','예약 신청 현황'));
+  const db2=firebase.firestore();
+  db2.collection('og10_bk').orderBy('requestedAt','desc').limit(50).get().then(snap=>{
+    ct.innerHTML='';
+    ct.appendChild(mk('div','sec','예약 신청 현황'));
+    const docs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!docs.length){ct.appendChild(mk('div','sal-empty','예약 신청이 없습니다.'));return;}
+    const statusMap={pending:'대기',approved:'확정',rejected:'거절'};
+    docs.forEach(b=>{
+      const card=ct.appendChild(el('div','stcard'));card.style.cssText='flex-direction:column;gap:8px;align-items:flex-start;';
+      const hdr=card.appendChild(el('div'));hdr.style.cssText='display:flex;justify-content:space-between;width:100%;align-items:center;';
+      hdr.appendChild(mk('div','stnm',b.memberName+' · '+b.date+' '+b.time));
+      const badge=hdr.appendChild(mk('span','',statusMap[b.status]||'대기'));
+      badge.style.cssText='font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;background:'+(b.status==='approved'?'rgba(61,200,122,.15)':b.status==='rejected'?'rgba(248,113,113,.15)':'rgba(251,191,36,.15)')+';color:'+(b.status==='approved'?'#3dc87a':b.status==='rejected'?'#f87171':'#fbbf24')+';';
+      const info=card.appendChild(el('div'));info.style.cssText='font-size:12px;color:var(--t2);';
+      info.textContent='트레이너: '+(trainers.find(t=>t.id===b.trainerId)||{name:'-'}).name+' · '+b.duration+'분'+(b.memo?' · '+b.memo:'');
+      if(b.status==='pending'){
+        const btns=card.appendChild(el('div'));btns.style.cssText='display:flex;gap:8px;';
+        btns.appendChild(mk('button','sbtn','✓ 확정')).onclick=()=>{db2.collection('og10_bk').doc(b.id).update({status:'approved'}).then(()=>renderAdm());};
+        const rBtn=btns.appendChild(mk('button','stdel','✗ 거절'));rBtn.style.cssText='padding:8px 14px;border-radius:8px;';
+        rBtn.onclick=()=>{db2.collection('og10_bk').doc(b.id).update({status:'rejected'}).then(()=>renderAdm());};
+      }
+    });
+  }).catch(()=>{ct.innerHTML='';ct.appendChild(mk('div','sal-empty','로드 실패. 다시 시도해주세요.'));});
+}
+
+function openTrainerOffSheet(trId){
+  const tr=trainers.find(t=>t.id===trId);if(!tr)return;
+  const db2=firebase.firestore();
+  const docRef=db2.collection('og10_avail').doc(trId);
+  docRef.get().then(doc=>{
+    const data=doc.exists?doc.data():{};
+    const workHours=data.workHours||{};
+    const offDates=data.offDates||[];
+    const dayKeys=['mon','tue','wed','thu','fri','sat','sun'];
+    const dayLabels=['월','화','수','목','금','토','일'];
+    showSheet(function(sheet,close){
+      sheet.appendChild(el('div','shdl'));
+      sheet.appendChild(mk('h3','',tr.name+' 근무 설정'));
+      sheet.appendChild(mk('label','','근무 요일'));
+      const dayRow=sheet.appendChild(el('div'));dayRow.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;';
+      dayKeys.forEach((dk,i)=>{
+        const btn=dayRow.appendChild(mk('button','',dayLabels[i]));
+        const isOn=workHours[dk]!==false;
+        btn.style.cssText='padding:8px 12px;border-radius:8px;font-size:13px;font-weight:700;border:1px solid;cursor:pointer;background:'+(isOn?'var(--pr)':'var(--bg2)')+';color:'+(isOn?'#fff':'var(--t2)')+';border-color:'+(isOn?'var(--pr)':'var(--bd)')+';';
+        btn.onclick=()=>{
+          if(workHours[dk]===false){delete workHours[dk];}else{workHours[dk]=false;}
+          btn.style.background=workHours[dk]===false?'var(--bg2)':'var(--pr)';
+          btn.style.color=workHours[dk]===false?'var(--t2)':'#fff';
+          btn.style.borderColor=workHours[dk]===false?'var(--bd)':'var(--pr)';
+        };
+      });
+      sheet.appendChild(mk('label','','근무 시작'));
+      const startSel=sheet.appendChild(el('select'));
+      sheet.appendChild(mk('label','','근무 종료'));
+      const endSel=sheet.appendChild(el('select'));
+      const commonStart=workHours.mon&&workHours.mon.start?workHours.mon.start:'09:00';
+      const commonEnd=workHours.mon&&workHours.mon.end?workHours.mon.end:'21:00';
+      for(let h=6;h<=23;h++){for(let m=0;m<60;m+=30){
+        const t=p2(h)+':'+p2(m);
+        const o1=startSel.appendChild(document.createElement('option'));o1.value=t;o1.textContent=t;if(t===commonStart)o1.selected=true;
+        const o2=endSel.appendChild(document.createElement('option'));o2.value=t;o2.textContent=t;if(t===commonEnd)o2.selected=true;
+      }}
+      sheet.appendChild(mk('label','','특정 날짜 OFF (날짜 추가)'));
+      const dateRow=sheet.appendChild(el('div'));dateRow.style.cssText='display:flex;gap:8px;margin-bottom:8px;';
+      const dateInp=dateRow.appendChild(el('input'));dateInp.type='date';dateInp.style.cssText='flex:1;padding:10px;border-radius:8px;border:1px solid var(--bd);background:var(--bg2);color:var(--t1);color-scheme:dark;';
+      dateRow.appendChild(mk('button','sbtn','추가')).onclick=()=>{
+        const v=dateInp.value;if(!v)return;
+        if(!offDates.includes(v)){offDates.push(v);offList.appendChild(mk('div','',v+' ×')).style.cssText='display:inline-flex;align-items:center;gap:4px;background:rgba(248,113,113,.15);color:#f87171;padding:4px 10px;border-radius:20px;font-size:12px;margin:3px;cursor:pointer;';}
+        dateInp.value='';
+      };
+      const offList=sheet.appendChild(el('div'));offList.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;min-height:30px;';
+      offDates.forEach(d=>{
+        const tag=offList.appendChild(mk('div','',d+' ×'));
+        tag.style.cssText='display:inline-flex;align-items:center;gap:4px;background:rgba(248,113,113,.15);color:#f87171;padding:4px 10px;border-radius:20px;font-size:12px;cursor:pointer;';
+        tag.onclick=()=>{offDates.splice(offDates.indexOf(d),1);tag.remove();};
+      });
+      const btns=sheet.appendChild(el('div','shbtns'));
+      btns.appendChild(mk('button','shno','취소')).onclick=close;
+      btns.appendChild(mk('button','shok','저장')).onclick=()=>{
+        const s=startSel.value,e=endSel.value;
+        dayKeys.forEach(dk=>{if(workHours[dk]!==false){workHours[dk]={start:s,end:e};}});
+        docRef.set({workHours,offDates}).then(()=>{alert('저장됐습니다.');close();}).catch(()=>alert('저장 실패'));
+      };
+    });
+  });
 }
 
 function renderAdmPkg(ct){
