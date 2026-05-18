@@ -304,9 +304,9 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .sal-row input[type=date],.sal-row select{flex:1;padding:10px 12px;border:1px solid var(--bd2);border-radius:9px;background:var(--bg2);color:var(--t1);font-size:13px;}
 .sal-row input[type=text]{flex:1;padding:10px 12px;border:1px solid var(--bd2);border-radius:9px;background:var(--bg2);color:var(--t1);font-size:13px;}
 .sal-row input::placeholder{color:var(--t4);}
-.sal-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.sal-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
 .sal-card{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:12px 8px;text-align:center;}
-.sal-card-val{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:3px;}
+.sal-card-val{font-size:15px;font-weight:800;color:var(--t1);margin-bottom:4px;}
 .sal-card-lbl{font-size:10px;color:var(--t3);}
 .sal-net-card{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:12px;}
 .sal-net-top{display:flex;align-items:flex-end;justify-content:space-between;}
@@ -2608,6 +2608,7 @@ let salPeriod='daily';
 let salMode='sales';
 const salSubTabOrder=['sales','bypkg','bypay','sessions','refund'];
 let salSubTab='sales'; // 매출내역|sessions|bypkg|bypay|refund
+let mobSesType=''; // 세션로그 유형 필터 (mobile)
 let salStartDate='';let salEndDate='';let salTrainer='';let salSearch='';
 
 function initSalDates(){
@@ -2684,7 +2685,7 @@ function renderSales(){
   const ct=document.getElementById('pg-sal').querySelector('.pad');ct.innerHTML='';initSalDates();
   // ── 서브탭 ──
   const stabs=ct.appendChild(el('div','sal-sub-tabs'));
-  [['sales','매출내역'],['bypkg','상품별'],['bypay','결제수단별'],['sessions','수업진행'],['refund','환불내역']].forEach(([v,l])=>{
+  [['sales','매출내역'],['bypkg','상품별'],['bypay','결제수단별'],['sessions','세션로그'],['refund','환불내역']].forEach(([v,l])=>{
     const b=stabs.appendChild(mk('button','sal-stab'+(salSubTab===v?' on':''),l));b.onclick=()=>{
       const oldIdx=salSubTabOrder.indexOf(salSubTab);
       const newIdx=salSubTabOrder.indexOf(v);
@@ -2739,7 +2740,7 @@ function renderSales(){
   });
   // 환불 total
   const refTotal=refunds.filter(r=>{if(!r.processedAt)return false;const d=new Date(r.processedAt);return d>=sd&&d<=ed;}).reduce((s,r)=>s+(r.refundAmount||0),0);
-  // 수업 진행 rows
+  // 세션 rows (매출 집계)
   const sesRows=[];let sesTotal=0;
   slots.forEach(s=>{
     if(s.type==='OT'||s.type==='상담'||!s.memberId)return;
@@ -2796,25 +2797,84 @@ function renderSales(){
     const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
     ['합계','','',allRows.length+'건','',salTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===5?'amount':'',v)));
   } else if(salSubTab==='sessions'){
-    const cards=salContent.appendChild(el('div','sal-cards'));
-    [{v:sesTotal.toLocaleString()+'원',l:'수업 매출'},{v:sesRows.length+'회',l:'수업 횟수'},{v:new Set(sesRows.map(r=>r.mbName)).size+'명',l:'회원 수'}].forEach(c=>{
-      const card=cards.appendChild(el('div','sal-card'));card.appendChild(mk('div','sal-card-val',c.v));card.appendChild(mk('div','sal-card-lbl',c.l));
+    // ── 유형 필터 셀렉트 ──
+    const typeRow=salContent.appendChild(el('div','sal-row'));typeRow.style.cssText='margin-bottom:10px;';
+    const mobTypeSel=typeRow.appendChild(el('select'));
+    mobTypeSel.style.cssText='flex:1;padding:10px 12px;border-radius:9px;border:1px solid #23263a;background:#13162a;color:#e2e8f0;font-size:13px;';
+    [{v:'',l:'전체 유형'},{v:'pt',l:'PT 수업'},{v:'OT',l:'OT'},{v:'상담',l:'상담'},{v:'기타',l:'기타'}].forEach(({v,l})=>{
+      const o=mobTypeSel.appendChild(document.createElement('option'));o.value=v;o.textContent=l;if(v===mobSesType)o.selected=true;
     });
-    if(!sesRows.length){salContent.appendChild(mk('div','sal-empty','해당 기간 수업 데이터가 없습니다.'));return;}
-    salContent.appendChild(mk('button','sal-dl-btn','엑셀 다운로드')).onclick=()=>{salMode='sessions';const r=computeSales();dlSalesCSV(r.rows,r.totalRevenue);};
+    mobTypeSel.onchange=e=>{mobSesType=e.target.value;renderSales();};
+    // ── 전체 slots → 필터 ──
+    const isPT2=s=>{const t=(s.type||'');return t.includes('수업');};
+    const allSlots=slots.filter(s=>{
+      const parts=s.date.split('-').map(Number);const slotDate=new Date(parts[0],parts[1]-1,parts[2]);
+      if(slotDate<sd||slotDate>ed)return false;
+      if(salTrainer&&s.trainerId!==salTrainer)return false;
+      if(mobSesType){
+        if(mobSesType==='pt')return isPT2(s);
+        if(mobSesType==='OT')return s.type==='OT';
+        if(mobSesType==='상담')return s.type==='상담';
+        if(mobSesType==='기타')return s.type==='기타';
+      }
+      return true;
+    }).sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time));
+    // ── 요약 카드 (전체슬롯 기준, 필터 무관) ──
+    const baseSlots=slots.filter(s=>{const parts=s.date.split('-').map(Number);const slotDate=new Date(parts[0],parts[1]-1,parts[2]);return slotDate>=sd&&slotDate<=ed&&(!salTrainer||s.trainerId===salTrainer);});
+    const ptCnt2=baseSlots.filter(s=>isPT2(s)).length;
+    const otCnt2=baseSlots.filter(s=>s.type==='OT').length;
+    const conCnt2=baseSlots.filter(s=>s.type==='상담').length;
+    const cards=salContent.appendChild(el('div','sal-cards'));
+    [{v:baseSlots.length+'건',l:'전체 세션'},{v:ptCnt2+'건',l:'PT 수업'},{v:otCnt2+'건',l:'OT'},{v:conCnt2+'건',l:'상담'}].forEach(c=>{
+      const card=cards.appendChild(el('div','sal-card'));
+      card.appendChild(mk('div','sal-card-val',c.v));
+      card.appendChild(mk('div','sal-card-lbl',c.l));
+    });
+    // ── 엑셀 다운로드 ──
+    const dlBtn=salContent.appendChild(mk('button','sal-dl-btn','엑셀 다운로드'));
+    dlBtn.onclick=()=>{
+      if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
+      const wb=XLSX.utils.book_new();
+      const wsData=[['TheLine CRM - 세션로그'],['기간: '+salStartDate+' ~ '+salEndDate],[]];
+      wsData.push(['날짜','시간','트레이너','이름','유형','수업권/메모','잔여']);
+      allSlots.forEach(s=>{
+        const tr2=trainers.find(t=>t.id===s.trainerId);
+        const mb=s.memberId?members.find(m=>m.id===s.memberId):null;
+        const plan=s.planId&&mb?(mb.plans||[]).find(p=>p.id===s.planId):null;
+        const isOTorCon=(s.type==='OT'||s.type==='상담');
+        const planMemo=isOTorCon?(s.memo||'-'):(plan?(plan.productName||plan.sessions+'회권'):'-');
+        const rem=isOTorCon?'-':(plan?getPlanRemain(plan):'-');
+        wsData.push([s.date,s.time.slice(0,5),tr2?tr2.name:'-',mb?mb.name:(s.guestName||'-'),s.type||'-',planMemo,rem]);
+      });
+      const ws=XLSX.utils.aoa_to_sheet(wsData);XLSX.utils.book_append_sheet(wb,ws,'세션로그');
+      XLSX.writeFile(wb,'세션로그_'+salStartDate+'_'+salEndDate+'.xlsx');
+    };
+    if(!allSlots.length){salContent.appendChild(mk('div','sal-empty','해당 기간 세션 기록이 없습니다.'));return;}
+    // ── 테이블 ──
     const tw=salContent.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
     const sesHead=tbl.appendChild(el('thead'));const sesHr=sesHead.appendChild(el('tr'));
-    ['날짜','시간','트레이너','회원','수업권','금액'].forEach(h=>sesHr.appendChild(mk('th','',h)));
+    ['날짜','시간','트레이너','이름','유형','수업권/메모','잔여'].forEach(h=>sesHr.appendChild(mk('th','',h)));
     const tbody=tbl.appendChild(el('tbody'));
-    sesRows.sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time)).forEach(r=>{
+    allSlots.forEach(s=>{
+      const tr2=trainers.find(t=>t.id===s.trainerId);
+      const mb=s.memberId?members.find(m=>m.id===s.memberId):null;
+      const plan=s.planId&&mb?(mb.plans||[]).find(p=>p.id===s.planId):null;
+      const isOTorCon=(s.type==='OT'||s.type==='상담');
+      const planMemo=isOTorCon?(s.memo||'-'):(plan?(plan.productName||plan.sessions+'회권'):'-');
+      const rem=isOTorCon?'-':(plan?getPlanRemain(plan):'-');
+      const nameStr=mb?mb.name:(s.guestName||'-');
       const row=tbody.appendChild(el('tr'));
-      [r.date,r.time,r.tr,r.mbName,r.planLabel,''].forEach((v,i)=>{
-        if(i===5){const td=document.createElement('td');td.className='amount';td.textContent=r.rev?r.rev.toLocaleString()+'원':'-';row.appendChild(td);}
-        else row.appendChild(mk('td','',v));
+      if(s.type==='OT')row.style.cssText='background:rgba(251,191,36,.05);';
+      else if(s.type==='상담')row.style.cssText='background:rgba(129,140,248,.05);';
+      [s.date,s.time.slice(0,5),tr2?tr2.name:'-',nameStr,s.type||'-',planMemo,rem].forEach((v,ci)=>{
+        const td=row.appendChild(mk('td','',v));
+        if(ci===4){
+          if((s.type||'').includes('수업'))td.style.cssText='color:#3dc87a;font-weight:700;font-size:11px;';
+          else if(s.type==='OT')td.style.cssText='color:#fbbf24;font-weight:700;font-size:11px;';
+          else if(s.type==='상담')td.style.cssText='color:#818cf8;font-weight:700;font-size:11px;';
+        }
       });
     });
-    const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
-    ['합계','','','',sesRows.length+'회',sesTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===5?'amount':'',v)));
   } else if(salSubTab==='bypkg'){
     if(!salRows.length){salContent.appendChild(mk('div','sal-empty','해당 기간 데이터가 없습니다.'));return;}
     const pkgMap={};
@@ -2850,7 +2910,7 @@ function renderSales(){
     const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
     ['','합계',salRows.length+'건',salTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===3?'amount':'',v)));
   }
-  // 차트 (매출내역, 수업진행 탭)
+  // 차트 (매출내역, 세션로그 탭)
   if(salSubTab==='sales'||salSubTab==='sessions'){
     const isSes=salSubTab==='sessions';
     salMode=isSes?'sessions':'sales';
@@ -2859,7 +2919,7 @@ function renderSales(){
     if(gKeys.length>1){
       const cWrap=salContent.appendChild(el('div','sal-chart-wrap'));
       const pLabel=salPeriod==='daily'?'일별':salPeriod==='weekly'?'주별':'월별';
-      cWrap.appendChild(mk('div','sal-chart-title',pLabel+' '+(isSes?'수업 진행':'매출')+'추이'));
+      cWrap.appendChild(mk('div','sal-chart-title',pLabel+' '+(isSes?'세션로그':'매출')+'추이'));
       const canvas=cWrap.appendChild(el('canvas','sal-canvas'));canvas.style.width='100%';
       setTimeout(()=>drawSalChart(canvas,gKeys,grouped),80);
     }
@@ -3026,7 +3086,7 @@ function dlSalesCSV(rows,total){
   const trName=salTrainer?(trainers.find(t=>t.id===salTrainer)||{}).name||'':'전체';
   if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
   const wb=XLSX.utils.book_new();
-  const titleStr='TheLine CRM 매출 내역 ('+(isSes?'수업 진행':'수업권 판매')+')';
+  const titleStr='TheLine CRM 매출 내역 ('+(isSes?'세션로그':'수업권 판매')+')';
   const periodStr='기간: '+salStartDate+' ~ '+salEndDate+'  /  트레이너: '+trName;
   const wsData=[];
   wsData.push([null,null,null,null,null,null,null]);
@@ -3052,8 +3112,8 @@ function dlSalesCSV(rows,total){
   ws['!cols']=[{wch:2},{wch:14},{wch:12},{wch:10},{wch:14},{wch:12},{wch:12}];
   ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:6}},{s:{r:2,c:1},e:{r:2,c:6}}];
   ws['!autofilter']={ref:'B5:G5'};
-  XLSX.utils.book_append_sheet(wb,ws,isSes?'수업진행':'수업권판매');
-  XLSX.writeFile(wb,(isSes?'수업진행_':'수업권판매_')+salStartDate+'_'+salEndDate+'.xlsx');
+  XLSX.utils.book_append_sheet(wb,ws,isSes?'세션로그':'수업권판매');
+  XLSX.writeFile(wb,(isSes?'세션로그_':'수업권판매_')+salStartDate+'_'+salEndDate+'.xlsx');
 }
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
@@ -3461,7 +3521,7 @@ const PC_NAV=[
   {id:'home',label:'홈',icon:''},
   {id:'customers',label:'고객관리',icon:'',subs:[{id:'members',label:'고객 관리'},{id:'consult',label:'상담 관리'},{id:'consult_hist',label:'상담 내역'}]},
   {id:'calendar',label:'캘린더',icon:''},
-  {id:'sales',label:'매출관리',icon:'',subs:[{id:'all',label:'매출내역'},{id:'sessions',label:'세션로그'},{id:'bypkg',label:'상품별내역'},{id:'bypay',label:'결제수단별'},{id:'refund',label:'환불내역'}]},
+  {id:'sales',label:'매출관리',icon:'',subs:[{id:'all',label:'매출내역'},{id:'bypkg',label:'상품별내역'},{id:'bypay',label:'결제수단별'},{id:'sessions',label:'세션로그'},{id:'refund',label:'환불내역'}]},
   {id:'settings',label:'센터설정',icon:'',subs:[{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'}]},
 ];
 function _mk(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;}
@@ -4265,7 +4325,7 @@ function renderPcSales(ct,acts){
   const stbar=document.getElementById('pc-subtabbar');
   if(stbar){
     stbar.innerHTML='';stbar.style.display='flex';stbar.style.padding='0 24px';
-    const subMap={all:'매출내역',sessions:'세션로그',bypkg:'상품별내역',bypay:'결제수단별',refund:'환불내역'};
+    const subMap={all:'매출내역',bypkg:'상품별내역',bypay:'결제수단별',sessions:'세션로그',refund:'환불내역'};
     Object.entries(subMap).forEach(([id,lbl])=>{
       const tab=stbar.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(pcSV===id?' on':''),textContent:lbl}));
       tab.onclick=()=>{pcSV=id;renderPcContent();};
@@ -4966,7 +5026,7 @@ function openPcLogin() {
   }, {});
 }
 
-// ── 수업진행 엑셀 다운로드 ───────────────────────────────────────────────
+// ── 세션로그 엑셀 다운로드 ───────────────────────────────────────────────
 function dlSessionsXLSX(){
   if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
   const wb=XLSX.utils.book_new();
