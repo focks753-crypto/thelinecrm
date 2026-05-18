@@ -948,7 +948,7 @@ function getFirebaseStatus(){
 async function loadFromFirebase(){
   if(!db)return false;
   try{
-    const keys=['og10_tr','og10_sl','og10_mb','og10_nt','og10_pkg','og10_cc','og11_cv'];
+    const keys=['og10_tr','og10_sl','og10_mb','og10_nt','og10_pkg','og10_cc','og11_cv','og10_pr','og10_rf','og10_cs'];
     const snap=await db.collection('og_data').get();
     let hasData=false;
     const skipKeys=['og11_cv','og10_cu','og10_cc'];
@@ -996,6 +996,15 @@ function startRealtimeSync(){
             }}
           else if(id==='og10_nt'){notices=ld('og10_nt',[]);if(document.getElementById('pg-not').classList.contains('show'))renderNotice();}
           else if(id==='og10_pkg'){packages=ld('og10_pkg',[]);}
+          else if(id==='og10_pr'){
+            products=ld('og10_pr',[]);
+            // PC 상품관리 화면 갱신
+            if(window.innerWidth>=960&&typeof renderPcContent==='function'){
+              const pcgp=document.getElementById('pcg');
+              if(!pcgp||pcgp.style.display==='none')renderPcContent();
+            }
+          }
+          else if(id==='og10_rf'){refunds=ld('og10_rf',[]);}
           else if(id==='og10_cs'){consultations=ld('og10_cs',[]);if(document.getElementById('pg-mem')&&document.getElementById('pg-mem').classList.contains('show'))renderMem();if(window.innerWidth>=960&&typeof renderPcContent==='function'){const pcgc=document.getElementById('pcg');if(!pcgc||pcgc.style.display==='none')renderPcContent();}} 
         }
       }
@@ -3055,7 +3064,7 @@ if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').cat
     const gate=document.getElementById('gate');const gateHint=gate?gate.querySelector('.gate-hint'):null;
     if(gateHint)gateHint.textContent='데이터 불러오는 중...';
     const hasFirebaseData=await loadFromFirebase();
-    trainers=ld('og10_tr',[]);slots=ld('og10_sl',[]);members=ld('og10_mb',[]);notices=ld('og10_nt',[]);packages=ld('og10_pkg',[]);consultations=ld('og10_cs',[]);
+    trainers=ld('og10_tr',[]);slots=ld('og10_sl',[]);members=ld('og10_mb',[]);notices=ld('og10_nt',[]);packages=ld('og10_pkg',[]);consultations=ld('og10_cs',[]);products=ld('og10_pr',[]);refunds=ld('og10_rf',[]);
     let centerCode=localStorage.getItem('og10_cc')||'0000';
     let codeVerified=false;
     curUser=ld('og10_cu',null);
