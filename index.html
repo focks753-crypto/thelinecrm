@@ -2682,6 +2682,18 @@ function renderAdmAvail(ct){
     if(v&&v.start)return [v];
     return [];
   }
+
+  let saveTimer=null;
+  function saveAvail(w,wo){
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(()=>{
+      const finalWh={};dayKeys.forEach(dk=>{const n=normRanges(w[dk]);finalWh[dk]=(n===false)?false:(n||[]);});
+      db2.collection('og10_avail').doc(selTrId).set({workHours:finalWh,weeklyOff:wo})
+        .then(()=>{const t=document.createElement('div');t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(22,30,40,.97);color:#e6edf3;padding:10px 22px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.5);';t.textContent='✅ 자동 저장됐습니다.';document.body.appendChild(t);setTimeout(()=>t.remove(),2000);})
+        .catch(()=>{const t=document.createElement('div');t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(248,113,113,.95);color:#fff;padding:10px 22px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;pointer-events:none;';t.textContent='❌ 저장 실패';document.body.appendChild(t);setTimeout(()=>t.remove(),2500);});
+    },800);
+  }
+
   function isInRanges(time,ranges){
     if(!ranges||ranges===false||!ranges.length)return false;
     const[th,tm]=time.split(':').map(Number),tMin=th*60+tm;
@@ -2768,7 +2780,7 @@ function renderAdmAvail(ct){
     const dayOffBtn=row1.appendChild(mk('button','',(isDayOff?'✓ ':'')+'하루 전체 OFF'));
     dayOffBtn.style.cssText='padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;border:1.5px solid;cursor:pointer;white-space:nowrap;flex-shrink:0;'
       +'background:'+(isDayOff?'rgba(248,113,113,.18)':'var(--bg2)')+';color:'+(isDayOff?'#f87171':'var(--t2)')+';border-color:'+(isDayOff?'rgba(248,113,113,.5)':'var(--bd)')+';';
-    dayOffBtn.onclick=()=>{wh[selDay]=isDayOff?[]:false;renderBody(wh,weeklyOff,selDay);};
+    dayOffBtn.onclick=()=>{wh[selDay]=isDayOff?[]:false;renderBody(wh,weeklyOff,selDay);saveAvail(wh,weeklyOff);};
 
     // 시간범위 off설정
     const row2=ct.appendChild(el('div'));
@@ -2784,7 +2796,7 @@ function renderAdmAvail(ct){
       if(sh*60+sm>=eh*60+em){showConfirm('종료 시간이 시작 시간보다 늦어야 합니다.',()=>{});return;}
       weeklyOff[selDay]=weeklyOff[selDay]||[];
       for(let m2=sh*60+sm;m2<eh*60+em;m2+=30){const t=p2(Math.floor(m2/60))+':'+p2(m2%60);if(!weeklyOff[selDay].includes(t))weeklyOff[selDay].push(t);}
-      renderBody(wh,weeklyOff,selDay);
+      renderBody(wh,weeklyOff,selDay);saveAvail(wh,weeklyOff);
     };
 
     // off 태그
@@ -2804,14 +2816,14 @@ function renderAdmAvail(ct){
       const tag=tagWrap.appendChild(el('div'));tag.style.cssText=ts;
       tag.appendChild(mk('span','',selDayLabel+'요일 (하루 전체 OFF)'));
       const x=tag.appendChild(mk('span','','×'));x.style.cssText=xs;
-      x.onclick=()=>{wh[selDay]=[];renderBody(wh,weeklyOff,selDay);};
+      x.onclick=()=>{wh[selDay]=[];renderBody(wh,weeklyOff,selDay);saveAvail(wh,weeklyOff);};
     }
     offGroups.forEach(g=>{
       const endStr=p2(Math.floor(g.endMin/60))+':'+p2(g.endMin%60);
       const tag=tagWrap.appendChild(el('div'));tag.style.cssText=ts;
       tag.appendChild(mk('span','',selDayLabel+'요일 ('+g.start+'~'+endStr+')'));
       const x=tag.appendChild(mk('span','','×'));x.style.cssText=xs;
-      x.onclick=()=>{weeklyOff[selDay]=(weeklyOff[selDay]||[]).filter(t=>!g.slots.includes(t));renderBody(wh,weeklyOff,selDay);};
+      x.onclick=()=>{weeklyOff[selDay]=(weeklyOff[selDay]||[]).filter(t=>!g.slots.includes(t));renderBody(wh,weeklyOff,selDay);saveAvail(wh,weeklyOff);};
     });
     if(!isDayOff&&!offGroups.length)
       tagWrap.appendChild(mk('div','','off설정된 시간 없음')).style.cssText='font-size:12px;color:#555;padding:4px 0;';
@@ -2843,23 +2855,13 @@ function renderAdmAvail(ct){
         if(!doff&&inR){
           const[th2,tm2]=time.split(':').map(Number),nm=(th2*60+tm2)+30,nt=p2(Math.floor(nm/60))+':'+p2(nm%60);
           cell.onclick=()=>{
-            if(moff){showConfirm(time+'~'+nt+' off 해제하시겠습니까?',()=>{weeklyOff[dk]=(weeklyOff[dk]||[]).filter(t=>t!==time);renderBody(wh,weeklyOff,selDay);});}
-            else{showConfirm(time+'~'+nt+' off설정하시겠습니까?',()=>{(weeklyOff[dk]=weeklyOff[dk]||[]).push(time);renderBody(wh,weeklyOff,selDay);});}
+            if(moff){showConfirm(time+'~'+nt+' off 해제하시겠습니까?',()=>{weeklyOff[dk]=(weeklyOff[dk]||[]).filter(t=>t!==time);renderBody(wh,weeklyOff,selDay);saveAvail(wh,weeklyOff);});}
+            else{showConfirm(time+'~'+nt+' off설정하시겠습니까?',()=>{(weeklyOff[dk]=weeklyOff[dk]||[]).push(time);renderBody(wh,weeklyOff,selDay);saveAvail(wh,weeklyOff);});}
           };
         }
       });
     });
 
-    // 저장
-    const saveBtn=ct.appendChild(mk('button','shok','저장'));
-    saveBtn.style.cssText='width:100%;padding:14px;border-radius:12px;font-size:15px;font-weight:700;';
-    saveBtn.onclick=()=>{
-      const finalWh={};dayKeys.forEach(dk=>{const n=normRanges(wh[dk]);finalWh[dk]=(n&&n.length)?n:false;});
-      saveBtn.textContent='저장 중...';saveBtn.disabled=true;
-      db2.collection('og10_avail').doc(selTrId).set({workHours:finalWh,weeklyOff})
-        .then(()=>{saveBtn.textContent='✅ 저장됐습니다.';setTimeout(()=>{saveBtn.textContent='저장';saveBtn.disabled=false;},1800);})
-        .catch(()=>{saveBtn.textContent='저장';saveBtn.disabled=false;showConfirm('저장 실패',()=>{});});
-    };
   }
 
   function loadAvail(){
@@ -5844,4 +5846,4 @@ function openPcAddSchedule(initDate){
   </div>
 </div>
 </body>
-</html>              
+</html>
