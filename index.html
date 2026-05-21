@@ -1241,7 +1241,8 @@ function animWeekChange(dir){
 
 function renderTimes(){
   const wd=getWeekDates(weekOff);
-  const list=document.getElementById('tlist');if(!list)return;const _savedScroll=(list.querySelector('.week-body')||{}).scrollTop||0;list.innerHTML='';
+  const list=document.getElementById('tlist');if(!list)return;const _savedScrollTop=(list.querySelector('.week-body')||{}).scrollTop||0;
+  const _savedScrollLeft=(list.querySelector('.week-body')||{}).scrollLeft||0;list.innerHTML='';
   list.style.cssText='display:flex;flex-direction:column;overflow:hidden;';
 
   // ── 요일 헤더 ──
@@ -1264,7 +1265,7 @@ function renderTimes(){
   body.style.cssText='flex:1;display:flex;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;';
   initSwipe(body);
   initCalPinch(body);
-  requestAnimationFrame(()=>{if(_savedScroll)body.scrollTop=_savedScroll;});
+  requestAnimationFrame(()=>{body.scrollTop=_savedScrollTop;body.scrollLeft=_savedScrollLeft;});
 
   // 헤더를 body 가로스크롤과 동기화
   const hdrForSync=list.querySelector('.week-hdr-row');
@@ -4386,7 +4387,7 @@ function renderMbTab(ct,mb,tab,box,close){
 // ── 이용권 추가 / 결제 (Image 4 참고) ────────────────────────────────────
 function openPcPayment(mbId,parentBox,parentClose){
   const mb=members.find(m=>m.id===mbId);if(!mb)return;
-  let selProductId=null;let selPayMethod='카드';let activeType='pt';
+  let selProductId=null;let selPayMethod='카드';let activeType='pt';let selPrice=0;
 
   const isMob=window.innerWidth<700;
   const ov=document.createElement('div');
@@ -4514,7 +4515,15 @@ function openPcPayment(mbId,parentBox,parentClose){
     if(!selStartDate)selStartDate=tf;
     c.innerHTML='<div style="font-size:14px;font-weight:800;color:#e2e8f0;margin-bottom:6px;">'+prod.name+'</div>'
       +(prod.sessions?'<div style="font-size:11px;color:#6b7494;margin-bottom:4px;">'+prod.sessions+'회권</div>':'')
-      +'<div style="font-size:18px;font-weight:800;color:#818cf8;margin-bottom:'+(prod.type==='membership'?'10':'0')+'px;">'+prod.price.toLocaleString()+'원</div>';
+      +'<div style="font-size:11px;color:#6b7494;margin-bottom:6px;">정가: '+prod.price.toLocaleString()+'원</div>';
+    selPrice=prod.price;
+    // 결제금액 수정 입력창
+    const priceEditWrap=c.appendChild(document.createElement('div'));priceEditWrap.style.cssText='margin-bottom:'+(prod.type==='membership'?'10':'4')+'px;';
+    priceEditWrap.appendChild(Object.assign(document.createElement('div'),{textContent:'결제 금액 (수정 가능)'})).style.cssText='font-size:11px;color:#3a3f58;margin-bottom:5px;font-weight:600;letter-spacing:.3px;';
+    const priceInput=priceEditWrap.appendChild(document.createElement('input'));priceInput.type='text';priceInput.value=prod.price.toLocaleString();priceInput.style.cssText='width:100%;padding:10px 12px;border:1.5px solid #818cf8;border-radius:8px;background:#0a0c10;color:#818cf8;font-size:18px;font-weight:800;text-align:right;outline:none;box-sizing:border-box;font-family:inherit;';
+    const perHint=priceEditWrap.appendChild(document.createElement('div'));perHint.style.cssText='font-size:11px;color:#3a3f58;text-align:right;margin-top:4px;';
+    if(prod.sessions&&prod.sessions>0)perHint.textContent='회당 '+Math.round(selPrice/prod.sessions).toLocaleString()+'원';
+    priceInput.oninput=()=>{const raw=priceInput.value.replace(/[^0-9]/g,'');selPrice=parseInt(raw)||0;const cur=priceInput.selectionStart;priceInput.value=selPrice.toLocaleString();try{priceInput.setSelectionRange(cur,cur);}catch(e){}if(prod.sessions&&prod.sessions>0)perHint.textContent='회당 '+Math.round(selPrice/prod.sessions).toLocaleString()+'원';payBtn.textContent=selPrice.toLocaleString()+'원  결제하기';};
     if(prod.type==='membership'){
       const df=c.appendChild(document.createElement('div'));
       df.innerHTML='<div style="font-size:11px;color:#3a3f58;margin-bottom:5px;">이용 기간</div>';
@@ -4524,7 +4533,7 @@ function openPcPayment(mbId,parentBox,parentClose){
       const eI=dr.appendChild(document.createElement('input'));eI.type='date';eI.value=selEndDate;eI.style.cssText='flex:1;padding:6px 8px;border:1px solid #1e2026;border-radius:6px;background:#0a0c10;color:#e2e8f0;font-size:12px;outline:none;color-scheme:dark;cursor:pointer;';
       sI.onchange=()=>selStartDate=sI.value;eI.onchange=()=>selEndDate=eI.value;
     }
-    payBtn.textContent=prod.price.toLocaleString()+'원  결제하기';
+    payBtn.textContent=prod.price.toLocaleString()+'원  결제하기'; selPrice=prod.price;
   }
   updateRight();
 
@@ -4534,14 +4543,14 @@ function openPcPayment(mbId,parentBox,parentClose){
     const now=new Date();
     if(prod.type==='membership'&&(!selStartDate||!selEndDate)){alert('이용 기간을 입력해주세요.');return;}
     const plan={id:'pl'+Date.now(),productId:prod.id,productName:prod.name,productType:prod.type,
-      duration:prod.duration||50,sessions:prod.sessions||1,totalPrice:prod.price,
-      pricePerSession:prod.sessions?Math.round(prod.price/prod.sessions):prod.price,
+      duration:prod.duration||50,sessions:prod.sessions||1,totalPrice:selPrice,
+      pricePerSession:prod.sessions?Math.round(selPrice/prod.sessions):selPrice,
       paymentMethod:selPayMethod,startDate:prod.type==='membership'?selStartDate:null,endDate:prod.type==='membership'?selEndDate:null,
       paymentDate:now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'),
       addedAt:now.getTime()};
     mb.plans=mb.plans||[];mb.plans.push(plan);sv('og10_mb',members);
     closePayModal();
-    alert('✅ 결제 완료!\n'+prod.name+' '+prod.price.toLocaleString()+'원 ('+selPayMethod+')');
+    alert('✅ 결제 완료!\n'+prod.name+' '+selPrice.toLocaleString()+'원 ('+selPayMethod+')');
     // 회원 상세로 돌아가기
     if(parentBox&&parentClose){renderMbDetailModal(parentBox,parentClose,mbId);}
     else{renderPcContent();setTimeout(()=>openPcMemberDetail(mbId),50);}
