@@ -2980,6 +2980,11 @@ let salMode='sales';
 const salSubTabOrder=['sales','bypkg','bypay','sessions','refund'];
 let salSubTab='sales'; // 매출내역|sessions|bypkg|bypay|refund
 let mobSesType=''; // 세션로그 유형 필터 (mobile)
+let mobSalSortCol='addedAt',mobSalSortDir=-1;  // 매출내역 정렬
+let mobSesSortCol='date',mobSesSortDir=-1;     // 세션로그 정렬
+let mobBypkgSortCol='tot',mobBypkgSortDir=-1;  // 상품별 정렬
+let mobBypaySortCol='tot',mobBypaySortDir=-1;  // 결제수단별 정렬
+let mobRefSortCol='date',mobRefSortDir=-1;     // 환불내역 정렬
 let salStartDate='';let salEndDate='';let salTrainer='';let salSearch='';
 
 function initSalDates(){
@@ -3148,15 +3153,20 @@ function renderSales(){
     salContent.appendChild(mk('button','sal-dl-btn','엑셀 다운로드')).onclick=()=>{salMode='sales';const r=computeSales();dlSalesCSV(r.rows,r.totalRevenue);};
     const tw=salContent.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
     const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
-    ['등록일','트레이너','회원','수업권','결제수단','금액'].forEach(h=>hr.appendChild(mk('th','',h)));
+    makeSortThs(hr,['등록일','트레이너','회원','수업권','결제수단','금액'],['addedAt','tr','mbName','plan','pay','amt'],mobSalSortCol,mobSalSortDir,(col,dir)=>{mobSalSortCol=col;mobSalSortDir=dir;renderSales();});
     const tbody=tbl.appendChild(el('tbody'));
-    // 매출 + 환불 합쳐서 날짜순
+    // 매출 + 환불 합쳐서 정렬
     const allRows=[...salRows.map(r=>({ds:r.ds,tm:r.tm,tr:r.tr2?r.tr2.name:'-',mbName:r.mb.name,plan:(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권'),pay:r.pay,amt:r.amt,isRefund:false,addedAt:r.p.addedAt||0}))];
     refunds.filter(r=>{if(!r.processedAt)return false;const d=new Date(r.processedAt);return d>=sd&&d<=ed;}).forEach(r=>{
       const rd=new Date(r.processedAt);
       allRows.push({ds:rd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}),tm:String(rd.getHours()).padStart(2,'0')+':'+String(rd.getMinutes()).padStart(2,'0'),tr:'-',mbName:r.memberName,plan:(r.type==='transfer'?'[양도]':'[환불]')+' '+r.planName,pay:'-',amt:-(r.refundAmount||0),isRefund:true,addedAt:r.processedAt});
     });
-    allRows.sort((a,b)=>b.addedAt-a.addedAt);
+    allRows.sort((a,b)=>{
+      const col=mobSalSortCol,dir=mobSalSortDir;
+      if(col==='amt')return dir*(a.amt-b.amt);
+      if(col==='addedAt')return dir*((a.addedAt||0)-(b.addedAt||0));
+      const va=a[col]||'',vb=b[col]||'';return dir*(va<vb?-1:va>vb?1:0);
+    });
     allRows.forEach(r=>{
       const row=tbody.appendChild(el('tr'));
       if(r.isRefund)row.style.cssText='background:rgba(248,113,113,.06);';
@@ -3189,7 +3199,15 @@ function renderSales(){
         if(mobSesType==='기타')return s.type==='기타';
       }
       return true;
-    }).sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time));
+    }).sort((a,b)=>{
+      const col=mobSesSortCol,dir=mobSesSortDir;
+      if(col==='date'){return dir*(a.date<b.date?-1:a.date>b.date?1:0)||(a.time<b.time?-1:a.time>b.time?1:0);}
+      if(col==='time'){return dir*(a.time<b.time?-1:a.time>b.time?1:0);}
+      if(col==='tr'){const ta=trainers.find(t=>t.id===a.trainerId),tb=trainers.find(t=>t.id===b.trainerId);return dir*((ta?ta.name:'').localeCompare(tb?tb.name:'','ko'));}
+      if(col==='name'){const ma=a.memberId?members.find(m=>m.id===a.memberId):null,mb=b.memberId?members.find(m=>m.id===b.memberId):null;return dir*((ma?ma.name:(a.guestName||'')).localeCompare(mb?mb.name:(b.guestName||''),'ko'));}
+      if(col==='type'){return dir*(a.type||'').localeCompare(b.type||'','ko');}
+      return dir*(a.date<b.date?-1:a.date>b.date?1:0);
+    });
     // ── 요약 카드 (전체슬롯 기준, 필터 무관) ──
     const baseSlots=slots.filter(s=>{const parts=s.date.split('-').map(Number);const slotDate=new Date(parts[0],parts[1]-1,parts[2]);return slotDate>=sd&&slotDate<=ed&&(!salTrainer||s.trainerId===salTrainer);});
     const ptCnt2=baseSlots.filter(s=>isPT2(s)).length;
@@ -3224,7 +3242,7 @@ function renderSales(){
     // ── 테이블 ──
     const tw=salContent.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
     const sesHead=tbl.appendChild(el('thead'));const sesHr=sesHead.appendChild(el('tr'));
-    ['날짜','시간','트레이너','이름','유형','수업권/메모','잔여'].forEach(h=>sesHr.appendChild(mk('th','',h)));
+    makeSortThs(sesHr,['날짜','시간','트레이너','이름','유형','수업권/메모','잔여'],['date','time','tr','name','type','plan',null],mobSesSortCol,mobSesSortDir,(col,dir)=>{mobSesSortCol=col;mobSesSortDir=dir;renderSales();});
     const tbody=tbl.appendChild(el('tbody'));
     allSlots.forEach(s=>{
       const tr2=trainers.find(t=>t.id===s.trainerId);
@@ -3252,9 +3270,14 @@ function renderSales(){
     salRows.forEach(r=>{const k=(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권');if(!pkgMap[k])pkgMap[k]={cnt:0,tot:0};pkgMap[k].cnt++;pkgMap[k].tot+=r.amt;});
     const tw=salContent.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
     const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
-    ['No','수업권','건수','합계'].forEach(h=>hr.appendChild(mk('th','',h)));
+    makeSortThs(hr,['No','수업권','건수','합계'],[null,'name','cnt','tot'],mobBypkgSortCol,mobBypkgSortDir,(col,dir)=>{mobBypkgSortCol=col;mobBypkgSortDir=dir;renderSales();});
     const tbody=tbl.appendChild(el('tbody'));
-    Object.entries(pkgMap).sort((a,b)=>b[1].tot-a[1].tot).forEach(([k,v],i)=>{
+    Object.entries(pkgMap).sort((a,b)=>{
+      const col=mobBypkgSortCol,dir=mobBypkgSortDir;
+      if(col==='name')return dir*(a[0]<b[0]?-1:a[0]>b[0]?1:0);
+      if(col==='cnt')return dir*(a[1].cnt-b[1].cnt);
+      return dir*(a[1].tot-b[1].tot);
+    }).forEach(([k,v],i)=>{
       const row=tbody.appendChild(el('tr'));
       [i+1,k,v.cnt+'건',''].forEach((val,ci)=>{
         if(ci===3){const td=document.createElement('td');td.className='amount';td.textContent=v.tot.toLocaleString()+'원';row.appendChild(td);}
@@ -3269,9 +3292,14 @@ function renderSales(){
     salRows.forEach(r=>{const k=r.pay||'카드';if(!pmMap[k])pmMap[k]={cnt:0,tot:0};pmMap[k].cnt++;pmMap[k].tot+=r.amt;});
     const tw=salContent.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
     const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
-    ['No','결제수단','건수','합계'].forEach(h=>hr.appendChild(mk('th','',h)));
+    makeSortThs(hr,['No','결제수단','건수','합계'],[null,'name','cnt','tot'],mobBypaySortCol,mobBypaySortDir,(col,dir)=>{mobBypaySortCol=col;mobBypaySortDir=dir;renderSales();});
     const tbody=tbl.appendChild(el('tbody'));
-    Object.entries(pmMap).sort((a,b)=>b[1].tot-a[1].tot).forEach(([k,v],i)=>{
+    Object.entries(pmMap).sort((a,b)=>{
+      const col=mobBypaySortCol,dir=mobBypaySortDir;
+      if(col==='name')return dir*(a[0]<b[0]?-1:a[0]>b[0]?1:0);
+      if(col==='cnt')return dir*(a[1].cnt-b[1].cnt);
+      return dir*(a[1].tot-b[1].tot);
+    }).forEach(([k,v],i)=>{
       const row=tbody.appendChild(el('tr'));
       [i+1,k,v.cnt+'건',''].forEach((val,ci)=>{
         if(ci===3){const td=document.createElement('td');td.className='amount';td.style.color='#818cf8';td.textContent=v.tot.toLocaleString()+'원';row.appendChild(td);}
@@ -3301,6 +3329,22 @@ function renderSales(){
 function renderMobRefundHist(ct){
   ct.appendChild(mk('div','',refunds.length+'건의 환불/양도 내역')).style.cssText='font-size:12px;color:var(--t3);margin-bottom:12px;';
   if(!refunds.length){ct.appendChild(mk('div','sal-empty','환불/양도 내역이 없습니다.'));return;}
+  // 정렬 컨트롤
+  const sortRow=ct.appendChild(el('div',''));
+  sortRow.style.cssText='display:flex;gap:6px;align-items:center;margin-bottom:10px;';
+  sortRow.appendChild(mk('span','','정렬:')).style.cssText='font-size:12px;color:var(--t3);flex-shrink:0;';
+  [{col:'date',lbl:'처리일'},{col:'memberName',lbl:'회원'},{col:'refundAmount',lbl:'환불금액'}].forEach(({col,lbl})=>{
+    const btn=sortRow.appendChild(mk('button','',lbl+(mobRefSortCol===col?(mobRefSortDir===1?'▲':'▼'):'⇅')));
+    btn.style.cssText='padding:4px 9px;border-radius:14px;border:1px solid '+(mobRefSortCol===col?'var(--blue)':'#2a2d3e')+';background:'+(mobRefSortCol===col?'rgba(99,179,237,.15)':'transparent')+';color:'+(mobRefSortCol===col?'var(--blue)':'var(--t2)')+';font-size:11px;cursor:pointer;';
+    btn.onclick=()=>{mobRefSortDir=mobRefSortCol===col?-mobRefSortDir:-1;mobRefSortCol=col;renderSales();};
+  });
+  // 정렬 적용
+  const sortedRefunds=[...refunds].sort((a,b)=>{
+    const col=mobRefSortCol,dir=mobRefSortDir;
+    if(col==='refundAmount')return dir*((a.refundAmount||0)-(b.refundAmount||0));
+    if(col==='memberName')return dir*(a.memberName||'').localeCompare(b.memberName||'','ko');
+    const va=a.processedDate||'',vb=b.processedDate||'';return dir*(va<vb?-1:va>vb?1:0);
+  });
   ct.appendChild(mk('button','sal-dl-btn','엑셀 다운로드')).onclick=()=>{
     if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
     const wb=XLSX.utils.book_new();
@@ -3309,7 +3353,7 @@ function renderMobRefundHist(ct){
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(wsData),'환불내역');
     XLSX.writeFile(wb,'환불내역.xlsx');
   };
-  refunds.forEach((r,i)=>{
+  sortedRefunds.forEach((r,i)=>{
     const card=ct.appendChild(el('div','sal-ref-card'));
     const top=card.appendChild(el('div','sal-ref-top'));
     const typeBdg=top.appendChild(mk('span','sal-ref-type '+(r.type==='refund'?'refund':'transfer'),r.type==='refund'?'환불':'양도'));
