@@ -4088,6 +4088,10 @@ function _sel(options){
 let custSV='all';
 let pcDetailMbId=null;
 let pcSalSortCol=null,pcSalSortDir=1;  // 매출 정렬
+let pcBypkgSortCol='tot',pcBypkgSortDir=-1; // 상품별 정렬
+let pcBypaySort='tot',pcBypayDir=-1;        // 결제수단별 정렬
+let pcSesSortCol='date',pcSesSortDir=-1;    // 세션로그 정렬
+let pcRefSortCol='date',pcRefSortDir=-1;    // 환불내역 정렬
 let pcSesType=''; // 세션로그 유형 필터
 let pcCustSortCol=null,pcCustSortDir=1; // 고객 정렬
 function openPcAddMember(){
@@ -4627,9 +4631,7 @@ function renderPcSessions(ct,acts){
   const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
   const thead=tbl.appendChild(document.createElement('thead'));const hr=thead.appendChild(document.createElement('tr'));
   const tbody=tbl.appendChild(document.createElement('tbody'));
-  ['날짜','시간','트레이너','이름','유형','수업권 / 메모','잔여'].forEach(h=>{
-    hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));
-  });
+  makeSortThs(hr,['날짜','시간','트레이너','이름','유형','수업권 / 메모','잔여'],['date','time','tr','name','type','plan','rem'],pcSesSortCol,pcSesSortDir,(col,dir)=>{pcSesSortCol=col;pcSesSortDir=dir;renderPcContent();});
 
   filtered.forEach((s,idx)=>{
     const tr2=trainers.find(t=>t.id===s.trainerId);
@@ -4699,6 +4701,16 @@ function renderPcCal(ct,acts){
 }
 
 // ── 매출관리 ─────────────────────────────────────────────────────────────
+function makeSortThs(hr,hdrs,keys,curCol,curDir,onChange){
+  hdrs.forEach((h,i)=>{
+    const th=hr.appendChild(document.createElement('th'));
+    const k=keys[i];
+    if(k){th.style.cssText='cursor:pointer;user-select:none;white-space:nowrap;';
+      th.innerHTML=h+'<span style="margin-left:4px;opacity:.5;font-size:10px;">'+(curCol===k?(curDir===1?'▲':'▼'):'⇅')+'</span>';
+      th.onclick=()=>onChange(k,curCol===k?-curDir:-1);
+    }else th.textContent=h;
+  });
+}
 function renderPcSales(ct,acts){
   // ─ 서브탭 → topbar 아래 고정 영역에 렌더 ──────────────────────────────
   const stbar=document.getElementById('pc-subtabbar');
@@ -4826,9 +4838,14 @@ function renderPcSales(ct,acts){
     const pkgMap={};rows.forEach(r=>{const k=(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권');if(!pkgMap[k])pkgMap[k]={cnt:0,cash:0,card:0,tot:0};pkgMap[k].cnt++;const amt=r.p.totalPrice||0;if((r.p.paymentMethod||r.mb.payment||'')==='현금')pkgMap[k].cash+=amt;else pkgMap[k].card+=amt;pkgMap[k].tot+=amt;});
     Object.entries(pkgMap).sort((a,b)=>b[1].tot-a[1].tot).forEach(([k,v],i)=>{const row=tbody.appendChild(document.createElement('tr'));[i+1,k,v.cnt+'건',v.cash.toLocaleString()+'원',v.card.toLocaleString()+'원',v.tot.toLocaleString()+'원'].forEach((val,ci)=>{const td=document.createElement('td');td.textContent=val;if(ci>=3)td.style.fontWeight='700';row.appendChild(td);});});
   } else {
-    ['No','결제수단','건수','합계'].forEach(h=>{hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));});
+    makeSortThs(hr,['No','결제수단','건수','합계'],[null,'name','cnt','tot'],pcBypaySort,pcBypayDir,(col,dir)=>{pcBypaySort=col;pcBypayDir=dir;renderPcContent();});
     const pm2={카드:0,현금:0,계좌이체:0};rows.forEach(r=>{const k=r.p.paymentMethod||r.mb.payment||'카드';pm2[k]!==undefined?pm2[k]+=r.p.totalPrice||0:pm2['카드']+=r.p.totalPrice||0;});
-    Object.entries(pm2).forEach(([k,v],i)=>{const cnt=rows.filter(r=>(r.p.paymentMethod||r.mb.payment||'카드')===k).length;const row=tbody.appendChild(document.createElement('tr'));[i+1,k,cnt+'건',v.toLocaleString()+'원'].forEach((val,ci)=>{const td=document.createElement('td');td.textContent=val;if(ci===3)td.style.color='#818cf8';row.appendChild(td);});});
+    const sortedPm=Object.entries(pm2).map(([k,v])=>{const cnt=rows.filter(r=>(r.p.paymentMethod||r.mb.payment||'카드')===k).length;return{k,v,cnt};}).sort((a,b)=>{
+      if(pcBypaySort==='name')return pcBypayDir*(a.k<b.k?-1:a.k>b.k?1:0);
+      if(pcBypaySort==='cnt')return pcBypayDir*(b.cnt-a.cnt);
+      return pcBypayDir*(b.v-a.v);
+    });
+    sortedPm.forEach(({k,v,cnt},i)=>{const row=tbody.appendChild(document.createElement('tr'));[i+1,k,cnt+'건',v.toLocaleString()+'원'].forEach((val,ci)=>{const td=document.createElement('td');td.textContent=val;if(ci===3)td.style.color='#818cf8';row.appendChild(td);});});
     const tr3=tbody.appendChild(document.createElement('tr'));tr3.style.fontWeight='700';['','총 계',rows.length+'건',total.toLocaleString()+'원'].forEach((val,ci)=>{const td=document.createElement('td');td.textContent=val;if(ci===3)td.style.color='#818cf8';tr3.appendChild(td);});
   }
   if(!rows.length&&pcSV==='all'){const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=10;td.style.cssText='text-align:center;padding:32px;color:#2a2d45;';td.textContent='데이터 없음';}
@@ -5358,11 +5375,21 @@ function renderPcRefundHist(ct, acts) {
   const tbl = tw.appendChild(Object.assign(document.createElement('table'), {className:'pc-tbl'}));
   const thead = tbl.appendChild(document.createElement('thead'));
   const hr = thead.appendChild(document.createElement('tr'));
-  ['No','처리일','유형','회원','연락처','이용권','결제금액','사용','잔여','환불금액','메모',''].forEach(h => {
-    hr.appendChild(Object.assign(document.createElement('th'), {textContent:h}));
-  });
+  makeSortThs(hr,['No','처리일','유형','회원','연락처','이용권','결제금액','사용','잔여','환불금액','메모',''],[null,'date','type','name','phone','plan','paid','used','remain','refund',null,null],pcRefSortCol,pcRefSortDir,(col,dir)=>{pcRefSortCol=col;pcRefSortDir=dir;renderPcContent();});
   const tbody = tbl.appendChild(document.createElement('tbody'));
-  refunds.forEach((r, i) => {
+  const sortedRef=[...refunds].sort((a,b)=>{
+    if(pcRefSortCol==='date'){const va=a.processedDate||'';const vb=b.processedDate||'';return pcRefSortDir*(va<vb?-1:va>vb?1:0);}
+    if(pcRefSortCol==='type'){const va=a.type||'';const vb=b.type||'';return pcRefSortDir*(va<vb?-1:va>vb?1:0);}
+    if(pcRefSortCol==='name'){const va=a.memberName||'';const vb=b.memberName||'';return pcRefSortDir*(va<vb?-1:va>vb?1:0);}
+    if(pcRefSortCol==='phone'){const va=a.phone||'';const vb=b.phone||'';return pcRefSortDir*(va<vb?-1:va>vb?1:0);}
+    if(pcRefSortCol==='plan'){const va=a.planName||'';const vb=b.planName||'';return pcRefSortDir*(va<vb?-1:va>vb?1:0);}
+    if(pcRefSortCol==='paid')return pcRefSortDir*((b.paidAmount||0)-(a.paidAmount||0));
+    if(pcRefSortCol==='used')return pcRefSortDir*((b.usedSessions||0)-(a.usedSessions||0));
+    if(pcRefSortCol==='remain')return pcRefSortDir*((b.remainSessions||0)-(a.remainSessions||0));
+    if(pcRefSortCol==='refund')return pcRefSortDir*((b.refundAmount||0)-(a.refundAmount||0));
+    return 0;
+  });
+  sortedRef.forEach((r, i) => {
     const row = tbody.appendChild(document.createElement('tr'));
     const typeBdg = r.type === 'refund'
       ? '<span class="pbs" style="background:rgba(248,113,113,.15);color:#f87171;">환불</span>'
