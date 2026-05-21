@@ -2356,11 +2356,14 @@ function dlCSV(tid,year,month){
 function renderAdm(){
   const ct=document.getElementById('pg-adm').querySelector('.pad');ct.innerHTML='';
   if(!curUser){const lb=ct.appendChild(el('div','lockbox'));lb.appendChild(mk('p','','관리 탭은 로그인이 필요합니다.'));lb.appendChild(mk('small','','관리자로 등록된 계정으로 로그인해주세요.'));lb.appendChild(mk('button','','로그인하기')).onclick=()=>openLogin(()=>renderAdm());return;}
-  if(!isAdminUser()){const lb=ct.appendChild(el('div','lockbox'));lb.appendChild(mk('p','','관리자 권한이 필요합니다.'));lb.appendChild(mk('small','','관리자 계정으로 로그인해주세요.'));return;}
-  const bar=ct.appendChild(el('div','adminbar'));bar.appendChild(mk('span','abadge','관리자 모드'));
+  // 트레이너도 접근 가능 (직원관리·설정 탭은 관리자 전용)
+  const isAdmin=isAdminUser();
+  if(!isAdmin&&(admSubTab==='staff'||admSubTab==='code'))admSubTab='pkg';
+  const bar=ct.appendChild(el('div','adminbar'));bar.appendChild(mk('span','abadge',isAdmin?'관리자 모드':'센터 설정'));
   const stbar=ct.appendChild(el('div','admsubtabs'));
-  const admTabOrder=['staff','pkg','book','avail','code'];
-  [['staff','직원'],['pkg','상품관리'],['book','예약관리'],['avail','예약설정'],['code','설정']].forEach(([id,lbl])=>{stbar.appendChild(mk('button','admsubtab'+(admSubTab===id?' on':''),lbl)).onclick=()=>{
+  const admTabOrder=isAdmin?['staff','pkg','book','avail','code']:['pkg','book','avail'];
+  const tabList=isAdmin?[['staff','직원'],['pkg','상품관리'],['book','예약관리'],['avail','예약설정'],['code','설정']]:[['pkg','상품관리'],['book','예약관리'],['avail','예약설정']];
+  tabList.forEach(([id,lbl])=>{stbar.appendChild(mk('button','admsubtab'+(admSubTab===id?' on':''),lbl)).onclick=()=>{
     const oldIdx=admTabOrder.indexOf(admSubTab);const newIdx=admTabOrder.indexOf(id);
     window._admSlideDir=newIdx>oldIdx?'right':'left';admSubTab=id;renderAdm();
   };});
@@ -2371,7 +2374,7 @@ function renderAdm(){
     admContent.style.animation=`${window._admSlideDir==='right'?'slideInRight':'slideInLeft'} .22s ease forwards`;
     window._admSlideDir=null;
   }
-  if(admSubTab==='staff')renderAdmStaff(admContent);else if(admSubTab==='pkg')renderAdmPkg(admContent);else if(admSubTab==='book')renderAdmBookings(admContent);else if(admSubTab==='avail')renderAdmAvail(admContent);else renderAdmCode(admContent);
+  if(admSubTab==='staff'&&isAdmin)renderAdmStaff(admContent);else if(admSubTab==='pkg')renderAdmPkg(admContent);else if(admSubTab==='book')renderAdmBookings(admContent);else if(admSubTab==='avail')renderAdmAvail(admContent);else if(admSubTab==='code'&&isAdmin)renderAdmCode(admContent);
 }
 
 
