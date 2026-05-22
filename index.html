@@ -6005,4 +6005,46 @@ function openPcAddSchedule(initDate){
       plSel.onchange=()=>{
         selPlanId=plSel.value;
         if(selPlanId&&mb){
-          const plan=(mb.plans||[]).find(p=>p.id===selPlanI
+          const plan=mb.plans.find(p=>p.id===selPlanId);
+          if(plan&&plan.duration){tyS.value=plan.duration+'분 수업';}
+        }
+      };
+    }
+
+    rebuildMemberDropdown();
+
+    // 메모
+    const meF=box.appendChild(_f('메모'));
+    const meI=meF.appendChild(_inp('메모 (OT 대상자 이름 등)'));meI.className='pcm-input';
+
+    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='20px';
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'일정 등록'})).onclick=()=>{
+      if(!trS.value){alert('트레이너를 선택해주세요.');return;}
+      if(!dtI.value){alert('날짜를 선택해주세요.');return;}
+      const slot={id:'sl'+Date.now(),trainerId:trS.value,date:dtI.value,time:tmS.value,type:tyS.value,
+        memberId:mbSel.value||null,planId:plSel.value||null,memo:meI.value.trim()};
+      slots.push(slot);sv('og10_sl',slots);
+      if(slot.memberId)writeCrmBk(slot);
+      close();renderPcContent();
+    };
+  },{wide:true});
+}
+
+</script>
+
+<div id="pcg" class="pcg-overlay" style="display:none;">
+  <div class="pcg-card" style="padding:48px 44px 40px;min-width:340px;max-width:420px;">
+    <div style="text-align:center;margin-bottom:36px;">
+      <img src="logo.png" class="pcg-logo" style="max-width:300px;max-height:160px;object-fit:contain;display:block;margin:0 auto;">
+    </div>
+    <div class="pcg-label">센터 코드</div>
+    <input class="pcg-input" id="pcg-input" type="password" inputmode="numeric" maxlength="4"
+      placeholder="" style="letter-spacing:10px;font-size:22px;"
+      oninput="this.value=this.value.replace(/[^0-9]/g,'');if(this.value.length===4)pcgLogin();">
+    <div id="pcg-err" class="pcg-err"></div>
+    <button class="pcg-btn" onclick="pcgLogin()">로그인</button>
+  </div>
+</div>
+</body>
+</html>
