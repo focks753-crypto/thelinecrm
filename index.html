@@ -2120,7 +2120,7 @@ function renderMem(){
   
   // 상태 필터 버튼
   let mobMemFilter=window._mobMemFilter||'all';
-  const filterMap={all:'전체',active:'활성',expiring:'만료임박',expired:'만료',none:'미등록',noweek:'주간미수업 ⚠'};
+  const filterMap={all:'전체',active:'활성',expiring:'만료임박',expired:'만료',none:'미등록',noweek:'주간미수업'};
   const filterBar=toolbar.appendChild(document.createElement('div'));
   filterBar.style.cssText='display:flex;gap:6px;flex:1;overflow-x:auto;';
   Object.entries(filterMap).forEach(([k,l])=>{
@@ -2135,6 +2135,14 @@ function renderMem(){
   regBtn.style.cssText='padding:8px 14px;border-radius:8px;border:none;background:#818cf8;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;';
   regBtn.textContent='+ 등록';
   regBtn.onclick=()=>openPcAddMember();
+
+  // 주간미수업 탭일 때 엑셀 버튼 추가
+  if(mobMemFilter==='noweek'){
+    const xlBtn=toolbar.appendChild(document.createElement('button'));
+    xlBtn.style.cssText='padding:8px 12px;border-radius:8px;border:1px solid #d97706;background:transparent;color:#d97706;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;';
+    xlBtn.textContent='엑셀';
+    xlBtn.onclick=dlNoWeekXLSX;
+  }
 
   // 검색
   const searchWrap=memContent.appendChild(document.createElement('div'));
@@ -3455,6 +3463,29 @@ function dlMemberXLSX(){
   XLSX.writeFile(wb,'회원명단_'+ds+'.xlsx');
 }
 
+function dlNoWeekXLSX(){
+  if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
+  const list=getWeekNoSesMembers();
+  if(!list.length){alert('이번주 미수업 회원이 없습니다.');return;}
+  const{mon,sun}=getThisWeek();
+  const rows=list.map(mb=>{
+    const tr2=trainers.find(t=>t.id===mb.trainerId);
+    const st=pcMbStatus(mb);
+    const stLbl={active:'활성',expiring:'만료임박',expired:'만료',none:'미등록'};
+    const plans=mb.plans||[];
+    const remain=plans.reduce((s,p)=>s+getPlanRemain(p),0);
+    return[mb.name,mb.phone||'',tr2?tr2.name:'-',stLbl[st]||'-',remain+'회',mb.inflow||'',mb.memo||''];
+  });
+  const wb=XLSX.utils.book_new();
+  const wsData=[['이름','연락처','담당 트레이너','상태','잔여 수업','유입경로','메모'],...rows];
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:10},{wch:14},{wch:12},{wch:10},{wch:10},{wch:10},{wch:20}];
+  ['A1','B1','C1','D1','E1','F1','G1'].forEach(a=>{if(ws[a])ws[a].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'D97706'},patternType:'solid'},alignment:{horizontal:'center'}};});
+  XLSX.utils.book_append_sheet(wb,ws,'주간미수업');
+  const ds=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'주간미수업_'+mon+'_'+sun+'.xlsx');
+}
+
 function openLogin(cb){
   if(curUser){if(confirm('로그아웃 하시겠습니까?')){curUser=null;sv('og10_cu',null);updChip();mvTr=null;renderTimes();if(document.getElementById('pg-mem').classList.contains('show'))renderMem();if(document.getElementById('pg-adm').classList.contains('show'))renderAdm();}return;}
   showSheet(function(sheet,close){
@@ -3865,7 +3896,7 @@ function renderMobHome(){
       +'<div style="font-size:22px;font-weight:800;color:#fbbf24;">'+noWeekCntM+'<span style="font-size:13px;font-weight:600;color:#d97706;margin-left:3px;">명</span></div>'
       +(nwPreview?'<div style="font-size:11px;color:#92400e;margin-top:4px;">'+nwPreview+'</div>':'')
     +'</div>'
-    +'<div style="width:42px;height:42px;border-radius:12px;background:#78350f33;display:flex;align-items:center;justify-content:center;font-size:20px;">⚠️</div>'
+    +'<div style="width:42px;height:42px;border-radius:12px;background:#78350f33;display:flex;align-items:center;justify-content:center;font-size:18px;color:#f59e0b;font-weight:800;">!</div>'
   +'</div>';
   noWeekCard.onclick=()=>{
     window._mobMemFilter='noweek';
@@ -4338,9 +4369,12 @@ function renderRegStep2(box,close,reg){
 
 // ── 고객 목록 ────────────────────────────────────────────────────────────
 function renderPcCust(ct,acts){
-  if(acts){const ab=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 회원 등록'}));ab.onclick=()=>openPcAddMember();}
+  if(acts){
+    const ab=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 회원 등록'}));ab.onclick=()=>openPcAddMember();
+    if(custSV==='noweek'){const xb=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'}));xb.onclick=dlNoWeekXLSX;}
+  }
   const noWeekCnt=getWeekNoSesMembers().length;
-  const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'},{id:'noweek',label:'주간미수업 ⚠'}];
+  const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'},{id:'noweek',label:'주간미수업'}];
   const sb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-sub-tabs'}));
   subs.forEach(s=>{
     let cnt;
@@ -5971,46 +6005,4 @@ function openPcAddSchedule(initDate){
       plSel.onchange=()=>{
         selPlanId=plSel.value;
         if(selPlanId&&mb){
-          const plan=(mb.plans||[]).find(p=>p.id===selPlanId);
-          if(plan&&plan.duration){tyS.value=plan.duration+'분 수업';}
-        }
-      };
-    }
-
-    rebuildMemberDropdown();
-
-    // 메모
-    const meF=box.appendChild(_f('메모'));
-    const meI=meF.appendChild(_inp('메모 (OT 대상자 이름 등)'));meI.className='pcm-input';
-
-    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='20px';
-    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
-    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'일정 등록'})).onclick=()=>{
-      if(!trS.value){alert('트레이너를 선택해주세요.');return;}
-      if(!dtI.value){alert('날짜를 선택해주세요.');return;}
-      const slot={id:'sl'+Date.now(),trainerId:trS.value,date:dtI.value,time:tmS.value,type:tyS.value,
-        memberId:mbSel.value||null,planId:plSel.value||null,memo:meI.value.trim()};
-      slots.push(slot);sv('og10_sl',slots);
-      if(slot.memberId)writeCrmBk(slot);
-      close();renderPcContent();
-    };
-  },{wide:true});
-}
-
-</script>
-
-<div id="pcg" class="pcg-overlay" style="display:none;">
-  <div class="pcg-card" style="padding:48px 44px 40px;min-width:340px;max-width:420px;">
-    <div style="text-align:center;margin-bottom:36px;">
-      <img src="logo.png" class="pcg-logo" style="max-width:300px;max-height:160px;object-fit:contain;display:block;margin:0 auto;">
-    </div>
-    <div class="pcg-label">센터 코드</div>
-    <input class="pcg-input" id="pcg-input" type="password" inputmode="numeric" maxlength="4"
-      placeholder="" style="letter-spacing:10px;font-size:22px;"
-      oninput="this.value=this.value.replace(/[^0-9]/g,'');if(this.value.length===4)pcgLogin();">
-    <div id="pcg-err" class="pcg-err"></div>
-    <button class="pcg-btn" onclick="pcgLogin()">로그인</button>
-  </div>
-</div>
-</body>
-</html>   
+          const plan=(mb.plans||[]).find(p=>p.id===selPlanI
