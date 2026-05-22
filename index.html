@@ -1516,7 +1516,9 @@ function openSlotDetail(slotId){
       btns.appendChild(mk('button','shok','저장')).onclick=()=>{
         s.time=tmsel.value;s.type=tysel.value;
         s.planId=plsel.value||null;
-        sv('og10_sl',slots);close();renderTimes();
+        sv('og10_sl',slots);
+        if(s.bkId)updateCrmBk(s.bkId,{time:s.time,type:s.type,planId:s.planId||null});
+        close();renderTimes();
       };
     } else {
       // 플랜 없는 경우
@@ -1524,7 +1526,9 @@ function openSlotDetail(slotId){
       btns.appendChild(mk('button','shno','취소')).onclick=close;
       btns.appendChild(mk('button','shok','저장')).onclick=()=>{
         s.time=tmsel.value;s.type=tysel.value;
-        sv('og10_sl',slots);close();renderTimes();
+        sv('og10_sl',slots);
+        if(s.bkId)updateCrmBk(s.bkId,{time:s.time,type:s.type});
+        close();renderTimes();
       };
     }
 
@@ -1545,6 +1549,31 @@ function openSlotDetail(slotId){
       btn.onclick=()=>{s.memo=mo.value.trim();if(origClick)origClick();};
     });
   });
+}
+
+// ── CRM 수업 등록 시 라인핏 og10_bk 동기화 ─────────────────────────────
+function writeCrmBk(slot){
+  if(!slot.memberId)return;
+  const mb=members.find(m=>m.id===slot.memberId);if(!mb)return;
+  const plan=slot.planId?(mb.plans||[]).find(p=>p.id===slot.planId):null;
+  const tr=trainers.find(t=>t.id===slot.trainerId);
+  const dur=(slot.type||'').includes('50')?50:25;
+  firebase.firestore().collection('og10_bk').add({
+    memberId:slot.memberId,memberName:mb.name||'',
+    trainerId:slot.trainerId||'',trainerName:tr?tr.name:'',
+    date:slot.date,time:slot.time,
+    type:slot.type||'수업',
+    planId:slot.planId||null,
+    planName:plan?(plan.productName||(plan.sessions+'회권')):'',
+    duration:dur,status:'confirmed',source:'crm',
+    memo:slot.memo||'',
+    requestedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    slotId:slot.id
+  }).then(ref=>{slot.bkId=ref.id;sv('og10_sl',slots);}).catch(e=>console.warn('writeCrmBk',e));
+}
+function updateCrmBk(bkId,fields){
+  if(!bkId)return;
+  firebase.firestore().collection('og10_bk').doc(bkId).update(fields).catch(e=>console.warn('updateCrmBk',e));
 }
 
 function openAddSheet(time){
@@ -1625,8 +1654,10 @@ function openAddSheet(time){
       const mbId=mbsel.value||null;
       const planId=(!mbId||ty==='OT'||ty==='상담')?null:selectedPlanId;
       if(mbId&&ty!=='OT'&&ty!=='상담'&&!planId){alert('권종을 선택해주세요.');return;}
-      slots.push({id:'s'+Date.now(),trainerId:tid,memberId:mbId,planId,date:key,time:tm,type:ty,memo:mo.value.trim()});
-      sv('og10_sl',slots);close();renderTimes();
+      const _newSlot={id:'s'+Date.now(),trainerId:tid,memberId:mbId,planId,date:key,time:tm,type:ty,memo:mo.value.trim()};
+      slots.push(_newSlot);sv('og10_sl',slots);
+      if(mbId)writeCrmBk(_newSlot);
+      close();renderTimes();
     };
   });
 }
@@ -2089,7 +2120,7 @@ function renderMem(){
   
   // 상태 필터 버튼
   let mobMemFilter=window._mobMemFilter||'all';
-  const filterMap={all:'전체',active:'활성',expiring:'만료임박',expired:'만료',none:'미등록'};
+  const filterMap={all:'전체',active:'활성',expiring:'만료임박',expired:'만료',none:'미등록',noweek:'주간미수업 ⚠'};
   const filterBar=toolbar.appendChild(document.createElement('div'));
   filterBar.style.cssText='display:flex;gap:6px;flex:1;overflow-x:auto;';
   Object.entries(filterMap).forEach(([k,l])=>{
@@ -2120,7 +2151,8 @@ function renderMem(){
   const kw=(window._mobMemKw||'').trim();
   if(kw)list=list.filter(m=>m.name.includes(kw)||(m.phone||'').includes(kw));
   const flt=window._mobMemFilter||'all';
-  if(flt==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;});
+  if(flt==='noweek')list=getWeekNoSesMembers();
+  else if(flt==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;});
   else if(flt!=='all')list=list.filter(m=>pcMbStatus&&pcMbStatus(m)===flt);
 
   memContent.appendChild(Object.assign(document.createElement('div'),{textContent:'총 '+list.length+'명'})).style.cssText='font-size:12px;color:#4a5068;margin-bottom:8px;';
@@ -3821,6 +3853,25 @@ function renderMobHome(){
       +'<div style="font-size:20px;font-weight:800;color:#e2e8f0;">'+v+'</div>';
   });
 
+  // ── 주간미수업 카드 ──
+  const noWeekList=getWeekNoSesMembers();
+  const noWeekCntM=noWeekList.length;
+  const noWeekCard=hp.appendChild(document.createElement('div'));
+  noWeekCard.style.cssText='margin:10px 16px 0;background:#111318;border:1px solid #78350f44;border-radius:14px;padding:14px 16px;cursor:pointer;';
+  const nwPreview=noWeekList.slice(0,3).map(m=>m.name).join(', ')+(noWeekList.length>3?' 외 '+(noWeekList.length-3)+'명':'');
+  noWeekCard.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;">'
+    +'<div>'
+      +'<div style="font-size:10px;font-weight:700;color:#d97706;letter-spacing:.8px;margin-bottom:4px;">주간 미수업 회원</div>'
+      +'<div style="font-size:22px;font-weight:800;color:#fbbf24;">'+noWeekCntM+'<span style="font-size:13px;font-weight:600;color:#d97706;margin-left:3px;">명</span></div>'
+      +(nwPreview?'<div style="font-size:11px;color:#92400e;margin-top:4px;">'+nwPreview+'</div>':'')
+    +'</div>'
+    +'<div style="width:42px;height:42px;border-radius:12px;background:#78350f33;display:flex;align-items:center;justify-content:center;font-size:20px;">⚠️</div>'
+  +'</div>';
+  noWeekCard.onclick=()=>{
+    window._mobMemFilter='noweek';
+    switchMobPage('mem');
+  };
+
   // ── 회원 현황 바 ──
   const barDiv=hp.appendChild(document.createElement('div'));
   barDiv.style.cssText='margin:14px 16px 0;background:#111318;border:1px solid #1e2026;border-radius:14px;padding:14px;';
@@ -3974,12 +4025,28 @@ function renderPcContent(){
 }
 function pcMbStatus(mb){
   const plans=mb.plans||[];if(!plans.length)return'none';
-  // membership(헬스이용권): 날짜 기반
   const mPlan=plans.find(p=>p.productType==='membership'&&p.endDate);
   if(mPlan){const rem=Math.ceil((new Date(mPlan.endDate)-new Date())/(1000*60*60*24));if(rem<=0)return'expired';if(rem<=25)return'expiring';return'active';}
-  // PT 수업권: 잔여 횟수 기반
   let total=0;plans.forEach(p=>{if(p.productType!=='membership')total+=getPlanRemain(p);});
   if(total>0)return'active';return'expired';
+}
+function getThisWeek(){
+  const now=new Date();const dow=now.getDay();
+  const mon=new Date(now);mon.setDate(now.getDate()-(dow===0?6:dow-1));mon.setHours(0,0,0,0);
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  return{mon:fmt(mon),sun:fmt(sun)};
+}
+function getWeekNoSesMembers(){
+  const{mon,sun}=getThisWeek();
+  const weekMbIds=new Set(
+    slots.filter(s=>s.memberId&&s.date>=mon&&s.date<=sun&&s.type!=='OT'&&s.type!=='상담')
+         .map(s=>s.memberId)
+  );
+  return members.filter(m=>{
+    const st=pcMbStatus(m);
+    return(st==='active'||st==='expiring')&&!weekMbIds.has(m.id);
+  });
 }
 function pcSLbl(s){return{active:'활성',expired:'만료',none:'미등록'}[s]||'미등록';}
 function pcSCls(s){return{active:'pbs-on',expired:'pbs-off',none:'pbs-no'}[s]||'pbs-no';}
@@ -4018,6 +4085,8 @@ function renderPcHome(ct,acts){
 
   // ── 상단 요약 4카드 (색상 통일) ──
   const g4=ct.appendChild(_mk('div','pc-dash-g4'));
+  const noWeekList=getWeekNoSesMembers();
+  const{mon:wMon,sun:wSun}=getThisWeek();
   [{lbl:'전체 회원',val:total+'명',sub:'등록된 전체 회원',pct:100,sv:'all'},
    {lbl:'활성 회원',val:active+'명',sub:'전체 대비 '+ar+'%',pct:ar,sv:'active'},
    {lbl:'만료임박 회원',val:expiring+'명',sub:'잔여 3회 이하',pct:er,sv:'expiring'},
@@ -4039,6 +4108,21 @@ function renderPcHome(ct,acts){
     +barD.map(d=>'<div style="flex:'+d.v+';background:'+d.c+';"></div>').join('')
     +'</div><div style="font-size:22px;font-weight:800;color:#34d399;min-width:52px;text-align:right;">'+ar+'%</div></div>'
     +'<div style="display:flex;gap:20px;">'+barD.map(d=>'<span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6b7494;"><span style="width:7px;height:7px;border-radius:50%;background:'+d.c+';display:inline-block;"></span>'+d.l+' '+d.v+'명</span>').join('')+'</div>';
+
+  // ── 주간 미수업 카드 ──
+  const noWeekCard=ct.appendChild(_mk('div','pc-card pc-card-anim'));
+  noWeekCard.style.cssText='cursor:pointer;margin-bottom:16px;border-left:3px solid #f59e0b;';
+  const noWeekPct=total>0?Math.round(noWeekList.length/Math.max(1,active+expiring)*100):0;
+  noWeekCard.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+    +'<div class="pc-card-ttl" style="margin:0;">⚠ 주간 미수업 회원</div>'
+    +'<span style="font-size:11px;color:#6b7494;">'+wMon.slice(5)+' ~ '+wSun.slice(5)+'</span></div>'
+    +'<div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:8px;">'
+    +'<div style="font-size:32px;font-weight:800;color:#f59e0b;line-height:1;">'+noWeekList.length+'<span style="font-size:14px;margin-left:2px;">명</span></div>'
+    +'<div style="font-size:12px;color:#6b7494;margin-bottom:4px;">활성회원 중 '+noWeekPct+'%</div></div>'
+    +(noWeekList.length?'<div style="font-size:12px;color:#9ca3af;">'+noWeekList.slice(0,5).map(m=>m.name).join(', ')+(noWeekList.length>5?' 외 '+(noWeekList.length-5)+'명':'')+'</div>':'<div style="font-size:12px;color:#34d399;">이번주 모든 활성 회원이 수업 중 👍</div>');
+  noWeekCard.onmouseenter=()=>{noWeekCard.style.borderColor='#f59e0b';noWeekCard.style.background='rgba(245,158,11,.05)';};
+  noWeekCard.onmouseleave=()=>{noWeekCard.style.background='';};
+  noWeekCard.onclick=()=>{pcV='customers';pcSV='noweek';custSV='noweek';initPcNav();renderPcContent();};
 
   // ── 2열: 성비 + 유입경로 ──
   const g2=ct.appendChild(_mk('div','pc-dash-g2'));
@@ -4255,11 +4339,13 @@ function renderRegStep2(box,close,reg){
 // ── 고객 목록 ────────────────────────────────────────────────────────────
 function renderPcCust(ct,acts){
   if(acts){const ab=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 회원 등록'}));ab.onclick=()=>openPcAddMember();}
-  const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'}];
+  const noWeekCnt=getWeekNoSesMembers().length;
+  const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'},{id:'noweek',label:'주간미수업 ⚠'}];
   const sb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-sub-tabs'}));
   subs.forEach(s=>{
     let cnt;
     if(s.id==='all')cnt=members.length;
+    else if(s.id==='noweek')cnt=noWeekCnt;
     else if(s.id==='expiring')cnt=members.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;}).length;
     else cnt=members.filter(m=>pcMbStatus(m)===s.id).length;
     const tab=sb.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(custSV===s.id?' on':''),textContent:s.label+' '+cnt}));
@@ -4272,7 +4358,8 @@ function renderPcCust(ct,acts){
   fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'조회'})).onclick=()=>renderPcContent();
 
   let list=members;
-  if(custSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;});
+  if(custSV==='noweek')list=getWeekNoSesMembers();
+  else if(custSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=3;});
   else if(custSV&&custSV!=='all')list=list.filter(m=>pcMbStatus(m)===custSV);
   if(pcCustKw)list=list.filter(m=>m.name.includes(pcCustKw)||(m.phone||'').includes(pcCustKw));
 
@@ -5778,7 +5865,9 @@ function openPcSlotDetail(slotId){
       fb.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=()=>{editForm.style.display='none';infoCard.style.display='block';editBtn.textContent='수정';};
       fb.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'저장'})).onclick=()=>{
         s.date=dtI.value;s.time=tmS.value;s.type=tyS.value;s.trainerId=trS.value;s.memo=meI.value.trim();
-        sv('og10_sl',slots);closeModal();renderPcContent();
+        sv('og10_sl',slots);
+        if(s.bkId)updateCrmBk(s.bkId,{date:s.date,time:s.time,type:s.type,trainerId:s.trainerId,memo:s.memo});
+        closeModal();renderPcContent();
       };
     }
 
@@ -5902,6 +5991,7 @@ function openPcAddSchedule(initDate){
       const slot={id:'sl'+Date.now(),trainerId:trS.value,date:dtI.value,time:tmS.value,type:tyS.value,
         memberId:mbSel.value||null,planId:plSel.value||null,memo:meI.value.trim()};
       slots.push(slot);sv('og10_sl',slots);
+      if(slot.memberId)writeCrmBk(slot);
       close();renderPcContent();
     };
   },{wide:true});
@@ -5923,4 +6013,4 @@ function openPcAddSchedule(initDate){
   </div>
 </div>
 </body>
-</html>
+</html>   
