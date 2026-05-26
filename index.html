@@ -943,20 +943,29 @@ function getFirebaseStatus(){
 async function loadFromFirebase(){
   if(!db)return false;
   try{
-    const keys=['og10_tr','og10_sl','og10_mb','og10_nt','og10_pkg','og10_cc','og11_cv','og10_pr','og10_rf','og10_cs'];
     const snap=await db.collection('og_data').get();
     let hasData=false;
     const skipKeys=['og11_cv','og10_cu','og10_cc'];
+    const restores=[];
     snap.forEach(doc=>{
-      if(skipKeys.includes(doc.id))return; // 개인 기기 전용 키 제외
+      if(skipKeys.includes(doc.id))return;
       const data=doc.data();
-      if(data&&data.value){
-        try{
-          localStorage.setItem(doc.id,data.value);
-          hasData=true;
-        }catch(e){}
+      const fsVal=data&&data.value?data.value:null;
+      const lsVal=localStorage.getItem(doc.id);
+      const fsEmpty=!fsVal||fsVal==='[]'||fsVal==='null';
+      const lsGood=lsVal&&lsVal!=='[]'&&lsVal!=='null'&&lsVal.length>2;
+      if(fsEmpty&&lsGood){
+        // localStorage에 데이터 있는데 Firestore가 비어있으면 복구
+        restores.push(db.collection('og_data').doc(doc.id).set({value:lsVal,ts:Date.now()}).catch(()=>{}));
+        hasData=true;
+      } else if(fsVal&&!fsEmpty){
+        try{localStorage.setItem(doc.id,fsVal);hasData=true;}catch(e){}
       }
     });
+    if(restores.length>0){
+      await Promise.all(restores);
+      console.log('✅ 데이터 복구 완료');
+    }
     return hasData;
   }catch(e){return false;}
 }
@@ -971,7 +980,12 @@ function startRealtimeSync(){
         const skipKeys2=['og11_cv','og10_cu','og10_cc'];
         if(data&&data.value&&!skipKeys2.includes(change.doc.id)){
           const id=change.doc.id;
-          try{localStorage.setItem(id,data.value);}catch(e){}
+          const newVal=data.value;
+          const existingLs=localStorage.getItem(id);
+          const newEmpty=!newVal||newVal==='[]'||newVal==='null';
+          const existingGood=existingLs&&existingLs!=='[]'&&existingLs!=='null'&&existingLs.length>2;
+          if(newEmpty&&existingGood)return; // 좋은 로컬 데이터를 빈값으로 덮어쓰지 않음
+          try{localStorage.setItem(id,newVal);}catch(e){}
           // 화면 자동 갱신
           if(id==='og10_tr'){trainers=ld('og10_tr',[]);updChip();if(document.getElementById('pg-adm').classList.contains('show'))renderAdm();}
           else if(id==='og10_sl'){
@@ -5390,6 +5404,45 @@ function renderMbPlanCard(container, mb, p, box, close) {
   const stBdg = top.appendChild(document.createElement('span'));
   stBdg.className = 'pbs ' + (isActive ? 'pbs-on' : 'pbs-off');
   stBdg.textContent = isActive ? '유효' : '만료';
+
+  // 날짜 수정 버튼
+  const dateBtn = top.appendChild(document.createElement('button'));
+  dateBtn.style.cssText = 'padding:4px 10px;border-radius:6px;border:1px solid #2a3050;background:transparent;color:#818cf8;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;';
+  dateBtn.textContent = '날짜 수정';
+  dateBtn.onclick = () => {
+    const curDate = p.paymentDate || (p.addedAt ? new Date(p.addedAt).toISOString().slice(0,10) : new Date().toISOString().slice(0,10));
+    pcModal((b2, c2) => {
+      b2.appendChild(Object.assign(document.createElement('div'), {className:'pcm-ttl', textContent:'판매일자 수정'}));
+      b2.appendChild(Object.assign(document.createElement('div'), {textContent: mb.name + ' · ' + (p.productName||p.duration+'분 '+p.sessions+'회권')})).style.cssText='font-size:13px;color:#8892b0;margin-bottom:20px;';
+      const lbl = b2.appendChild(document.createElement('div'));
+      lbl.textContent = '판매일자 (매출 발생일)';
+      lbl.style.cssText = 'font-size:12px;color:#8892b0;margin-bottom:8px;font-weight:600;';
+      const di = b2.appendChild(document.createElement('input'));
+      di.type = 'date'; di.value = curDate;
+      di.style.cssText = 'width:100%;padding:12px 14px;border:1px solid #2a3050;border-radius:10px;background:#0d1117;color:#e2e8f0;font-size:15px;margin-bottom:20px;';
+      const row = b2.appendChild(document.createElement('div'));
+      row.style.cssText = 'display:flex;gap:10px;';
+      const cancel = row.appendChild(document.createElement('button'));
+      cancel.textContent = '취소'; cancel.className = 'pc-tbtn';
+      cancel.style.cssText = 'flex:1;padding:12px;'; cancel.onclick = c2;
+      const save = row.appendChild(document.createElement('button'));
+      save.textContent = '저장'; save.className = 'pc-tbtn pri';
+      save.style.cssText = 'flex:1;padding:12px;';
+      save.onclick = () => {
+        if(!di.value){alert('날짜를 선택해주세요.');return;}
+        p.paymentDate = di.value;
+        const d = new Date(di.value);
+        d.setHours(12, 0, 0, 0);
+        p.addedAt = d.getTime();
+        sv('og10_mb', members);
+        c2();
+        const newDate = new Date(di.value).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
+        info.innerHTML = '결제: ' + (p.totalPrice||0).toLocaleString() + '원' + (p.paymentMethod ? ' · ' + p.paymentMethod : '') + ' · ' + newDate + '<br>'
+          + '사용 ' + used + '회 / 잔여 ' + rem + '회'
+          + (p.startDate ? '<br>기간: ' + p.startDate + ' ~ ' + (p.endDate||'') : '');
+      };
+    });
+  };
 
   // 환불/양도 버튼 (오른쪽)
   const refBtn = top.appendChild(document.createElement('button'));
