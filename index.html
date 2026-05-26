@@ -3594,8 +3594,6 @@ function dlSalesCSV(rows,total){
   XLSX.writeFile(wb,(isSes?'세션로그_':'수업권판매_')+salStartDate+'_'+salEndDate+'.xlsx');
 }
 
-if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
-
 (async function(){
   await new Promise(resolve=>loadFirebaseSDK(resolve));
   try{
