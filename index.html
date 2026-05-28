@@ -3073,7 +3073,7 @@ function computeSales(){
       (mb.plans||[]).forEach(plan=>{
         const pDate=new Date(plan.addedAt||0);if(pDate<sd||pDate>ed)return;
         const ds=pDate.getFullYear()+'-'+String(pDate.getMonth()+1).padStart(2,'0')+'-'+String(pDate.getDate()).padStart(2,'0');
-        rows.push({date:ds,time:p2(pDate.getHours())+':'+p2(pDate.getMinutes()),trainerId:mb.trainerId,trainerName:tr?tr.name:'?',memberName:mb.name,phone:mb.phone||'',type:plan.duration+'분',planLabel:plan.sessions+'회권',revenue:plan.totalPrice||0,groupKey:getGroupKey(ds),inflow:mb.inflow||'',payment:plan.paymentMethod||mb.payment||''});
+        rows.push({date:ds,time:p2(pDate.getHours())+':'+p2(pDate.getMinutes()),trainerId:mb.trainerId,trainerName:tr?tr.name:'?',memberName:mb.name,phone:mb.phone||'',type:plan.duration+'분',planLabel:plan.sessions+'회권',planId:plan.id,memberId:mb.id,revenue:plan.totalPrice||0,groupKey:getGroupKey(ds),inflow:mb.inflow||'',payment:plan.paymentMethod||mb.payment||''});
       });
     });
   } else {
@@ -3601,25 +3601,50 @@ function dlSalesCSV(rows,total){
   wsData.push([null,titleStr,null,null,null,null,null]);
   wsData.push([null,periodStr,null,null,null,null,null]);
   wsData.push([null,null,null,null,null,null,null]);
-  wsData.push(isSes?[null,'계약일','회원명','세션','계약료','세션단가','수업료']:[null,'등록일','트레이너','회원명','수업시간','수업권','결제금액']);
+  if(isSes){
+    wsData.push([null,'계약일','회원명','세션','계약료','세션단가','수업료']);
+  } else {
+    wsData.push([null,'등록일','트레이너','회원명','연락처','유입','결제수단','수업권','결제금액','진행세션','잔여세션']);
+  }
   rows.forEach(r=>{
     if(isSes){
-      const mb=members.find(m=>m.name===r.memberName&&m.trainerId===r.trainerId);
-      const plan=mb?(mb.plans||[]).find(p=>(p.sessions+'회권')===r.planLabel):null;
-      wsData.push([null,r.date,r.memberName,plan?plan.sessions:0,plan?plan.totalPrice:0,r.revenue,r.revenue]);
-    } else {wsData.push([null,r.date,r.trainerName,r.memberName,r.phone||'',r.inflow||'',r.payment||'',r.planLabel,r.revenue||0]);}
+      const mbS=members.find(m=>m.name===r.memberName&&m.trainerId===r.trainerId);
+      const planS=mbS?(mbS.plans||[]).find(p=>(p.sessions+'회권')===r.planLabel):null;
+      wsData.push([null,r.date,r.memberName,planS?planS.sessions:0,planS?planS.totalPrice:0,r.revenue,r.revenue]);
+    } else {
+      const mbR=r.memberId?members.find(m=>m.id===r.memberId):members.find(m=>m.name===r.memberName);
+      const planR=r.planId&&mbR?(mbR.plans||[]).find(p=>p.id===r.planId):null;
+      const usedR=r.isRefund?'-':(planR?getPlanUsed(planR.id):'-');
+      const remainR=r.isRefund?'-':(planR?getPlanRemain(planR):'-');
+      wsData.push([null,r.date,r.trainerName,r.memberName,r.phone||'',r.inflow||'',r.payment||'',r.planLabel,r.revenue||0,usedR,remainR]);
+    }
   });
-  wsData.push([null,null,null,null,null,null,null]);
-  wsData.push([null,null,null,null,null,'합계',total]);
-  wsData.push([null,null,null,null,null,null,null]);
-  wsData.push([null,'트레이너별 요약',null,null,null,null,null]);
-  wsData.push([null,'트레이너','수업 수','합계',null,null,null]);
+  if(isSes){
+    wsData.push([null,null,null,null,null,null,null]);
+    wsData.push([null,null,null,null,null,'합계',total]);
+    wsData.push([null,null,null,null,null,null,null]);
+    wsData.push([null,'트레이너별 요약',null,null,null,null,null]);
+    wsData.push([null,'트레이너','수업 수','합계',null,null,null]);
+  } else {
+    wsData.push([null,null,null,null,null,null,null,null,null,null,null]);
+    wsData.push([null,null,null,null,null,null,null,null,'합계',total,null]);
+    wsData.push([null,null,null,null,null,null,null,null,null,null,null]);
+    wsData.push([null,'트레이너별 요약',null,null,null,null,null,null,null,null,null]);
+    wsData.push([null,'트레이너','수업 수','합계',null,null,null,null,null,null,null]);
+  }
   const byTr={};rows.forEach(r=>{if(!byTr[r.trainerName])byTr[r.trainerName]={cnt:0,sum:0};byTr[r.trainerName].cnt++;byTr[r.trainerName].sum+=r.revenue;});
-  Object.entries(byTr).forEach(([nm,d])=>wsData.push([null,nm,d.cnt,d.sum,null,null,null]));
+  if(isSes){Object.entries(byTr).forEach(([nm,d])=>wsData.push([null,nm,d.cnt,d.sum,null,null,null]));}
+  else{Object.entries(byTr).forEach(([nm,d])=>wsData.push([null,nm,d.cnt,d.sum,null,null,null,null,null,null,null]));}
   const ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols']=[{wch:2},{wch:14},{wch:12},{wch:10},{wch:14},{wch:12},{wch:12}];
-  ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:6}},{s:{r:2,c:1},e:{r:2,c:6}}];
-  ws['!autofilter']={ref:'B5:G5'};
+  if(isSes){
+    ws['!cols']=[{wch:2},{wch:14},{wch:12},{wch:10},{wch:14},{wch:12},{wch:12}];
+    ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:6}},{s:{r:2,c:1},e:{r:2,c:6}}];
+    ws['!autofilter']={ref:'B5:G5'};
+  } else {
+    ws['!cols']=[{wch:2},{wch:14},{wch:12},{wch:12},{wch:14},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:10}];
+    ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:10}},{s:{r:2,c:1},e:{r:2,c:10}}];
+    ws['!autofilter']={ref:'B5:K5'};
+  }
   XLSX.utils.book_append_sheet(wb,ws,isSes?'세션로그':'수업권판매');
   XLSX.writeFile(wb,(isSes?'세션로그_':'수업권판매_')+salStartDate+'_'+salEndDate+'.xlsx');
 }
