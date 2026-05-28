@@ -3337,6 +3337,22 @@ function renderSales(){
         if(ci===8&&feeRawM!==null)td.style.cssText='color:#fbbf24;font-weight:700;font-size:11px;';
       });
     });
+    const tfoot2=tbl.appendChild(el('tfoot'));
+    const sumTr2=tfoot2.appendChild(el('tr'));
+    sumTr2.style.cssText='border-top:2px solid #2a3050;';
+    const feeTotalM=allSlots.reduce((acc,s)=>{
+      const mb2=s.memberId?members.find(m=>m.id===s.memberId):null;
+      const plan2=s.planId&&mb2?(mb2.plans||[]).find(p=>p.id===s.planId):null;
+      const isOC=s.type==='OT'||s.type==='상담';
+      if(!isOC&&plan2&&plan2.totalPrice&&plan2.sessions){
+        return acc+Math.round(plan2.totalPrice/1.1/plan2.sessions/2/100)*100;
+      }
+      return acc;
+    },0);
+    ['','','','','','','','합계',feeTotalM.toLocaleString()+'원'].forEach((v,ci)=>{
+      const td=sumTr2.appendChild(mk('td','',v));
+      td.style.cssText='padding:8px 6px;font-size:11px;font-weight:800;'+(ci===7?'color:#8892aa;text-align:right;':'')+(ci===8?'color:#fbbf24;':'');
+    });
   } else if(salSubTab==='bypkg'){
     if(!salRows.length){salContent.appendChild(mk('div','sal-empty','해당 기간 데이터가 없습니다.'));return;}
     const pkgMap={};
@@ -4922,6 +4938,24 @@ function renderPcSessions(ct,acts){
     const td=tr3.appendChild(document.createElement('td'));
     td.colSpan=9;td.style.cssText='text-align:center;padding:40px;color:#2a2d45;font-size:13px;';
     td.textContent='해당 기간 세션 기록이 없습니다.';
+  } else {
+    const tfoot=tbl.appendChild(document.createElement('tfoot'));
+    const sumTr=tfoot.appendChild(document.createElement('tr'));
+    sumTr.style.cssText='border-top:2px solid #2a3050;';
+    const feeTotal=filtered.reduce((acc,s)=>{
+      const mb2=s.memberId?members.find(m=>m.id===s.memberId):null;
+      const plan2=s.planId&&mb2?(mb2.plans||[]).find(p=>p.id===s.planId):null;
+      const isOC=s.type==='OT'||s.type==='상담';
+      if(!isOC&&plan2&&plan2.totalPrice&&plan2.sessions){
+        return acc+Math.round(plan2.totalPrice/1.1/plan2.sessions/2/100)*100;
+      }
+      return acc;
+    },0);
+    ['','','','','','','','합계',feeTotal.toLocaleString()+'원'].forEach((v,ci)=>{
+      const td=sumTr.appendChild(document.createElement('td'));
+      td.textContent=v;
+      td.style.cssText='padding:10px 12px;font-size:13px;font-weight:800;'+(ci===7?'color:#8892aa;text-align:right;':'')+(ci===8?'color:#fbbf24;':'');
+    });
   }
 }
 
