@@ -3311,7 +3311,7 @@ function renderSales(){
     // ── 테이블 ──
     const tw=salContent.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
     const sesHead=tbl.appendChild(el('thead'));const sesHr=sesHead.appendChild(el('tr'));
-    makeSortThs(sesHr,['날짜','시간','트레이너','이름','유형','수업권/메모','진행','잔여'],['date','time','tr','name','type','plan',null,null],mobSesSortCol,mobSesSortDir,(col,dir)=>{mobSesSortCol=col;mobSesSortDir=dir;renderSales();});
+    makeSortThs(sesHr,['날짜','시간','트레이너','이름','유형','수업권/메모','진행','잔여','수업료'],['date','time','tr','name','type','plan',null,null,null],mobSesSortCol,mobSesSortDir,(col,dir)=>{mobSesSortCol=col;mobSesSortDir=dir;renderSales();});
     const tbody=tbl.appendChild(el('tbody'));
     allSlots.forEach(s=>{
       const tr2=trainers.find(t=>t.id===s.trainerId);
@@ -3322,16 +3322,19 @@ function renderSales(){
       const rem=isOTorCon?'-':(plan?getPlanRemain(plan):'-');
       const used_cnt=isOTorCon?'-':(plan?getPlanUsed(plan.id)+'회':'-');
       const nameStr=mb?mb.name:(s.guestName||'-');
+      const feeRawM=(!isOTorCon&&plan&&plan.totalPrice&&plan.sessions)?Math.round(plan.totalPrice/1.1/plan.sessions/2/100)*100:null;
+      const feeValM=feeRawM!==null?feeRawM.toLocaleString()+'원':'-';
       const row=tbody.appendChild(el('tr'));
       if(s.type==='OT')row.style.cssText='background:rgba(251,191,36,.05);';
       else if(s.type==='상담')row.style.cssText='background:rgba(129,140,248,.05);';
-      [s.date,s.time.slice(0,5),tr2?tr2.name:'-',nameStr,s.type||'-',planMemo,used_cnt,rem].forEach((v,ci)=>{
+      [s.date,s.time.slice(0,5),tr2?tr2.name:'-',nameStr,s.type||'-',planMemo,used_cnt,rem,feeValM].forEach((v,ci)=>{
         const td=row.appendChild(mk('td','',v));
         if(ci===4){
           if((s.type||'').includes('수업'))td.style.cssText='color:#3dc87a;font-weight:700;font-size:11px;';
           else if(s.type==='OT')td.style.cssText='color:#fbbf24;font-weight:700;font-size:11px;';
           else if(s.type==='상담')td.style.cssText='color:#818cf8;font-weight:700;font-size:11px;';
         }
+        if(ci===8&&feeRawM!==null)td.style.cssText='color:#fbbf24;font-weight:700;font-size:11px;';
       });
     });
   } else if(salSubTab==='bypkg'){
@@ -4880,7 +4883,7 @@ function renderPcSessions(ct,acts){
   const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
   const thead=tbl.appendChild(document.createElement('thead'));const hr=thead.appendChild(document.createElement('tr'));
   const tbody=tbl.appendChild(document.createElement('tbody'));
-  makeSortThs(hr,['날짜','시간','트레이너','이름','유형','수업권 / 메모','진행','잔여'],['date','time','tr','name','type','plan',null,'rem'],pcSesSortCol,pcSesSortDir,(col,dir)=>{pcSesSortCol=col;pcSesSortDir=dir;renderPcContent();});
+  makeSortThs(hr,['날짜','시간','트레이너','이름','유형','수업권 / 메모','진행','잔여','수업료'],['date','time','tr','name','type','plan',null,'rem',null],pcSesSortCol,pcSesSortDir,(col,dir)=>{pcSesSortCol=col;pcSesSortDir=dir;renderPcContent();});
 
   filtered.forEach((s,idx)=>{
     const tr2=trainers.find(t=>t.id===s.trainerId);
@@ -4893,13 +4896,16 @@ function renderPcSessions(ct,acts){
                    plan?(plan.productName||plan.sessions+'회권'):(s.memo||'-');
     const remVal=s.type==='상담'||s.type==='OT'?'-':rem+'';
     const usedVal=s.type==='상담'||s.type==='OT'?'-':(plan?getPlanUsed(plan.id)+'회':'-');
+    const isOTorCon2=s.type==='OT'||s.type==='상담';
+    const feeRaw=(!isOTorCon2&&plan&&plan.totalPrice&&plan.sessions)?Math.round(plan.totalPrice/1.1/plan.sessions/2/100)*100:null;
+    const feeVal=feeRaw!==null?feeRaw.toLocaleString()+'원':'-';
 
     const row=tbody.appendChild(document.createElement('tr'));
     // 유형별 색상 강조
     if(s.type==='OT')row.style.cssText='background:rgba(251,191,36,.04);';
     else if(s.type==='상담')row.style.cssText='background:rgba(129,140,248,.04);';
 
-    [s.date,s.time.slice(0,5),tr2?tr2.name:'-',nameVal,s.type||'-',planMemo,usedVal,remVal].forEach((v,ci)=>{
+    [s.date,s.time.slice(0,5),tr2?tr2.name:'-',nameVal,s.type||'-',planMemo,usedVal,remVal,feeVal].forEach((v,ci)=>{
       const td=row.appendChild(document.createElement('td'));
       td.textContent=v;
       // 유형 컬럼 배지색
@@ -4908,12 +4914,13 @@ function renderPcSessions(ct,acts){
         else if(s.type==='OT')td.style.cssText='color:#fbbf24;font-weight:700;';
         else if(s.type==='상담')td.style.cssText='color:#818cf8;font-weight:700;';
       }
+      if(ci===8&&feeRaw!==null)td.style.cssText='color:#fbbf24;font-weight:700;';
     });
   });
   if(!filtered.length){
     const tr3=tbody.appendChild(document.createElement('tr'));
     const td=tr3.appendChild(document.createElement('td'));
-    td.colSpan=8;td.style.cssText='text-align:center;padding:40px;color:#2a2d45;font-size:13px;';
+    td.colSpan=9;td.style.cssText='text-align:center;padding:40px;color:#2a2d45;font-size:13px;';
     td.textContent='해당 기간 세션 기록이 없습니다.';
   }
 }
