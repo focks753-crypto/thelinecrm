@@ -5478,21 +5478,31 @@ function renderMbPlanCard(container, mb, p, box, close) {
   stBdg.className = 'pbs ' + (isActive ? 'pbs-on' : 'pbs-off');
   stBdg.textContent = isActive ? '유효' : '만료';
 
-  // 날짜 수정 버튼
+  // 결제 수정 버튼
   const dateBtn = top.appendChild(document.createElement('button'));
   dateBtn.style.cssText = 'padding:4px 10px;border-radius:6px;border:1px solid #2a3050;background:transparent;color:#818cf8;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;';
-  dateBtn.textContent = '날짜 수정';
+  dateBtn.textContent = '결제 수정';
   dateBtn.onclick = () => {
     const curDate = p.paymentDate || (p.addedAt ? new Date(p.addedAt).toISOString().slice(0,10) : new Date().toISOString().slice(0,10));
+    const fieldStyle = 'width:100%;padding:11px 14px;border:1px solid #2a3050;border-radius:10px;background:#0d1117;color:#e2e8f0;font-size:14px;margin-bottom:16px;box-sizing:border-box;font-family:inherit;';
+    const lblStyle = 'font-size:11px;color:#8892b0;margin-bottom:6px;font-weight:700;letter-spacing:.5px;';
     pcModal((b2, c2) => {
-      b2.appendChild(Object.assign(document.createElement('div'), {className:'pcm-ttl', textContent:'판매일자 수정'}));
+      b2.appendChild(Object.assign(document.createElement('div'), {className:'pcm-ttl', textContent:'결제 정보 수정'}));
       b2.appendChild(Object.assign(document.createElement('div'), {textContent: mb.name + ' · ' + (p.productName||p.duration+'분 '+p.sessions+'회권')})).style.cssText='font-size:13px;color:#8892b0;margin-bottom:20px;';
-      const lbl = b2.appendChild(document.createElement('div'));
-      lbl.textContent = '판매일자 (매출 발생일)';
-      lbl.style.cssText = 'font-size:12px;color:#8892b0;margin-bottom:8px;font-weight:600;';
+      // 날짜
+      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'판매일자 (매출 발생일)'})).style.cssText=lblStyle;
       const di = b2.appendChild(document.createElement('input'));
-      di.type = 'date'; di.value = curDate;
-      di.style.cssText = 'width:100%;padding:12px 14px;border:1px solid #2a3050;border-radius:10px;background:#0d1117;color:#e2e8f0;font-size:15px;margin-bottom:20px;';
+      di.type='date'; di.value=curDate; di.style.cssText=fieldStyle;
+      // 결제금액
+      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'결제금액'})).style.cssText=lblStyle;
+      const amtIn = b2.appendChild(document.createElement('input'));
+      amtIn.type='number'; amtIn.value=p.totalPrice||0; amtIn.min=0; amtIn.style.cssText=fieldStyle;
+      amtIn.placeholder='결제금액 입력';
+      // 결제수단
+      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'결제수단'})).style.cssText=lblStyle;
+      const pymSel = b2.appendChild(document.createElement('select'));
+      pymSel.style.cssText=fieldStyle+'appearance:auto;';
+      PAYMENT_OPTIONS.forEach(v=>{const o=pymSel.appendChild(document.createElement('option'));o.value=v;o.textContent=v;if(v===(p.paymentMethod||mb.payment||''))o.selected=true;});
       const row = b2.appendChild(document.createElement('div'));
       row.style.cssText = 'display:flex;gap:10px;';
       const cancel = row.appendChild(document.createElement('button'));
@@ -5503,14 +5513,19 @@ function renderMbPlanCard(container, mb, p, box, close) {
       save.style.cssText = 'flex:1;padding:12px;';
       save.onclick = () => {
         if(!di.value){alert('날짜를 선택해주세요.');return;}
+        const newAmt = parseInt(amtIn.value)||0;
         p.paymentDate = di.value;
         const d = new Date(di.value);
         d.setHours(12, 0, 0, 0);
         p.addedAt = d.getTime();
+        p.totalPrice = newAmt;
+        p.paidAmount = newAmt;
+        p.pricePerSession = (p.sessions&&p.sessions>0)?Math.round(newAmt/p.sessions):0;
+        p.paymentMethod = pymSel.value;
         sv('og10_mb', members);
         c2();
         const newDate = new Date(di.value).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
-        info.innerHTML = '결제: ' + (p.totalPrice||0).toLocaleString() + '원' + (p.paymentMethod ? ' · ' + p.paymentMethod : '') + ' · ' + newDate + '<br>'
+        info.innerHTML = '결제: ' + newAmt.toLocaleString() + '원' + (p.paymentMethod ? ' · ' + p.paymentMethod : '') + ' · ' + newDate + '<br>'
           + '사용 ' + used + '회 / 잔여 ' + rem + '회'
           + (p.startDate ? '<br>기간: ' + p.startDate + ' ~ ' + (p.endDate||'') : '');
       };
