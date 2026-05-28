@@ -3279,7 +3279,7 @@ function renderSales(){
       if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
       const wb=XLSX.utils.book_new();
       const wsData=[['TheLine CRM - 세션로그'],['기간: '+salStartDate+' ~ '+salEndDate],[]];
-      wsData.push(['날짜','시간','트레이너','이름','유형','수업권/메모','진행','잔여']);
+      wsData.push(['날짜','시간','트레이너','이름','유형','수업권/메모','진행','잔여','수업날짜(전체)']);
       allSlots.forEach(s=>{
         const tr2=trainers.find(t=>t.id===s.trainerId);
         const mb=s.memberId?members.find(m=>m.id===s.memberId):null;
@@ -3288,7 +3288,9 @@ function renderSales(){
         const planMemo=isOTorCon?(s.memo||'-'):(plan?(plan.productName||plan.sessions+'회권'):'-');
         const rem=isOTorCon?'-':(plan?getPlanRemain(plan):'-');
         const used_cnt=isOTorCon?'-':(plan?getPlanUsed(plan.id)+'회':'-');
-        wsData.push([s.date,s.time.slice(0,5),tr2?tr2.name:'-',mb?mb.name:(s.guestName||'-'),s.type||'-',planMemo,used_cnt,rem]);
+        const DAY3=['일','월','화','수','목','금','토'];
+        const allDates3=isOTorCon?'-':(plan?slots.filter(sx=>sx.planId===plan.id&&sx.type!=='OT'&&sx.type!=='상담').sort((a,b)=>a.date<b.date?-1:1).map(sx=>{const dx=new Date(sx.date);return(dx.getMonth()+1)+'월'+(dx.getDate())+'일('+DAY3[dx.getDay()]+')';}).join(', '):'-');
+        wsData.push([s.date,s.time.slice(0,5),tr2?tr2.name:'-',mb?mb.name:(s.guestName||'-'),s.type||'-',planMemo,used_cnt,rem,allDates3]);
       });
       const ws=XLSX.utils.aoa_to_sheet(wsData);XLSX.utils.book_append_sheet(wb,ws,'세션로그');
       XLSX.writeFile(wb,'세션로그_'+salStartDate+'_'+salEndDate+'.xlsx');
@@ -4840,7 +4842,7 @@ function renderPcSessions(ct,acts){
   const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
   const thead=tbl.appendChild(document.createElement('thead'));const hr=thead.appendChild(document.createElement('tr'));
   const tbody=tbl.appendChild(document.createElement('tbody'));
-  makeSortThs(hr,['날짜','시간','트레이너','이름','유형','수업권 / 메모','잔여'],['date','time','tr','name','type','plan','rem'],pcSesSortCol,pcSesSortDir,(col,dir)=>{pcSesSortCol=col;pcSesSortDir=dir;renderPcContent();});
+  makeSortThs(hr,['날짜','시간','트레이너','이름','유형','수업권 / 메모','진행','잔여'],['date','time','tr','name','type','plan',null,'rem'],pcSesSortCol,pcSesSortDir,(col,dir)=>{pcSesSortCol=col;pcSesSortDir=dir;renderPcContent();});
 
   filtered.forEach((s,idx)=>{
     const tr2=trainers.find(t=>t.id===s.trainerId);
@@ -4852,13 +4854,14 @@ function renderPcSessions(ct,acts){
                    s.type==='OT'?'OT'+(s.memo?' · '+s.memo:''):
                    plan?(plan.productName||plan.sessions+'회권'):(s.memo||'-');
     const remVal=s.type==='상담'||s.type==='OT'?'-':rem+'';
+    const usedVal=s.type==='상담'||s.type==='OT'?'-':(plan?getPlanUsed(plan.id)+'회':'-');
 
     const row=tbody.appendChild(document.createElement('tr'));
     // 유형별 색상 강조
     if(s.type==='OT')row.style.cssText='background:rgba(251,191,36,.04);';
     else if(s.type==='상담')row.style.cssText='background:rgba(129,140,248,.04);';
 
-    [s.date,s.time.slice(0,5),tr2?tr2.name:'-',nameVal,s.type||'-',planMemo,remVal].forEach((v,ci)=>{
+    [s.date,s.time.slice(0,5),tr2?tr2.name:'-',nameVal,s.type||'-',planMemo,usedVal,remVal].forEach((v,ci)=>{
       const td=row.appendChild(document.createElement('td'));
       td.textContent=v;
       // 유형 컬럼 배지색
@@ -4872,7 +4875,7 @@ function renderPcSessions(ct,acts){
   if(!filtered.length){
     const tr3=tbody.appendChild(document.createElement('tr'));
     const td=tr3.appendChild(document.createElement('td'));
-    td.colSpan=7;td.style.cssText='text-align:center;padding:40px;color:#2a2d45;font-size:13px;';
+    td.colSpan=8;td.style.cssText='text-align:center;padding:40px;color:#2a2d45;font-size:13px;';
     td.textContent='해당 기간 세션 기록이 없습니다.';
   }
 }
@@ -5768,7 +5771,7 @@ function dlSessionsXLSX(){
   const wb=XLSX.utils.book_new();
   const typeLabel=pcSesType?(' ['+{PT:'PT수업',OT:'OT',consult:'상담',etc:'기타'}[pcSesType]+']'):'';
   const wsData=[['TheLine CRM - 세션로그'+typeLabel],['기간: '+pcSalStart+' ~ '+pcSalEnd],[]];
-  wsData.push(['날짜','시간','트레이너','이름','유형','수업권/메모','잔여']);
+  wsData.push(['날짜','시간','트레이너','이름','유형','수업권/메모','진행','잔여','수업날짜(전체)']);
   const sd=new Date(pcSalStart),ed=new Date(pcSalEnd);ed.setHours(23,59,59);
   const typeMap2={PT:['25분 수업','50분 수업'],OT:['OT'],consult:['상담'],etc:['기타']};
   slots.filter(s=>{
@@ -5784,8 +5787,11 @@ function dlSessionsXLSX(){
     const isOTorConsult=(s.type==='OT'||s.type==='상담');
     const memoOrPlan=isOTorConsult?(s.memo||'-'):(plan?(plan.productName||plan.sessions+'회권'):'-');
     const remain=isOTorConsult?'-':(plan?getPlanRemain(plan):'-');
+    const used_c=isOTorConsult?'-':(plan?getPlanUsed(plan.id)+'회':'-');
     const nameStr=mb?mb.name:(s.guestName||'-');
-    wsData.push([s.date,s.time,tr2?tr2.name:'-',nameStr,s.type||'-',memoOrPlan,remain]);
+    const DAY2=['일','월','화','수','목','금','토'];
+    const allDates=isOTorConsult?'-':(plan?slots.filter(sx=>sx.planId===plan.id&&sx.type!=='OT'&&sx.type!=='상담').sort((a,b)=>a.date<b.date?-1:1).map(sx=>{const dx=new Date(sx.date);return(dx.getMonth()+1)+'월'+(dx.getDate())+'일('+DAY2[dx.getDay()]+')';}).join(', '):'-');
+    wsData.push([s.date,s.time,tr2?tr2.name:'-',nameStr,s.type||'-',memoOrPlan,used_c,remain,allDates]);
   });
   const ws=XLSX.utils.aoa_to_sheet(wsData);XLSX.utils.book_append_sheet(wb,ws,'세션로그');
   XLSX.writeFile(wb,'세션로그_'+pcSalStart+'_'+pcSalEnd+'.xlsx');
