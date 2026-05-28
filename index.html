@@ -3616,7 +3616,8 @@ function dlSalesCSV(rows,total){
       const planR=r.planId&&mbR?(mbR.plans||[]).find(p=>p.id===r.planId):null;
       const usedR=r.isRefund?'-':(planR?getPlanUsed(planR.id):'-');
       const remainR=r.isRefund?'-':(planR?getPlanRemain(planR):'-');
-      wsData.push([null,r.date,r.trainerName,r.memberName,r.phone||'',r.inflow||'',r.payment||'',r.planLabel,r.revenue||0,usedR,remainR]);
+      const planNumR=planR?planR.sessions:(r.planLabel||'').replace('회권','');
+      wsData.push([null,r.date,r.trainerName,r.memberName,r.phone||'',r.inflow||'',r.payment||'',planNumR,r.revenue||0,usedR,remainR]);
     }
   });
   if(isSes){
