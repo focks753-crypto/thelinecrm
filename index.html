@@ -3300,7 +3300,7 @@ function renderSales(){
       }).forEach(entry=>{
         const mb=members.find(m=>m.id===entry.memberId);if(!mb)return;
         const plan=(mb.plans||[]).find(p=>p.id===entry.planId);if(!plan)return;
-        const totalSes=plan.sessions||0,paid=plan.paidAmount||0;
+        const totalSes=plan.sessions||0,paid=plan.totalPrice||plan.paidAmount||0;
         const unitP=totalSes>0?Math.round(paid/totalSes):0;
         const lessonF=Math.round(unitP*0.5);
         const prevUsed=slots.filter(sx=>sx.planId===plan.id&&sx.type!=='OT'&&sx.type!=='상담'&&new Date(sx.date)<sdM).length;
@@ -5933,7 +5933,7 @@ function dlSessionsXLSX(){
   }).forEach(entry=>{
     const mb=members.find(m=>m.id===entry.memberId);if(!mb)return;
     const plan=(mb.plans||[]).find(p=>p.id===entry.planId);if(!plan)return;
-    const totalSes=plan.sessions||0,paid=plan.paidAmount||0;
+    const totalSes=plan.sessions||0,paid=plan.totalPrice||plan.paidAmount||0;
     const unitP=totalSes>0?Math.round(paid/totalSes):0;
     const lessonF=Math.round(unitP*0.5);
     const prevUsed=slots.filter(sx=>sx.planId===plan.id&&sx.type!=='OT'&&sx.type!=='상담'&&new Date(sx.date)<sd).length;
