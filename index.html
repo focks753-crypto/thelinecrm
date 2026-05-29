@@ -2671,6 +2671,9 @@ function renderAdmPkg(ct){
     const info=card.appendChild(el('div'));
     info.appendChild(mk('div','pkginfo',p.name));
     info.appendChild(mk('div','pkgprice',p.price.toLocaleString()+'원'+(p.sessions?' · '+p.sessions+'회':'')));
+    const editBtnPT=card.appendChild(mk('button','pkgdel','수정'));
+    editBtnPT.style.cssText='background:transparent;border:1px solid #818cf8;color:#818cf8;margin-right:6px;';
+    editBtnPT.onclick=()=>openPcEditProduct(p.id,()=>renderAdm());
     card.appendChild(mk('button','pkgdel','삭제')).onclick=()=>{
       if(confirm(p.name+' 삭제?')){
         if(p.fromPkg)packages=packages.filter(x=>x.id!==p.fromPkg);
@@ -2688,6 +2691,9 @@ function renderAdmPkg(ct){
     const info=card.appendChild(el('div'));
     info.appendChild(mk('div','pkginfo',p.name));
     info.appendChild(mk('div','pkgprice',p.price.toLocaleString()+'원'));
+    const editBtnMS=card.appendChild(mk('button','pkgdel','수정'));
+    editBtnMS.style.cssText='background:transparent;border:1px solid #818cf8;color:#818cf8;margin-right:6px;';
+    editBtnMS.onclick=()=>openPcEditProduct(p.id,()=>renderAdm());
     card.appendChild(mk('button','pkgdel','삭제')).onclick=()=>{
       if(confirm(p.name+' 삭제?')){
         products=products.filter(x=>x.id!==p.id);
@@ -5250,9 +5256,49 @@ function renderPcSettings(ct,acts){
       card.appendChild(Object.assign(document.createElement('div'),{textContent:p.price.toLocaleString()+'원'})).style.cssText='font-size:15px;font-weight:800;color:#818cf8;';
       if(p.sessions)card.appendChild(Object.assign(document.createElement('div'),{textContent:p.sessions+'회 · 회당 '+Math.round(p.price/p.sessions).toLocaleString()+'원'})).style.cssText='font-size:11px;color:#4a5068;margin-top:4px;';
       const actRow=card.appendChild(document.createElement('div'));actRow.style.cssText='display:flex;gap:6px;margin-top:12px;';
+      actRow.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'수정'})).onclick=()=>openPcEditProduct(p.id);
       actRow.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'삭제'})).onclick=()=>{if(confirm(p.name+' 삭제?')){if(p.fromPkg){packages=packages.filter(x=>x.id!==p.fromPkg);sv('og10_pkg',packages);}products=products.filter(x=>x.id!==p.id);sv('og10_pr',products);renderPcContent();}};
     });
   }
+}
+
+// ── 상품 수정 ────────────────────────────────────────────────────────────
+function openPcEditProduct(prodId,onSaved){
+  const p=products.find(x=>x.id===prodId);if(!p)return;
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'상품 수정'}));
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:p.name}));
+    const nameF=box.appendChild(_f('상품명',true));const nameI=nameF.appendChild(_inp('상품명'));nameI.value=p.name;
+    const priceF=box.appendChild(_f('가격',true));const priceI=priceF.appendChild(_inp('가격'));priceI.value=fmtMoney(p.price);priceI.oninput=function(){this.value=fmtMoney(this.value);};
+    const sessRow=box.appendChild(_f('횟수 (PT)'));
+    const durRow=box.appendChild(_f('수업 시간 (PT)'));
+    if(p.type==='pt'){
+      const sessS=sessRow.appendChild(_sel(SESSION_OPTIONS.map(n=>({v:n,l:n+'회'}))));
+      if(p.sessions)sessS.value=p.sessions;
+      const durS=durRow.appendChild(_sel([{v:25,l:'25분'},{v:50,l:'50분'}]));
+      if(p.duration)durS.value=p.duration;
+      const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='24px';
+      btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+      btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'저장'})).onclick=()=>{
+        const name=nameI.value.trim();const price=parseMoney(priceI.value);
+        if(!name){alert('상품명을 입력해주세요.');return;}if(!price){alert('가격을 입력해주세요.');return;}
+        p.name=name;p.price=price;p.sessions=parseInt(sessS.value);p.duration=parseInt(durS.value);
+        sv('og10_pr',products);close();
+        if(onSaved)onSaved();else renderPcContent();
+      };
+    } else {
+      sessRow.style.display='none';durRow.style.display='none';
+      const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='24px';
+      btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+      btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'저장'})).onclick=()=>{
+        const name=nameI.value.trim();const price=parseMoney(priceI.value);
+        if(!name){alert('상품명을 입력해주세요.');return;}if(!price){alert('가격을 입력해주세요.');return;}
+        p.name=name;p.price=price;
+        sv('og10_pr',products);close();
+        if(onSaved)onSaved();else renderPcContent();
+      };
+    }
+  },{});
 }
 
 // ── 상품 생성 ────────────────────────────────────────────────────────────
