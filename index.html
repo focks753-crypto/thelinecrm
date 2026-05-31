@@ -3287,10 +3287,21 @@ function renderSales(){
       const wsData=[['TheLine CRM - 세션로그 (이용권별)'],['기간: '+salStartDate+' ~ '+salEndDate],[]];
       wsData.push(['계약일','회원명','세션','계약료','세션단가','수업료(50%)','50%','누적진행(당월제외)','이달수업','잔여수업','정산수업료']);
       const sdM=new Date(salStartDate);
+      const edM=new Date(salEndDate);edM.setHours(23,59,59);
       const planMapM={};
+      // ① 기간 내 세션이 있는 플랜
       allSlots.filter(s=>s.planId&&s.type!=='OT'&&s.type!=='상담').forEach(s=>{
         if(!planMapM[s.planId])planMapM[s.planId]={planId:s.planId,memberId:s.memberId,cnt:0};
         planMapM[s.planId].cnt++;
+      });
+      // ② 기간 내 구매했지만 세션 0회인 플랜도 포함
+      members.forEach(mb=>{
+        (mb.plans||[]).forEach(plan=>{
+          if(planMapM[plan.id])return;
+          if(plan.productType==='membership')return;
+          const pd=new Date(plan.addedAt||0);
+          if(pd>=sdM&&pd<=edM)planMapM[plan.id]={planId:plan.id,memberId:mb.id,cnt:0};
+        });
       });
       Object.values(planMapM).sort((a,b)=>{
         const ma=members.find(m=>m.id===a.memberId),mb2=members.find(m=>m.id===b.memberId);
@@ -5921,10 +5932,23 @@ function dlSessionsXLSX(){
     return s.type!=='OT'&&s.type!=='상담';
   });
   const planMap={};
+  // ① 기간 내 세션이 있는 플랜
   periodSl.filter(s=>s.planId).forEach(s=>{
     if(!planMap[s.planId])planMap[s.planId]={planId:s.planId,memberId:s.memberId,cnt:0};
     planMap[s.planId].cnt++;
   });
+  // ② 기간 내 구매했지만 아직 세션 0회인 플랜도 포함
+  if(!pcSesType){
+    members.forEach(mb=>{
+      if(pcSalTr&&mb.trainerId!==pcSalTr)return;
+      (mb.plans||[]).forEach(plan=>{
+        if(planMap[plan.id])return; // 이미 있으면 스킵
+        if(plan.productType==='membership')return; // 헬스권 제외
+        const pd=new Date(plan.addedAt||0);
+        if(pd>=sd&&pd<=ed)planMap[plan.id]={planId:plan.id,memberId:mb.id,cnt:0};
+      });
+    });
+  }
   Object.values(planMap).sort((a,b)=>{
     const ma=members.find(m=>m.id===a.memberId),mb2=members.find(m=>m.id===b.memberId);
     const pa=(ma?.plans||[]).find(p=>p.id===a.planId),pb=(mb2?.plans||[]).find(p=>p.id===b.planId);
