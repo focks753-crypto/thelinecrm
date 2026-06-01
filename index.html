@@ -2175,6 +2175,7 @@ function renderMem(){
   const flt=window._mobMemFilter||'all';
   if(flt==='noweek')list=getWeekNoSesMembers();
   else if(flt==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<2;});
+  else if(flt==='active')list=list.filter(m=>{const st=pcMbStatus?pcMbStatus(m):'none';return st==='active'||st==='expiring';});
   else if(flt!=='all')list=list.filter(m=>pcMbStatus&&pcMbStatus(m)===flt);
 
   memContent.appendChild(Object.assign(document.createElement('div'),{textContent:'총 '+list.length+'명'})).style.cssText='font-size:12px;color:#4a5068;margin-bottom:8px;';
@@ -4145,11 +4146,14 @@ function renderPcContent(){
   else if(pcV==='settings')renderPcSettings(ct,acts);
 }
 function pcMbStatus(mb){
-  const plans=mb.plans||[];if(!plans.length)return'none';
+  const plans=(mb.plans||[]).filter(p=>!p.refunded);
+  if(!plans.length)return'none';
   const mPlan=plans.find(p=>p.productType==='membership'&&p.endDate);
   if(mPlan){const rem=Math.ceil((new Date(mPlan.endDate)-new Date())/(1000*60*60*24));if(rem<=0)return'expired';if(rem<=25)return'expiring';return'active';}
-  let total=0;plans.forEach(p=>{if(p.productType!=='membership')total+=getPlanRemain(p);});
-  if(total>0&&total<2)return'expiring';if(total>0)return'active';return'expired';
+  let total=0;plans.forEach(p=>{if(p.productType!=='membership'){const r=getPlanRemain(p);if(r>0)total+=r;}});
+  if(total>0&&total<2)return'expiring';if(total>0)return'active';
+  // 만료된 플랜이라도 있으면 expired, 플랜 자체가 없으면 none
+  return plans.length?'expired':'none';
 }
 function getThisWeek(){
   const now=new Date();const dow=now.getDay();
@@ -4173,7 +4177,7 @@ function pcSLbl(s){return{active:'활성',expired:'만료',none:'미등록'}[s]|
 function pcSCls(s){return{active:'pbs-on',expired:'pbs-off',none:'pbs-no'}[s]||'pbs-no';}
 function renderPcHome(ct,acts){
   const total=members.length;
-  const active=members.filter(m=>pcMbStatus(m)==='active').length;
+  const active=members.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';}).length;
   const expired=members.filter(m=>pcMbStatus(m)==='expired').length;
   const none_=members.filter(m=>pcMbStatus(m)==='none').length;
   const expiring=members.filter(m=>{let tot=0;(m.plans||[]).forEach(p=>{tot+=getPlanRemain(p);});return tot>0&&tot<2;}).length;
@@ -4484,6 +4488,7 @@ function renderPcCust(ct,acts){
   let list=members;
   if(custSV==='noweek')list=getWeekNoSesMembers();
   else if(custSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<2;});
+  else if(custSV==='active')list=list.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';});
   else if(custSV&&custSV!=='all')list=list.filter(m=>pcMbStatus(m)===custSV);
   if(pcCustKw)list=list.filter(m=>m.name.includes(pcCustKw)||(m.phone||'').includes(pcCustKw));
 
