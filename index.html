@@ -4173,8 +4173,8 @@ function getWeekNoSesMembers(){
     return(st==='active'||st==='expiring')&&!weekMbIds.has(m.id);
   });
 }
-function pcSLbl(s){return{active:'활성',expired:'만료',none:'미등록'}[s]||'미등록';}
-function pcSCls(s){return{active:'pbs-on',expired:'pbs-off',none:'pbs-no'}[s]||'pbs-no';}
+function pcSLbl(s){return{active:'활성',expiring:'만료임박',expired:'만료',none:'미등록'}[s]||'미등록';}
+function pcSCls(s){return{active:'pbs-on',expiring:'pbs-ex',expired:'pbs-off',none:'pbs-no'}[s]||'pbs-no';}
 function renderPcHome(ct,acts){
   const total=members.length;
   const active=members.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';}).length;
@@ -4475,6 +4475,7 @@ function renderPcCust(ct,acts){
     if(s.id==='all')cnt=members.length;
     else if(s.id==='noweek')cnt=noWeekCnt;
     else if(s.id==='expiring')cnt=members.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<2;}).length;
+    else if(s.id==='active')cnt=members.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';}).length;
     else cnt=members.filter(m=>pcMbStatus(m)===s.id).length;
     const tab=sb.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(custSV===s.id?' on':''),textContent:s.label+' '+cnt}));
     tab.onclick=()=>{custSV=s.id;pcDetailMbId=null;renderPcContent();};
