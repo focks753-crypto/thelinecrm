@@ -5261,11 +5261,28 @@ function renderPcSettings(ct,acts){
     if(!trainers.length){const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=5;td.style.cssText='text-align:center;padding:32px;color:#2a2d45;';td.textContent='등록된 직원이 없습니다.';}
   } else {
     // 상품 관리
-    if(acts){acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 상품 생성'})).onclick=()=>openPcCreateProduct(()=>renderPcContent());}
+    if(acts){
+      acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 상품 생성'})).onclick=()=>openPcCreateProduct(()=>renderPcContent());
+      // 정렬 버튼
+      if(!window._prodSort)window._prodSort='sessions';
+      const sortWrap=acts.appendChild(document.createElement('div'));sortWrap.style.cssText='display:flex;gap:4px;margin-left:8px;';
+      [{v:'sessions',l:'횟수순'},{v:'duration',l:'시간순'},{v:'name',l:'이름순'},{v:'reg',l:'등록순'}].forEach(s=>{
+        const btn=sortWrap.appendChild(document.createElement('button'));
+        btn.className='pc-tbtn';btn.textContent=s.l;
+        btn.style.cssText='font-size:11px;padding:6px 10px;'+(window._prodSort===s.v?'border-color:#818cf8;color:#818cf8;':'');
+        btn.onclick=()=>{window._prodSort=s.v;renderPcContent();};
+      });
+    }
     const prodList=ct.appendChild(Object.assign(document.createElement('div'),{}));prodList.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:12px;';
-    const ptProds=products.filter(p=>p.type==='pt');const msProds=products.filter(p=>p.type==='membership');
+    if(!window._prodSort)window._prodSort='sessions';
+    const sortedProducts=[...products].sort((a,b)=>{
+      if(window._prodSort==='sessions')return((a.sessions||0)-(b.sessions||0))||((a.duration||0)-(b.duration||0));
+      if(window._prodSort==='duration')return((a.duration||0)-(b.duration||0))||((a.sessions||0)-(b.sessions||0));
+      if(window._prodSort==='name')return(a.name||'').localeCompare(b.name||'','ko');
+      return(a.createdAt||0)-(b.createdAt||0); // 등록순
+    });
     if(!products.length){const emp=prodList.appendChild(document.createElement('div'));emp.style.cssText='grid-column:1/-1;text-align:center;padding:48px;color:#2a2d45;font-size:13px;';emp.innerHTML='등록된 상품이 없습니다<br><small>상품 생성 버튼으로 추가하세요</small>';}
-    products.forEach(p=>{
+    sortedProducts.forEach(p=>{
       const card=prodList.appendChild(document.createElement('div'));
       card.style.cssText='background:#111318;border:1px solid #1e2026;border-radius:12px;padding:16px;';
       const tbdg=card.appendChild(document.createElement('div'));tbdg.style.cssText='display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;margin-bottom:8px;background:'+(p.type==='pt'?'rgba(129,140,248,.2)':'rgba(52,211,153,.15)')+';color:'+(p.type==='pt'?'#818cf8':'#34d399')+';';tbdg.textContent=p.type==='pt'?'PT 수강권':'헬스 이용권';
