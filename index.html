@@ -4474,7 +4474,7 @@ function renderPcCust(ct,acts){
     let cnt;
     if(s.id==='all')cnt=members.length;
     else if(s.id==='noweek')cnt=noWeekCnt;
-    else if(s.id==='expiring')cnt=members.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<2;}).length;
+    else if(s.id==='expiring')cnt=members.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;}).length;
     else if(s.id==='active')cnt=members.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';}).length;
     else cnt=members.filter(m=>pcMbStatus(m)===s.id).length;
     const tab=sb.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(custSV===s.id?' on':''),textContent:s.label+' '+cnt}));
