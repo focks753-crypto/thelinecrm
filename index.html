@@ -4338,7 +4338,7 @@ function _sel(options){
 }
 
 // ── 회원 등록 (2단계) ────────────────────────────────────────────────────
-let custSV='all';
+let custSV='all';let custTr='';
 let pcDetailMbId=null;
 let pcSalSortCol=null,pcSalSortDir=1;  // 매출 정렬
 let pcBypkgSortCol='tot',pcBypkgSortDir=-1; // 상품별 정렬
@@ -4467,16 +4467,31 @@ function renderPcCust(ct,acts){
     const ab=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 회원 등록'}));ab.onclick=()=>openPcAddMember();
     if(custSV==='noweek'){const xb=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'}));xb.onclick=dlNoWeekXLSX;}
   }
-  const noWeekCnt=getWeekNoSesMembers().length;
+  // ── 트레이너 필터 버튼 ──
+  const trBar=ct.appendChild(document.createElement('div'));
+  trBar.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;';
+  [{id:'',name:'전체 트레이너'},...trainers].forEach(tr=>{
+    const isOn=custTr===(tr.id||'');
+    const btn=trBar.appendChild(document.createElement('button'));
+    btn.textContent=tr.name;
+    btn.style.cssText='padding:6px 14px;border-radius:8px;border:1px solid '+(isOn?'#818cf8':'#1e2026')+';background:'+(isOn?'rgba(129,140,248,.15)':'transparent')+';color:'+(isOn?'#818cf8':'#6b7494')+';font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;';
+    btn.onclick=()=>{custTr=tr.id||'';pcDetailMbId=null;renderPcContent();};
+  });
+
+  // 트레이너 기준으로 baseList 구성 (서브탭 카운트도 이 기준으로)
+  const baseList=custTr?members.filter(m=>m.trainerId===custTr):members;
+  const noWeekAll=getWeekNoSesMembers();
+  const noWeekList2=custTr?noWeekAll.filter(m=>m.trainerId===custTr):noWeekAll;
+
   const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'},{id:'noweek',label:'주간미수업'}];
   const sb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-sub-tabs'}));
   subs.forEach(s=>{
     let cnt;
-    if(s.id==='all')cnt=members.length;
-    else if(s.id==='noweek')cnt=noWeekCnt;
-    else if(s.id==='expiring')cnt=members.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;}).length;
-    else if(s.id==='active')cnt=members.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';}).length;
-    else cnt=members.filter(m=>pcMbStatus(m)===s.id).length;
+    if(s.id==='all')cnt=baseList.length;
+    else if(s.id==='noweek')cnt=noWeekList2.length;
+    else if(s.id==='expiring')cnt=baseList.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;}).length;
+    else if(s.id==='active')cnt=baseList.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';}).length;
+    else cnt=baseList.filter(m=>pcMbStatus(m)===s.id).length;
     const tab=sb.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(custSV===s.id?' on':''),textContent:s.label+' '+cnt}));
     tab.onclick=()=>{custSV=s.id;pcDetailMbId=null;renderPcContent();};
   });
@@ -4486,8 +4501,8 @@ function renderPcCust(ct,acts){
   si.oninput=e=>pcCustKw=e.target.value;si.onkeydown=e=>{if(e.key==='Enter')renderPcContent();};
   fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'조회'})).onclick=()=>renderPcContent();
 
-  let list=members;
-  if(custSV==='noweek')list=getWeekNoSesMembers();
+  let list=baseList.slice();
+  if(custSV==='noweek')list=noWeekList2.slice();
   else if(custSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;});
   else if(custSV==='active')list=list.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';});
   else if(custSV&&custSV!=='all')list=list.filter(m=>pcMbStatus(m)===custSV);
