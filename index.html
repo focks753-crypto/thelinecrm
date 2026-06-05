@@ -2132,6 +2132,18 @@ function renderMem(){
   const toolbar=memContent.appendChild(document.createElement('div'));
   toolbar.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;';
   
+  // 트레이너 필터
+  if(!window._mobMemTr)window._mobMemTr='';
+  const trRow=memContent.appendChild(document.createElement('div'));
+  trRow.style.cssText='display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px;';
+  [{id:'',name:'전체'},...trainers].forEach(tr=>{
+    const isOn=window._mobMemTr===(tr.id||'');
+    const btn=trRow.appendChild(document.createElement('button'));
+    btn.textContent=tr.name;
+    btn.style.cssText='padding:5px 12px;border-radius:8px;border:1px solid '+(isOn?'#818cf8':'#1e2026')+';background:'+(isOn?'rgba(129,140,248,.15)':'transparent')+';color:'+(isOn?'#818cf8':'#6b7494')+';font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;';
+    btn.onclick=()=>{window._mobMemTr=tr.id||'';renderMem();};
+  });
+
   // 상태 필터 버튼
   let mobMemFilter=window._mobMemFilter||'all';
   const filterMap={all:'전체',active:'활성',expiring:'만료임박',expired:'만료',none:'미등록',noweek:'주간미수업'};
@@ -2170,10 +2182,11 @@ function renderMem(){
 
   // 회원 목록
   let list=members.slice();
+  if(window._mobMemTr)list=list.filter(m=>m.trainerId===window._mobMemTr);
   const kw=(window._mobMemKw||'').trim();
   if(kw)list=list.filter(m=>m.name.includes(kw)||(m.phone||'').includes(kw));
   const flt=window._mobMemFilter||'all';
-  if(flt==='noweek')list=getWeekNoSesMembers();
+  if(flt==='noweek'){const nwAll=getWeekNoSesMembers();list=window._mobMemTr?nwAll.filter(m=>m.trainerId===window._mobMemTr):nwAll;}
   else if(flt==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;});
   else if(flt==='active')list=list.filter(m=>{const st=pcMbStatus?pcMbStatus(m):'none';return st==='active'||st==='expiring';});
   else if(flt!=='all')list=list.filter(m=>pcMbStatus&&pcMbStatus(m)===flt);
