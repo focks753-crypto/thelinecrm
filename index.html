@@ -2146,7 +2146,7 @@ function renderMem(){
 
   // 상태 필터 버튼
   let mobMemFilter=window._mobMemFilter||'all';
-  const filterMap={all:'전체',active:'활성',expiring:'만료임박',expired:'만료',none:'미등록',noweek:'주간미수업'};
+  const filterMap={all:'전체',active:'활성',expiring:'만료임박',expired:'만료',none:'미등록',noweek:'주간미수업',nextweek:'차주미수업'};
   const filterBar=toolbar.appendChild(document.createElement('div'));
   filterBar.style.cssText='display:flex;gap:6px;flex:1;overflow-x:auto;';
   Object.entries(filterMap).forEach(([k,l])=>{
@@ -2187,6 +2187,7 @@ function renderMem(){
   if(kw)list=list.filter(m=>m.name.includes(kw)||(m.phone||'').includes(kw));
   const flt=window._mobMemFilter||'all';
   if(flt==='noweek'){const nwAll=getWeekNoSesMembers();list=window._mobMemTr?nwAll.filter(m=>m.trainerId===window._mobMemTr):nwAll;}
+  else if(flt==='nextweek'){const nxAll=getNextWeekNoSesMembers();list=window._mobMemTr?nxAll.filter(m=>m.trainerId===window._mobMemTr):nxAll;}
   else if(flt==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;});
   else if(flt==='active')list=list.filter(m=>{const st=pcMbStatus?pcMbStatus(m):'none';return st==='active'||st==='expiring';});
   else if(flt!=='all')list=list.filter(m=>pcMbStatus&&pcMbStatus(m)===flt);
@@ -4006,6 +4007,20 @@ function renderMobHome(){
     window._mobMemFilter='noweek';
     switchMobPage('mem');
   };
+  // ── 차주 미수업 카드 ──
+  const nextWeekList2=getNextWeekNoSesMembers();
+  const{mon:nxMon,sun:nxSun}=getNextWeek();
+  const nextWeekCard2=hp.appendChild(document.createElement('div'));
+  nextWeekCard2.style.cssText='margin:8px 16px 0;background:#111318;border:1px solid #1e293b55;border-radius:14px;padding:14px 16px;';
+  const nxPreview=nextWeekList2.slice(0,3).map(m=>m.name).join(', ')+(nextWeekList2.length>3?' 외 '+(nextWeekList2.length-3)+'명':'');
+  nextWeekCard2.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;">'
+    +'<div>'
+      +'<div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:.8px;margin-bottom:4px;">차주 미수업 예상 · '+nxMon.slice(5)+'~'+nxSun.slice(5)+'</div>'
+      +'<div style="font-size:22px;font-weight:800;color:#94a3b8;">'+nextWeekList2.length+'<span style="font-size:13px;font-weight:600;color:#64748b;margin-left:3px;">명</span></div>'
+      +(nxPreview?'<div style="font-size:11px;color:#374151;margin-top:4px;">'+nxPreview+'</div>':'<div style="font-size:11px;color:#1e3a2a;margin-top:4px;">차주 예약 모두 등록됨 👍</div>')
+    +'</div>'
+    +'<div style="width:42px;height:42px;border-radius:12px;background:#1e293b33;display:flex;align-items:center;justify-content:center;font-size:20px;">📅</div>'
+  +'</div>';
 
   // ── 회원 현황 바 ──
   const barDiv=hp.appendChild(document.createElement('div'));
@@ -4120,7 +4135,7 @@ let pcSalStart='';let pcSalEnd='';let pcSalTr='';
 let pcCalY=new Date().getFullYear();let pcCalM=new Date().getMonth();
 const PC_NAV=[
   {id:'home',label:'홈',icon:''},
-  {id:'customers',label:'고객관리',icon:'',subs:[{id:'members',label:'고객 관리'},{id:'consult',label:'상담 관리'},{id:'consult_hist',label:'상담 내역'}]},
+  {id:'customers',label:'고객관리',icon:'',subs:[{id:'members',label:'고객 관리'},{id:'consult',label:'상담 관리'},{id:'consult_hist',label:'상담 내역'},{id:'noweek',label:'주간미수업'},{id:'nextweek',label:'차주미수업'}]},
   {id:'calendar',label:'캘린더',icon:''},
   {id:'sales',label:'매출관리',icon:'',subs:[{id:'all',label:'매출내역'},{id:'bypkg',label:'상품별내역'},{id:'bypay',label:'결제수단별'},{id:'sessions',label:'세션로그'},{id:'refund',label:'환불내역'}]},
   {id:'settings',label:'센터설정',icon:'',subs:[{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'},{id:'book',label:'예약관리'},{id:'avail',label:'예약설정'}]},
@@ -4153,6 +4168,7 @@ function renderPcContent(){
   if(pcV==='home')renderPcHome(ct,acts);
   else if(pcV==='customers'&&pcSV==='consult')renderPcConsult(ct,acts);
   else if(pcV==='customers'&&pcSV==='consult_hist')renderPcConsultHist(ct,acts);
+  else if(pcV==='customers'&&(pcSV==='noweek'||pcSV==='nextweek')){custSV=pcSV;renderPcCust(ct,acts);}
   else if(pcV==='customers')renderPcCust(ct,acts);
   else if(pcV==='calendar')renderPcCal(ct,acts);
   else if(pcV==='sales')renderPcSales(ct,acts);
@@ -4174,6 +4190,24 @@ function getThisWeek(){
   const sun=new Date(mon);sun.setDate(mon.getDate()+6);
   function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
   return{mon:fmt(mon),sun:fmt(sun)};
+}
+function getNextWeek(){
+  const now=new Date();const dow=now.getDay();
+  const mon=new Date(now);mon.setDate(now.getDate()-(dow===0?6:dow-1)+7);mon.setHours(0,0,0,0);
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  return{mon:fmt(mon),sun:fmt(sun)};
+}
+function getNextWeekNoSesMembers(){
+  const{mon,sun}=getNextWeek();
+  const weekMbIds=new Set(
+    slots.filter(s=>s.memberId&&s.date>=mon&&s.date<=sun&&s.type!=='OT'&&s.type!=='상담')
+         .map(s=>s.memberId)
+  );
+  return members.filter(m=>{
+    const st=pcMbStatus(m);
+    return(st==='active'||st==='expiring')&&!weekMbIds.has(m.id);
+  });
 }
 function getWeekNoSesMembers(){
   const{mon,sun}=getThisWeek();
@@ -4259,8 +4293,24 @@ function renderPcHome(ct,acts){
     +'<div style="font-size:12px;color:#6b7494;margin-bottom:4px;">활성회원 중 '+noWeekPct+'%</div></div>'
     +(noWeekList.length?'<div style="font-size:12px;color:#9ca3af;">'+noWeekList.slice(0,5).map(m=>m.name).join(', ')+(noWeekList.length>5?' 외 '+(noWeekList.length-5)+'명':'')+'</div>':'<div style="font-size:12px;color:#34d399;">이번주 모든 활성 회원이 수업 중 👍</div>');
   noWeekCard.onmouseenter=()=>{noWeekCard.style.borderColor='#f59e0b';noWeekCard.style.background='rgba(245,158,11,.05)';};
-  noWeekCard.onmouseleave=()=>{noWeekCard.style.background='';};
+  noWeekCard.onmouseleave=()=>{noWeekCard.style.background='';noWeekCard.style.borderColor='';};
   noWeekCard.onclick=()=>{pcV='customers';pcSV='noweek';custSV='noweek';initPcNav();renderPcContent();};
+
+  // ── 차주 미수업 카드 ──
+  const nextWeekList=getNextWeekNoSesMembers();
+  const{mon:nwMon,sun:nwSun}=getNextWeek();
+  const nextWeekCard=ct.appendChild(_mk('div','pc-card pc-card-anim'));
+  nextWeekCard.style.cssText='cursor:default;margin-bottom:16px;border-left:3px solid #475569;';
+  const nextWeekPct=Math.round(nextWeekList.length/Math.max(1,active+expiring)*100);
+  nextWeekCard.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+    +'<div class="pc-card-ttl" style="margin:0;">📅 차주 미수업 예상 회원</div>'
+    +'<span style="font-size:11px;color:#6b7494;">'+nwMon.slice(5)+' ~ '+nwSun.slice(5)+'</span></div>'
+    +'<div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:8px;">'
+    +'<div style="font-size:32px;font-weight:800;color:#94a3b8;line-height:1;">'+nextWeekList.length+'<span style="font-size:14px;margin-left:2px;">명</span></div>'
+    +'<div style="font-size:12px;color:#6b7494;margin-bottom:4px;">활성회원 중 '+nextWeekPct+'%</div></div>'
+    +(nextWeekList.length?'<div style="font-size:12px;color:#9ca3af;">'+nextWeekList.slice(0,5).map(m=>m.name).join(', ')+(nextWeekList.length>5?' 외 '+(nextWeekList.length-5)+'명':'')+'</div>':'<div style="font-size:12px;color:#34d399;">차주도 모든 활성 회원이 예약 중 👍</div>');
+  nextWeekCard.onmouseenter=()=>{nextWeekCard.style.borderColor='#64748b';nextWeekCard.style.background='rgba(71,85,105,.05)';};
+  nextWeekCard.onmouseleave=()=>{nextWeekCard.style.background='';nextWeekCard.style.borderColor='';};
 
   // ── 2열: 성비 + 유입경로 ──
   const g2=ct.appendChild(_mk('div','pc-dash-g2'));
@@ -4495,13 +4545,16 @@ function renderPcCust(ct,acts){
   const baseList=custTr?members.filter(m=>m.trainerId===custTr):members;
   const noWeekAll=getWeekNoSesMembers();
   const noWeekList2=custTr?noWeekAll.filter(m=>m.trainerId===custTr):noWeekAll;
+  const nextWeekAll=getNextWeekNoSesMembers();
+  const nextWeekList3=custTr?nextWeekAll.filter(m=>m.trainerId===custTr):nextWeekAll;
 
-  const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'},{id:'noweek',label:'주간미수업'}];
+  const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'},{id:'noweek',label:'주간미수업'},{id:'nextweek',label:'차주미수업'}];
   const sb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-sub-tabs'}));
   subs.forEach(s=>{
     let cnt;
     if(s.id==='all')cnt=baseList.length;
     else if(s.id==='noweek')cnt=noWeekList2.length;
+    else if(s.id==='nextweek')cnt=nextWeekList3.length;
     else if(s.id==='expiring')cnt=baseList.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;}).length;
     else if(s.id==='active')cnt=baseList.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';}).length;
     else cnt=baseList.filter(m=>pcMbStatus(m)===s.id).length;
@@ -4516,6 +4569,7 @@ function renderPcCust(ct,acts){
 
   let list=baseList.slice();
   if(custSV==='noweek')list=noWeekList2.slice();
+  else if(custSV==='nextweek')list=nextWeekList3.slice();
   else if(custSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;});
   else if(custSV==='active')list=list.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';});
   else if(custSV&&custSV!=='all')list=list.filter(m=>pcMbStatus(m)===custSV);
