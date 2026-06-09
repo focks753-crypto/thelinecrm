@@ -531,9 +531,9 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .pc-nav-item.on{background:#1c1f28;color:#fff;font-weight:700;}
 .pc-nav-item .ni{font-size:14px;width:16px;text-align:center;flex-shrink:0;}
 .pc-nav-sub{display:flex;flex-direction:column;padding-left:28px;overflow:hidden;max-height:0;opacity:0;transition:max-height .28s cubic-bezier(.4,0,.2,1),opacity .2s ease,margin .2s ease;}
-.pc-nav-sub.open{max-height:320px;opacity:1;margin-bottom:4px;}
-.pc-nav-chevron{margin-left:auto;font-size:10px;color:#4a5068;transition:transform .25s ease;flex-shrink:0;display:inline-block;}
-.pc-nav-item.on .pc-nav-chevron{transform:rotate(180deg);color:#818cf8;}
+.pc-nav-sub.open{margin-bottom:4px;}
+.pc-nav-chevron{margin-left:auto;font-size:16px;line-height:1;color:#4a5068;transition:transform .25s ease;flex-shrink:0;display:inline-block;}
+.pc-nav-item.on .pc-nav-chevron{color:#818cf8;}
 .pc-nav-sub-item{padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;color:#4a5068;transition:all .15s;}
 .pc-nav-sub-item:hover{background:#16181f;color:#c4cde8;}
 .pc-nav-sub-item.on{color:#818cf8;font-weight:700;}
@@ -4014,16 +4014,17 @@ function renderMobHome(){
   const nextWeekList2=getNextWeekNoSesMembers();
   const{mon:nxMon,sun:nxSun}=getNextWeek();
   const nextWeekCard2=hp.appendChild(document.createElement('div'));
-  nextWeekCard2.style.cssText='margin:8px 16px 0;background:#111318;border:1px solid #1e293b55;border-radius:14px;padding:14px 16px;';
+  nextWeekCard2.style.cssText='margin:8px 16px 0;background:#111318;border:1px solid #1e293b55;border-radius:14px;padding:14px 16px;cursor:pointer;';
   const nxPreview=nextWeekList2.slice(0,3).map(m=>m.name).join(', ')+(nextWeekList2.length>3?' 외 '+(nextWeekList2.length-3)+'명':'');
   nextWeekCard2.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;">'
-    +'<div>'
+    +'<div style="flex:1;min-width:0;">'
       +'<div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:.8px;margin-bottom:4px;">차주 미수업 예상 · '+nxMon.slice(5)+'~'+nxSun.slice(5)+'</div>'
       +'<div style="font-size:22px;font-weight:800;color:#94a3b8;">'+nextWeekList2.length+'<span style="font-size:13px;font-weight:600;color:#64748b;margin-left:3px;">명</span></div>'
       +(nxPreview?'<div style="font-size:11px;color:#374151;margin-top:4px;">'+nxPreview+'</div>':'<div style="font-size:11px;color:#1e3a2a;margin-top:4px;">차주 예약 모두 등록됨 👍</div>')
     +'</div>'
-    +'<div style="width:42px;height:42px;border-radius:12px;background:#1e293b33;display:flex;align-items:center;justify-content:center;font-size:20px;">📅</div>'
+    +'<div style="padding:6px 12px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">목록 보기 →</div>'
   +'</div>';
+  nextWeekCard2.onclick=()=>{window._mobMemFilter='nextweek';switchMobPage('mem');};
 
   // ── 회원 현황 바 ──
   const barDiv=hp.appendChild(document.createElement('div'));
@@ -4152,20 +4153,47 @@ function initPcNav(){
       const el=nav.appendChild(_mk('div','pc-nav-item'));
       el.dataset.id=item.id;
       el.innerHTML=(item.icon?'<span class="ni">'+item.icon+'</span>':'')+item.label+(item.subs?'<span class="pc-nav-chevron">▾</span>':'');
-      el.onclick=()=>{pcV=item.id;pcSV=item.subs?item.subs[0].id:'';if(item.id==='customers'&&pcSV==='members')custSV='all';initPcNav();renderPcContent();};
+      el.onclick=()=>{
+        nav._col=nav._col||new Set();
+        if(pcV===item.id&&item.subs){
+          if(nav._col.has(item.id))nav._col.delete(item.id);else nav._col.add(item.id);
+          initPcNav();return;
+        }
+        nav._col=new Set();
+        pcV=item.id;pcSV=item.subs?item.subs[0].id:'';
+        if(item.id==='customers'&&pcSV==='members')custSV='all';
+        initPcNav();renderPcContent();
+      };
       if(item.subs){
         const sub=nav.appendChild(_mk('div','pc-nav-sub'));
         sub.dataset.id=item.id;
         item.subs.forEach(s=>{
           const si=sub.appendChild(_mk('div','pc-nav-sub-item',s.label));
           si.dataset.id=s.id;
-          si.onclick=e=>{e.stopPropagation();pcSV=s.id;if(s.id==='members')custSV='all';initPcNav();renderPcContent();};
+          si.onclick=e=>{e.stopPropagation();nav._col=nav._col||new Set();nav._col.delete(item.id);pcSV=s.id;if(s.id==='members')custSV='all';initPcNav();renderPcContent();};
         });
       }
     });
   }
   nav.querySelectorAll('.pc-nav-item').forEach(el=>{el.classList.toggle('on',el.dataset.id===pcV);});
-  nav.querySelectorAll('.pc-nav-sub').forEach(el=>{el.classList.toggle('open',el.dataset.id===pcV);});
+  nav.querySelectorAll('.pc-nav-sub').forEach(sub=>{
+    const isCol=nav._col&&nav._col.has(sub.dataset.id);
+    const shouldOpen=sub.dataset.id===pcV&&!isCol;
+    const isOpen=sub._isOpen||false;
+    const navItem=nav.querySelector('.pc-nav-item[data-id="'+sub.dataset.id+'"]');
+    const chev=navItem&&navItem.querySelector('.pc-nav-chevron');
+    if(shouldOpen&&!isOpen){
+      sub._isOpen=true;sub.classList.add('open');
+      if(chev)chev.style.transform='rotate(180deg)';
+      requestAnimationFrame(()=>{sub.style.maxHeight=sub.scrollHeight+'px';sub.style.opacity='1';});
+    } else if(!shouldOpen&&isOpen){
+      sub._isOpen=false;sub.classList.remove('open');
+      if(chev)chev.style.transform='rotate(0deg)';
+      const h=sub.getBoundingClientRect().height;
+      sub.style.maxHeight=h+'px';
+      requestAnimationFrame(()=>{sub.style.maxHeight='0';sub.style.opacity='0';});
+    }
+  });
   nav.querySelectorAll('.pc-nav-sub-item').forEach(el=>{
     const sub=el.closest('.pc-nav-sub');
     el.classList.toggle('on',el.dataset.id===pcSV&&sub&&sub.dataset.id===pcV);
@@ -4318,17 +4346,19 @@ function renderPcHome(ct,acts){
   const nextWeekList=getNextWeekNoSesMembers();
   const{mon:nwMon,sun:nwSun}=getNextWeek();
   const nextWeekCard=ct.appendChild(_mk('div','pc-card pc-card-anim'));
-  nextWeekCard.style.cssText='cursor:default;margin-bottom:16px;border-left:3px solid #475569;';
+  nextWeekCard.style.cssText='cursor:pointer;margin-bottom:16px;border-left:3px solid #475569;';
   const nextWeekPct=Math.round(nextWeekList.length/Math.max(1,active+expiring)*100);
   nextWeekCard.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
-    +'<div class="pc-card-ttl" style="margin:0;">📅 차주 미수업 예상 회원</div>'
+    +'<div class="pc-card-ttl" style="margin:0;">차주 미수업 예상 회원</div>'
     +'<span style="font-size:11px;color:#6b7494;">'+nwMon.slice(5)+' ~ '+nwSun.slice(5)+'</span></div>'
     +'<div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:8px;">'
     +'<div style="font-size:32px;font-weight:800;color:#94a3b8;line-height:1;">'+nextWeekList.length+'<span style="font-size:14px;margin-left:2px;">명</span></div>'
     +'<div style="font-size:12px;color:#6b7494;margin-bottom:4px;">활성회원 중 '+nextWeekPct+'%</div></div>'
-    +(nextWeekList.length?'<div style="font-size:12px;color:#9ca3af;">'+nextWeekList.slice(0,5).map(m=>m.name).join(', ')+(nextWeekList.length>5?' 외 '+(nextWeekList.length-5)+'명':'')+'</div>':'<div style="font-size:12px;color:#34d399;">차주도 모든 활성 회원이 예약 중 👍</div>');
+    +(nextWeekList.length?'<div style="font-size:12px;color:#9ca3af;margin-bottom:10px;">'+nextWeekList.slice(0,5).map(m=>m.name).join(', ')+(nextWeekList.length>5?' 외 '+(nextWeekList.length-5)+'명':'')+'</div>':'<div style="font-size:12px;color:#34d399;margin-bottom:10px;">차주도 모든 활성 회원이 예약 중 👍</div>')
+    +'<div style="display:inline-block;padding:6px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:12px;font-weight:600;">목록 보기 →</div>';
   nextWeekCard.onmouseenter=()=>{nextWeekCard.style.borderColor='#64748b';nextWeekCard.style.background='rgba(71,85,105,.05)';};
   nextWeekCard.onmouseleave=()=>{nextWeekCard.style.background='';nextWeekCard.style.borderColor='';};
+  nextWeekCard.onclick=()=>{pcV='customers';pcSV='nextweek';custSV='nextweek';nav._col=new Set();initPcNav();renderPcContent();};
 
   // ── 2열: 성비 + 유입경로 ──
   const g2=ct.appendChild(_mk('div','pc-dash-g2'));
