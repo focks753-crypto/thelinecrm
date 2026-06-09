@@ -4022,7 +4022,7 @@ function renderMobHome(){
       +'<div style="font-size:22px;font-weight:800;color:#94a3b8;">'+nextWeekList2.length+'<span style="font-size:13px;font-weight:600;color:#64748b;margin-left:3px;">명</span></div>'
       +(nxPreview?'<div style="font-size:11px;color:#374151;margin-top:4px;">'+nxPreview+'</div>':'<div style="font-size:11px;color:#1e3a2a;margin-top:4px;">차주 예약 모두 등록됨 👍</div>')
     +'</div>'
-    +'<div style="padding:6px 12px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">목록 보기 →</div>'
+
   +'</div>';
   nextWeekCard2.onclick=()=>{window._mobMemFilter='nextweek';switchMobPage('mem');};
 
@@ -4354,8 +4354,8 @@ function renderPcHome(ct,acts){
     +'<div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:8px;">'
     +'<div style="font-size:32px;font-weight:800;color:#94a3b8;line-height:1;">'+nextWeekList.length+'<span style="font-size:14px;margin-left:2px;">명</span></div>'
     +'<div style="font-size:12px;color:#6b7494;margin-bottom:4px;">활성회원 중 '+nextWeekPct+'%</div></div>'
-    +(nextWeekList.length?'<div style="font-size:12px;color:#9ca3af;margin-bottom:10px;">'+nextWeekList.slice(0,5).map(m=>m.name).join(', ')+(nextWeekList.length>5?' 외 '+(nextWeekList.length-5)+'명':'')+'</div>':'<div style="font-size:12px;color:#34d399;margin-bottom:10px;">차주도 모든 활성 회원이 예약 중 👍</div>')
-    +'<div style="display:inline-block;padding:6px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:12px;font-weight:600;">목록 보기 →</div>';
+    +(nextWeekList.length?'<div style="font-size:12px;color:#9ca3af;">'+nextWeekList.slice(0,5).map(m=>m.name).join(', ')+(nextWeekList.length>5?' 외 '+(nextWeekList.length-5)+'명':'')+'</div>':'<div style="font-size:12px;color:#34d399;">차주도 모든 활성 회원이 예약 중 👍</div>')
+    +'';
   nextWeekCard.onmouseenter=()=>{nextWeekCard.style.borderColor='#64748b';nextWeekCard.style.background='rgba(71,85,105,.05)';};
   nextWeekCard.onmouseleave=()=>{nextWeekCard.style.background='';nextWeekCard.style.borderColor='';};
   nextWeekCard.onclick=()=>{pcV='customers';pcSV='nextweek';custSV='nextweek';nav._col=new Set();initPcNav();renderPcContent();};
