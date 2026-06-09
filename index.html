@@ -530,7 +530,10 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .pc-nav-item:hover{background:#16181f;color:#c4cde8;}
 .pc-nav-item.on{background:#1c1f28;color:#fff;font-weight:700;}
 .pc-nav-item .ni{font-size:14px;width:16px;text-align:center;flex-shrink:0;}
-.pc-nav-sub{display:flex;flex-direction:column;padding-left:28px;margin-bottom:2px;}
+.pc-nav-sub{display:flex;flex-direction:column;padding-left:28px;overflow:hidden;max-height:0;opacity:0;transition:max-height .28s cubic-bezier(.4,0,.2,1),opacity .2s ease,margin .2s ease;}
+.pc-nav-sub.open{max-height:320px;opacity:1;margin-bottom:4px;}
+.pc-nav-chevron{margin-left:auto;font-size:10px;color:#4a5068;transition:transform .25s ease;flex-shrink:0;display:inline-block;}
+.pc-nav-item.on .pc-nav-chevron{transform:rotate(180deg);color:#818cf8;}
 .pc-nav-sub-item{padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;color:#4a5068;transition:all .15s;}
 .pc-nav-sub-item:hover{background:#16181f;color:#c4cde8;}
 .pc-nav-sub-item.on{color:#818cf8;font-weight:700;}
@@ -4142,15 +4145,30 @@ const PC_NAV=[
 ];
 function _mk(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;}
 function initPcNav(){
-  const nav=document.getElementById('pc-nav');if(!nav)return;nav.innerHTML='';
-  PC_NAV.forEach(item=>{
-    const el=nav.appendChild(_mk('div','pc-nav-item'+(pcV===item.id?' on':'')));
-    el.innerHTML=item.icon?'<span class="ni">'+item.icon+'</span>'+item.label:item.label;
-    el.onclick=()=>{pcV=item.id;pcSV=item.subs?item.subs[0].id:'';initPcNav();renderPcContent();};
-    if(item.subs&&pcV===item.id){
-      const sub=nav.appendChild(_mk('div','pc-nav-sub'));
-      item.subs.forEach(s=>{const si=sub.appendChild(_mk('div','pc-nav-sub-item'+(pcSV===s.id?' on':''),s.label));si.onclick=e=>{e.stopPropagation();pcSV=s.id;initPcNav();renderPcContent();};});
-    }
+  const nav=document.getElementById('pc-nav');if(!nav)return;
+  if(!nav._built){
+    nav._built=true;
+    PC_NAV.forEach(item=>{
+      const el=nav.appendChild(_mk('div','pc-nav-item'));
+      el.dataset.id=item.id;
+      el.innerHTML=(item.icon?'<span class="ni">'+item.icon+'</span>':'')+item.label+(item.subs?'<span class="pc-nav-chevron">▾</span>':'');
+      el.onclick=()=>{pcV=item.id;pcSV=item.subs?item.subs[0].id:'';if(item.id==='customers'&&pcSV==='members')custSV='all';initPcNav();renderPcContent();};
+      if(item.subs){
+        const sub=nav.appendChild(_mk('div','pc-nav-sub'));
+        sub.dataset.id=item.id;
+        item.subs.forEach(s=>{
+          const si=sub.appendChild(_mk('div','pc-nav-sub-item',s.label));
+          si.dataset.id=s.id;
+          si.onclick=e=>{e.stopPropagation();pcSV=s.id;if(s.id==='members')custSV='all';initPcNav();renderPcContent();};
+        });
+      }
+    });
+  }
+  nav.querySelectorAll('.pc-nav-item').forEach(el=>{el.classList.toggle('on',el.dataset.id===pcV);});
+  nav.querySelectorAll('.pc-nav-sub').forEach(el=>{el.classList.toggle('open',el.dataset.id===pcV);});
+  nav.querySelectorAll('.pc-nav-sub-item').forEach(el=>{
+    const sub=el.closest('.pc-nav-sub');
+    el.classList.toggle('on',el.dataset.id===pcSV&&sub&&sub.dataset.id===pcV);
   });
 }
 function updatePcUser(){
@@ -4559,7 +4577,7 @@ function renderPcCust(ct,acts){
     else if(s.id==='active')cnt=baseList.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';}).length;
     else cnt=baseList.filter(m=>pcMbStatus(m)===s.id).length;
     const tab=sb.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(custSV===s.id?' on':''),textContent:s.label+' '+cnt}));
-    tab.onclick=()=>{custSV=s.id;pcDetailMbId=null;renderPcContent();};
+    tab.onclick=()=>{custSV=s.id;pcDetailMbId=null;if(s.id!=='noweek'&&s.id!=='nextweek')pcSV='members';renderPcContent();};
   });
   const fb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-fbar'}));
   const si=fb.appendChild(document.createElement('input'));si.className='pcm-input';si.style.cssText='width:220px;padding:9px 12px;font-size:13px;';
