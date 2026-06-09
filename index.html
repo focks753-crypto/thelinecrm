@@ -4358,7 +4358,7 @@ function renderPcHome(ct,acts){
     +'';
   nextWeekCard.onmouseenter=()=>{nextWeekCard.style.borderColor='#64748b';nextWeekCard.style.background='rgba(71,85,105,.05)';};
   nextWeekCard.onmouseleave=()=>{nextWeekCard.style.background='';nextWeekCard.style.borderColor='';};
-  nextWeekCard.onclick=()=>{pcV='customers';pcSV='nextweek';custSV='nextweek';nav._col=new Set();initPcNav();renderPcContent();};
+  nextWeekCard.onclick=()=>{const _n=document.getElementById('pc-nav');if(_n)_n._col=new Set();pcV='customers';pcSV='nextweek';custSV='nextweek';initPcNav();renderPcContent();};
 
   // ── 2열: 성비 + 유입경로 ──
   const g2=ct.appendChild(_mk('div','pc-dash-g2'));
