@@ -2165,13 +2165,11 @@ function renderMem(){
   regBtn.textContent='+ 등록';
   regBtn.onclick=()=>openPcAddMember();
 
-  // 주간미수업 탭일 때 엑셀 버튼 추가
-  if(mobMemFilter==='noweek'){
-    const xlBtn=toolbar.appendChild(document.createElement('button'));
-    xlBtn.style.cssText='padding:8px 12px;border-radius:8px;border:1px solid #d97706;background:transparent;color:#d97706;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;';
-    xlBtn.textContent='엑셀';
-    xlBtn.onclick=dlNoWeekXLSX;
-  }
+  // 엑셀 버튼 (모든 탭)
+  const xlBtn=toolbar.appendChild(document.createElement('button'));
+  xlBtn.style.cssText='padding:8px 12px;border-radius:8px;border:1px solid #1e2026;background:transparent;color:#6b7494;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;';
+  xlBtn.textContent='엑셀';
+  xlBtn.onclick=()=>dlCustXLSX(getMobCustList());
 
   // 검색
   const searchWrap=memContent.appendChild(document.createElement('div'));
@@ -3547,6 +3545,51 @@ function dlMemberXLSX(){
   XLSX.writeFile(wb,'회원명단_'+ds+'.xlsx');
 }
 
+function getCurrentCustList(){
+  const base=custTr?members.filter(m=>m.trainerId===custTr):members;
+  let list=base.slice();
+  if(custSV==='noweek')list=getWeekNoSesMembers().filter(m=>!custTr||m.trainerId===custTr);
+  else if(custSV==='nextweek')list=getNextWeekNoSesMembers().filter(m=>!custTr||m.trainerId===custTr);
+  else if(custSV==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;});
+  else if(custSV==='active')list=list.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';});
+  else if(custSV&&custSV!=='all')list=list.filter(m=>pcMbStatus(m)===custSV);
+  if(pcCustKw)list=list.filter(m=>m.name.includes(pcCustKw)||(m.phone||'').includes(pcCustKw));
+  return list;
+}
+function getMobCustList(){
+  let list=members.slice();
+  if(window._mobMemTr)list=list.filter(m=>m.trainerId===window._mobMemTr);
+  const kw=(window._mobMemKw||'').trim();
+  if(kw)list=list.filter(m=>m.name.includes(kw)||(m.phone||'').includes(kw));
+  const flt=window._mobMemFilter||'all';
+  if(flt==='noweek'){const nwAll=getWeekNoSesMembers();list=window._mobMemTr?nwAll.filter(m=>m.trainerId===window._mobMemTr):nwAll;}
+  else if(flt==='nextweek'){const nxAll=getNextWeekNoSesMembers();list=window._mobMemTr?nxAll.filter(m=>m.trainerId===window._mobMemTr):nxAll;}
+  else if(flt==='expiring')list=list.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;});
+  else if(flt==='active')list=list.filter(m=>{const st=pcMbStatus?pcMbStatus(m):'none';return st==='active'||st==='expiring';});
+  else if(flt!=='all')list=list.filter(m=>pcMbStatus&&pcMbStatus(m)===flt);
+  return list;
+}
+function dlCustXLSX(list){
+  if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
+  if(!list||!list.length){alert('다운로드할 회원이 없습니다.');return;}
+  const rows=list.map(mb=>{
+    const tr2=trainers.find(t=>t.id===mb.trainerId);
+    const st=pcMbStatus(mb);
+    const stLbl={active:'활성',expiring:'만료임박',expired:'만료',none:'미등록'};
+    const remain=(mb.plans||[]).reduce((s,p)=>s+getPlanRemain(p),0);
+    const lastPlan=(mb.plans||[]).filter(p=>p.addedAt).sort((a,b)=>new Date(b.addedAt)-new Date(a.addedAt))[0];
+    const regDate=lastPlan?new Date(lastPlan.addedAt).toLocaleDateString('ko-KR'):'';
+    return[mb.name,mb.phone||'',mb.gender||'',tr2?tr2.name:'-',stLbl[st]||'-',mb.inflow||'',remain+'회',regDate,mb.memo||''];
+  });
+  const wb=XLSX.utils.book_new();
+  const wsData=[['이름','연락처','성별','담당트레이너','상태','유입경로','잔여수업','최근등록일','메모'],...rows];
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:10},{wch:14},{wch:6},{wch:12},{wch:10},{wch:10},{wch:10},{wch:14},{wch:20}];
+  ['A1','B1','C1','D1','E1','F1','G1','H1','I1'].forEach(a=>{if(ws[a])ws[a].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'595959'},patternType:'solid'},alignment:{horizontal:'center'}};});
+  XLSX.utils.book_append_sheet(wb,ws,'회원목록');
+  const ds=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'회원목록_'+ds+'.xlsx');
+}
 function dlNoWeekXLSX(){
   if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
   const list=getWeekNoSesMembers();
@@ -4576,7 +4619,7 @@ function renderRegStep2(box,close,reg){
 function renderPcCust(ct,acts){
   if(acts){
     const ab=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 회원 등록'}));ab.onclick=()=>openPcAddMember();
-    if(custSV==='noweek'){const xb=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'}));xb.onclick=dlNoWeekXLSX;}
+    const xb=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'}));xb.onclick=()=>dlCustXLSX(getCurrentCustList());
   }
   // ── 트레이너 필터 버튼 ──
   const trBar=ct.appendChild(document.createElement('div'));
