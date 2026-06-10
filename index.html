@@ -1499,6 +1499,10 @@ function openSlotDetail(slotId){
       mi.appendChild(mk('div','','회원: '+mb.name+(mb.phone?' · '+mb.phone:''))).style.cssText='font-size:14px;font-weight:600;color:var(--t1);';
     }
 
+    // 날짜 수정
+    sheet.appendChild(mk('label','','날짜'));
+    const dtinp=sheet.appendChild(el('input'));dtinp.type='date';dtinp.style.cssText=iSt;dtinp.value=s.date;
+
     // 시간 수정
     sheet.appendChild(mk('label','','시간'));
     const tmsel=sheet.appendChild(el('select'));tmsel.style.cssText=iSt;
@@ -1531,10 +1535,10 @@ function openSlotDetail(slotId){
       const btns=sheet.appendChild(el('div','shbtns'));
       btns.appendChild(mk('button','shno','취소')).onclick=close;
       btns.appendChild(mk('button','shok','저장')).onclick=()=>{
-        s.time=tmsel.value;s.type=tysel.value;
+        s.date=dtinp.value;s.time=tmsel.value;s.type=tysel.value;
         s.planId=plsel.value||null;
         sv('og10_sl',slots);
-        if(s.bkId)updateCrmBk(s.bkId,{time:s.time,type:s.type,planId:s.planId||null});
+        if(s.bkId)updateCrmBk(s.bkId,{date:s.date,time:s.time,type:s.type,planId:s.planId||null});
         close();renderTimes();
       };
     } else {
@@ -1542,9 +1546,9 @@ function openSlotDetail(slotId){
       const btns=sheet.appendChild(el('div','shbtns'));
       btns.appendChild(mk('button','shno','취소')).onclick=close;
       btns.appendChild(mk('button','shok','저장')).onclick=()=>{
-        s.time=tmsel.value;s.type=tysel.value;
+        s.date=dtinp.value;s.time=tmsel.value;s.type=tysel.value;
         sv('og10_sl',slots);
-        if(s.bkId)updateCrmBk(s.bkId,{time:s.time,type:s.type});
+        if(s.bkId)updateCrmBk(s.bkId,{date:s.date,time:s.time,type:s.type});
         close();renderTimes();
       };
     }
