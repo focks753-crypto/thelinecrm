@@ -885,7 +885,7 @@ const ADMIN_COL={bg:'#1e1429',text:'#ce93d8',dot:'#ab47bc'};
 const CNAMES=['블루','그린','핑크','오렌지','퍼플','레드'];
 const DAYS=['일','월','화','수','목','금','토'];
 const ROLES=['트레이너','관리자','기타'];
-const SESSION_OPTIONS=[4,10,20,30,50,100];
+const SESSION_OPTIONS=[1,4,10,20,30,50,100];
 const INFLOW_OPTIONS=['워크인','플러팅','구글폼','골프상담','기타'];
 const PAYMENT_OPTIONS=['카드','현금','계좌이체'];
 function fmtMoney(v){const n=String(v).replace(/[^0-9]/g,'');return n?parseInt(n).toLocaleString('ko-KR'):'';}
@@ -2169,21 +2169,19 @@ function renderMem(){
   regBtn.textContent='+ 등록';
   regBtn.onclick=()=>openPcAddMember();
 
-  // 엑셀 버튼 (모든 탭)
-  const xlBtn=toolbar.appendChild(document.createElement('button'));
-  xlBtn.style.cssText='padding:8px 12px;border-radius:8px;border:1px solid #1e2026;background:transparent;color:#6b7494;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;';
-  xlBtn.textContent='엑셀';
-  xlBtn.onclick=()=>dlCustXLSX(getMobCustList());
-
-  // 검색
+  // 검색 + 엑셀 버튼 (인라인)
   const searchWrap=memContent.appendChild(document.createElement('div'));
-  searchWrap.style.cssText='margin-bottom:12px;';
+  searchWrap.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:12px;';
   const searchInp=searchWrap.appendChild(document.createElement('input'));
-  searchInp.style.cssText='width:100%;padding:10px 14px;border:1px solid #1e2026;border-radius:10px;background:#111318;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit;';
+  searchInp.style.cssText='flex:1;padding:10px 14px;border:1px solid #1e2026;border-radius:10px;background:#111318;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit;';
   searchInp.placeholder='이름 또는 연락처 검색...';
   searchInp.value=window._mobMemKw||'';
   searchInp.oninput=e=>{window._mobMemKw=e.target.value;};
   searchInp.onkeydown=e=>{if(e.key==='Enter')renderMem();};
+  const xlBtn=searchWrap.appendChild(document.createElement('button'));
+  xlBtn.style.cssText='padding:10px 14px;border-radius:10px;border:1px solid #1e2026;background:transparent;color:#6b7494;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;';
+  xlBtn.textContent='엑셀';
+  xlBtn.onclick=()=>dlCustXLSX(getMobCustList());
 
   // 회원 목록
   let list=members.slice();
@@ -4623,7 +4621,6 @@ function renderRegStep2(box,close,reg){
 function renderPcCust(ct,acts){
   if(acts){
     const ab=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 회원 등록'}));ab.onclick=()=>openPcAddMember();
-    const xb=acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'}));xb.onclick=()=>dlCustXLSX(getCurrentCustList());
   }
   // ── 트레이너 필터 버튼 ──
   const trBar=ct.appendChild(document.createElement('div'));
@@ -4661,6 +4658,7 @@ function renderPcCust(ct,acts){
   si.placeholder='이름 또는 연락처...';si.value=pcCustKw;
   si.oninput=e=>pcCustKw=e.target.value;si.onkeydown=e=>{if(e.key==='Enter')renderPcContent();};
   fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'조회'})).onclick=()=>renderPcContent();
+  fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'엑셀 다운로드'})).onclick=()=>dlCustXLSX(getCurrentCustList());
 
   let list=baseList.slice();
   if(custSV==='noweek')list=noWeekList2.slice();
