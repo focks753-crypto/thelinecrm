@@ -5482,7 +5482,7 @@ function openPcEditProduct(prodId,onSaved){
     const sessRow=box.appendChild(_f('횟수 (PT)'));
     const durRow=box.appendChild(_f('수업 시간 (PT)'));
     if(p.type==='pt'){
-      const sessS=sessRow.appendChild(_sel(SESSION_OPTIONS.map(n=>({v:n,l:n+'회'}))));
+      const sessS=sessRow.appendChild(_inp('예) 10','number'));sessS.min='1';sessS.style.width='100%';
       if(p.sessions)sessS.value=p.sessions;
       const durS=durRow.appendChild(_sel([{v:25,l:'25분'},{v:50,l:'50분'}]));
       if(p.duration)durS.value=p.duration;
@@ -5526,7 +5526,7 @@ function openPcCreateProduct(onCreated){
       btn.textContent=t.l;typeBtns.push({btn,v:t.v});
       btn.onclick=()=>{selType=t.v;typeBtns.forEach(({btn:b,v})=>{b.style.borderColor=selType===v?'#818cf8':'#1e2026';b.style.background=selType===v?'rgba(129,140,248,.1)':'#0f1117';b.style.color=selType===v?'#818cf8':'#6b7494';});sessRow.style.display=selType==='pt'?'block':'none';durRow.style.display=selType==='pt'?'block':'none';};
     });
-    const sessRow=box.appendChild(_f('횟수 (PT)'));const sessS=sessRow.appendChild(_sel(SESSION_OPTIONS.map(n=>({v:n,l:n+'회'}))));
+    const sessRow=box.appendChild(_f('횟수 (PT)'));const sessS=sessRow.appendChild(_inp('예) 10','number'));sessS.min='1';sessS.style.width='100%';
     const durRow=box.appendChild(_f('수업 시간 (PT)'));const durS=durRow.appendChild(_sel([{v:25,l:'25분'},{v:50,l:'50분'}]));
     const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='24px';
     btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
@@ -6517,4 +6517,4 @@ function openPcAddSchedule(initDate){
   </div>
 </div>
 </body>
-</html>
+</htm
