@@ -1531,31 +1531,34 @@ function openSlotDetail(slotId){
         if(selPlan){tysel.value=selPlan.duration+'분 수업';}
       };
 
+      // 메모
+      sheet.appendChild(mk('label','','메모'));
+      const mo=sheet.appendChild(el('input'));mo.type='text';mo.style.cssText=iSt;mo.value=s.memo||'';mo.placeholder='메모';
       // 저장 버튼
       const btns=sheet.appendChild(el('div','shbtns'));
       btns.appendChild(mk('button','shno','취소')).onclick=close;
       btns.appendChild(mk('button','shok','저장')).onclick=()=>{
         s.date=dtinp.value;s.time=tmsel.value;s.type=tysel.value;
-        s.planId=plsel.value||null;
+        s.planId=plsel.value||null;s.memo=mo.value;
         sv('og10_sl',slots);
-        if(s.bkId)updateCrmBk(s.bkId,{date:s.date,time:s.time,type:s.type,planId:s.planId||null});
+        if(s.bkId)updateCrmBk(s.bkId,{date:s.date,time:s.time,type:s.type,planId:s.planId||null,memo:s.memo});
         close();renderTimes();
       };
     } else {
       // 플랜 없는 경우
+      // 메모
+      sheet.appendChild(mk('label','','메모'));
+      const mo=sheet.appendChild(el('input'));mo.type='text';mo.style.cssText=iSt;mo.value=s.memo||'';mo.placeholder='메모';
+      // 저장 버튼
       const btns=sheet.appendChild(el('div','shbtns'));
       btns.appendChild(mk('button','shno','취소')).onclick=close;
       btns.appendChild(mk('button','shok','저장')).onclick=()=>{
-        s.date=dtinp.value;s.time=tmsel.value;s.type=tysel.value;
+        s.date=dtinp.value;s.time=tmsel.value;s.type=tysel.value;s.memo=mo.value;
         sv('og10_sl',slots);
-        if(s.bkId)updateCrmBk(s.bkId,{date:s.date,time:s.time,type:s.type});
+        if(s.bkId)updateCrmBk(s.bkId,{date:s.date,time:s.time,type:s.type,memo:s.memo});
         close();renderTimes();
       };
     }
-
-    // 메모
-    sheet.appendChild(mk('label','','메모'));
-    const mo=sheet.appendChild(el('input'));mo.type='text';mo.style.cssText=iSt;mo.value=s.memo||'';mo.placeholder='메모';
 
     // 삭제 버튼
     const delBtn=sheet.appendChild(mk('button','','일정 삭제'));
@@ -1564,11 +1567,6 @@ function openSlotDetail(slotId){
       if(!canEditSlot(s)){alert('본인 일정만 삭제할 수 있습니다.');return;}
       if(confirm('이 일정을 삭제할까요?')){const _bkId=s.bkId;slots=slots.filter(x=>x.id!==s.id);sv('og10_sl',slots);if(_bkId)firebase.firestore().collection('og10_bk').doc(_bkId).delete().catch(()=>{});close();renderTimes();}
     };
-    // 저장 시 메모도 포함하도록 기존 저장 버튼들 업데이트
-    sheet.querySelectorAll('.shok').forEach(btn=>{
-      const origClick=btn.onclick;
-      btn.onclick=()=>{s.memo=mo.value.trim();if(origClick)origClick();};
-    });
   });
 }
 
@@ -4030,11 +4028,18 @@ function renderMobHome(){
   // ── 상단 요약 카드 4개 (색상 통일) ──
   const grid=hp.appendChild(document.createElement('div'));
   grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 16px 0;';
-  [{v:total+'명',l:'전체 회원'},{v:activeMembers+'명',l:'활성 회원'},{v:todaySlots+'건',l:'오늘 일정'},{v:(thisMonthSales/10000).toFixed(1)+'만원',l:'이번달 매출'}].forEach(({v,l})=>{
+  [{v:total+'명',l:'전체 회원',nav:()=>{window._mobMemFilter='all';switchMobPage('mem');}},
+   {v:activeMembers+'명',l:'활성 회원',nav:()=>{window._mobMemFilter='active';switchMobPage('mem');}},
+   {v:todaySlots+'건',l:'오늘 일정',nav:()=>switchMobPage('sch')},
+   {v:(thisMonthSales/10000).toFixed(1)+'만원',l:'이번달 매출',nav:()=>switchMobPage('sal')}
+  ].forEach(({v,l,nav})=>{
     const card=grid.appendChild(document.createElement('div'));
-    card.style.cssText='background:#111318;border:1px solid #1e2026;border-radius:14px;padding:14px;';
+    card.style.cssText='background:#111318;border:1px solid #1e2026;border-radius:14px;padding:14px;cursor:pointer;';
     card.innerHTML='<div style="font-size:10px;color:#4a5068;margin-bottom:5px;font-weight:600;letter-spacing:.5px;">'+l+'</div>'
       +'<div style="font-size:20px;font-weight:800;color:#e2e8f0;">'+v+'</div>';
+    card.onclick=nav;
+    card.onmouseenter=()=>{card.style.borderColor='#818cf8';};
+    card.onmouseleave=()=>{card.style.borderColor='#1e2026';};
   });
 
   // ── 주간미수업 카드 ──
@@ -4076,13 +4081,13 @@ function renderMobHome(){
   barDiv.style.cssText='margin:14px 16px 0;background:#111318;border:1px solid #1e2026;border-radius:14px;padding:14px;';
   const stCounts={active:0,expiring:0,expired:0,none:0};
   members.forEach(m=>{const s=pcMbStatus?pcMbStatus(m):'none';stCounts[s]=(stCounts[s]||0)+1;});
-  const barData=[{l:'활성',c:'#818cf8',v:stCounts.active},{l:'만료임박',c:'#f6ad55',v:stCounts.expiring},{l:'만료',c:'#3a3f58',v:stCounts.expired},{l:'미등록',c:'#1e2026',v:stCounts.none}].filter(d=>d.v>0);
+  const barData=[{l:'활성',c:'#818cf8',v:stCounts.active,f:'active'},{l:'만료임박',c:'#f6ad55',v:stCounts.expiring,f:'expiring'},{l:'만료',c:'#3a3f58',v:stCounts.expired,f:'expired'},{l:'미등록',c:'#1e2026',v:stCounts.none,f:'none'}].filter(d=>d.v>0);
   barDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:#4a5068;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">회원 현황</div>';
   const barWrap=barDiv.appendChild(document.createElement('div'));
-  barWrap.style.cssText='display:flex;height:10px;border-radius:6px;overflow:hidden;gap:2px;margin-bottom:8px;';
-  barData.forEach(d=>{const seg=barWrap.appendChild(document.createElement('div'));seg.style.cssText='height:100%;border-radius:4px;background:'+d.c+';flex:'+d.v+';';});
+  barWrap.style.cssText='display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px;margin-bottom:8px;cursor:pointer;';
+  barData.forEach(d=>{const seg=barWrap.appendChild(document.createElement('div'));seg.style.cssText='height:100%;border-radius:4px;background:'+d.c+';flex:'+d.v+';cursor:pointer;';seg.title=d.l+' '+d.v+'명';seg.onclick=()=>{window._mobMemFilter=d.f;switchMobPage('mem');};});
   const legWrap=barDiv.appendChild(document.createElement('div'));legWrap.style.cssText='display:flex;flex-wrap:wrap;gap:8px;';
-  barData.forEach(d=>{const leg=legWrap.appendChild(document.createElement('div'));leg.style.cssText='display:flex;align-items:center;gap:4px;font-size:11px;color:#6b7494;';leg.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:'+d.c+';display:inline-block;"></span>'+d.l+' '+d.v+'명';});
+  barData.forEach(d=>{const leg=legWrap.appendChild(document.createElement('div'));leg.style.cssText='display:flex;align-items:center;gap:4px;font-size:11px;color:#6b7494;cursor:pointer;';leg.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:'+d.c+';display:inline-block;"></span>'+d.l+' '+d.v+'명';leg.onclick=()=>{window._mobMemFilter=d.f;switchMobPage('mem');};});
 
   // ── 성비 ──
   sec('전체 회원 성비', body=>{
@@ -4171,9 +4176,10 @@ function renderMobHome(){
     expDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:#f6ad55;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">⚠ 만료임박 회원</div>';
     members.filter(m=>pcMbStatus&&pcMbStatus(m)==='expiring').forEach(m=>{
       const item=expDiv.appendChild(document.createElement('div'));
-      item.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#111318;border:1px solid rgba(246,173,85,.2);border-radius:10px;margin-bottom:8px;';
+      item.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#111318;border:1px solid rgba(246,173,85,.2);border-radius:10px;margin-bottom:8px;cursor:pointer;';
       const rem=Math.max(0,...(m.plans||[]).map(p=>getPlanRemain(p)));
       item.innerHTML='<div style="font-size:14px;font-weight:700;color:#e2e8f0;">'+m.name+'</div><div style="font-size:12px;color:#f6ad55;">잔여 '+rem+'회</div>';
+      item.onclick=()=>openMobMemberDetail(m.id);
     });
   }
 }
@@ -4369,7 +4375,7 @@ function renderPcHome(ct,acts){
     card.style.cursor='pointer';
     card.innerHTML='<div class="pc-card-ttl">'+c2.lbl+'</div><div class="pc-card-val" style="color:#e2e8f0;">'+c2.val+'</div><div class="pc-card-sub">'+c2.sub+'</div><div class="pc-bar"><div class="pc-bar-fill" style="width:'+c2.pct+'%;background:#818cf8;"></div></div>';
     card.onmouseenter=()=>{card.style.borderColor='#818cf8';};card.onmouseleave=()=>{card.style.borderColor='';};
-    card.onclick=()=>{pcV='customers';pcSV=c2.sv;initPcNav();renderPcContent();};
+    card.onclick=()=>{pcV='customers';pcSV='members';custSV=c2.sv;initPcNav();renderPcContent();};
   });
 
   // ── 활성비율 바 ──
@@ -4893,7 +4899,7 @@ function openPcPayment(mbId,parentBox,parentClose){
 
   // ─ 왼쪽/위: 상품 목록 ──────────────────────────────────────────────────────
   const left=wrap.appendChild(document.createElement('div'));
-  left.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;padding:'+(isMob?'18px 16px 0 16px':'24px 24px 0 24px')+';min-width:0;';
+  left.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;padding:'+(isMob?'18px 50px 0 16px':'24px 24px 0 24px')+';min-width:0;';
 
   // 헤더
   const head=left.appendChild(document.createElement('div'));
@@ -5018,7 +5024,7 @@ function openPcPayment(mbId,parentBox,parentClose){
 
   // ─ 오른쪽/아래: 결제 패널 ──────────────────────────────────────────────────
   const right=wrap.appendChild(document.createElement('div'));
-  right.style.cssText=(isMob?'width:100%;flex-shrink:0;border-top:1px solid #1e2026;':'width:280px;flex-shrink:0;border-left:1px solid #1e2026;')+'background:#0f1117;padding:'+(isMob?'16px':'22px')+';display:flex;flex-direction:column;overflow-y:auto;';
+  right.style.cssText=(isMob?'width:100%;flex-shrink:0;border-top:1px solid #1e2026;max-height:48%;':'width:280px;flex-shrink:0;border-left:1px solid #1e2026;')+'background:#0f1117;padding:'+(isMob?'16px':'22px')+';display:flex;flex-direction:column;overflow-y:auto;';
 
   // 회원 정보
   right.appendChild(Object.assign(document.createElement('div'),{textContent:'상품 구매 회원'})).style.cssText='font-size:11px;font-weight:700;color:#3a3f58;letter-spacing:1px;margin-bottom:10px;';
@@ -6375,7 +6381,7 @@ function openPcDayView(ds){
 
     // 헤더
     const hdr=box.appendChild(document.createElement('div'));
-    hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;';
+    hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-right:40px;';
     const ttl=hdr.appendChild(document.createElement('div'));
     ttl.style.cssText='font-size:17px;font-weight:800;color:#e2e8f0;';
     ttl.textContent=title;
