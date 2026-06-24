@@ -6457,7 +6457,7 @@ function openPcSlotDetail(slotId){
 
     // 헤더
     const head=box.appendChild(document.createElement('div'));
-    head.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px;';
+    head.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-right:40px;';
     const col=tr2?getTrainerColor(tr2):COLORS[0];
     const dot=head.appendChild(document.createElement('div'));dot.style.cssText='width:10px;height:10px;border-radius:50%;background:'+col.dot+';flex-shrink:0;';
     const ttl=head.appendChild(document.createElement('div'));ttl.style.cssText='font-size:16px;font-weight:800;color:#e2e8f0;flex:1;';
