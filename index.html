@@ -504,6 +504,10 @@ body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-se
 .week-body{display:flex;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 .week-hdr-row{display:flex;position:sticky;top:0;z-index:15;background:var(--bg0);border-bottom:2px solid #1e2026;box-shadow:0 2px 8px rgba(0,0,0,.5);}
 
+/* ── 일간/주간 뷰 토글 ── */
+.wvtog{display:flex;gap:2px;background:#1a1c22;border-radius:8px;padding:3px;align-self:center;}
+.wvbtn{background:none;border:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:700;color:#6b7494;cursor:pointer;transition:all .15s;}
+.wvbtn.on{background:#818cf8;color:#fff;}
 /* ── 스와이프 슬라이드 애니메이션 ── */
 @keyframes slideInRight{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes slideInLeft{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
@@ -860,6 +864,10 @@ function initFB(){
           <div class="wmain" id="wm"></div>
           <div class="wsub" id="ws"></div>
         </div>
+        <div class="wvtog">
+          <button class="wvbtn on" id="wvtog-week" onclick="setCalView('week')">주간</button>
+          <button class="wvbtn" id="wvtog-day" onclick="setCalView('day')">일간</button>
+        </div>
         <div class="wbtns">
           <button class="warr" onclick="chW(-1)">&#9664;</button>
           <button class="wtoday" onclick="goToday()">오늘</button>
@@ -873,6 +881,7 @@ function initFB(){
   <div class="pg" id="pg-not"><div class="pad"></div></div>
   <div class="pg" id="pg-adm"><div class="pad"></div></div>
 <div class="pg" id="pg-sal"><div class="pad"></div></div>
+<div class="pg" id="pg-bk"><div class="pad"></div></div>
   
 <button class="fab" id="fab" onclick="reqLogin(()=>openAddSheet())">+</button>
   <div id="cal-cont"></div>
@@ -1045,7 +1054,7 @@ let refunds=ld('og10_rf',[]);
 let centerCode=localStorage.getItem('og10_cc')||'0000';
 let codeVerified=false; // 매번 코드 입력 필요
 let curUser=ld('og10_cu',null);
-let weekOff=0;
+let weekOff=0;let calView='week';
 let calScale=1.0; // 캘린더 확대/축소 레벨 (0.6~2.5)
 let selDay=(new Date().getDay()+6)%7;
 let newColor=0;
@@ -1130,8 +1139,8 @@ function updChip(){
 // ── TABS ──
 
 function switchTab(id){
-  ['sch','mem','not','adm','sal'].forEach(x=>{
-    document.getElementById('pg-'+x).classList.toggle('show',x===id);
+  ['sch','mem','not','adm','sal','bk'].forEach(x=>{
+    const pg=document.getElementById('pg-'+x);if(pg)pg.classList.toggle('show',x===id);
     const tb=document.getElementById('tb-'+x);
     if(tb)tb.classList.toggle('on',x===id);
   });
@@ -1140,6 +1149,7 @@ function switchTab(id){
   if(id==='mem'){mvTr=null;renderMem();}
   if(id==='adm')renderAdm();
   if(id==='sal')renderSales();
+  if(id==='bk'){const ct=document.getElementById('pg-bk').querySelector('.pad');ct.innerHTML='';renderAdmBookings(ct);}
 }
 
 
@@ -1147,11 +1157,35 @@ function switchTab(id){
 
 
 // ── WEEK NAV ──
-function chW(d){animWeekChange(d);}
+function setCalView(v){
+  calView=v;
+  const wb=document.getElementById('wvtog-week'),db2=document.getElementById('wvtog-day');
+  if(wb)wb.classList.toggle('on',v==='week');
+  if(db2)db2.classList.toggle('on',v==='day');
+  renderDays();renderTimes();
+}
+function chW(d){
+  if(calView==='day'){
+    selDay+=d;
+    if(selDay<0){weekOff--;selDay=6;}
+    else if(selDay>6){weekOff++;selDay=0;}
+    renderDays();renderTimes();
+  } else {
+    animWeekChange(d);
+  }
+}
 function goToday(){weekOff=0;selDay=(new Date().getDay()+6)%7;renderDays();renderTimes();}
 function renderDays(){
-  const wd=getWeekDates(weekOff);const{m,s}=fmtWeek(wd);
-  document.getElementById('wm').textContent=m;document.getElementById('ws').textContent=s;
+  const wd=getWeekDates(weekOff);
+  if(calView==='day'){
+    const d=wd[selDay];
+    const dn=['일','월','화','수','목','금','토'][d.getDay()];
+    document.getElementById('wm').textContent='[ '+dn+'요일 · '+d.getDate()+'일 ]';
+    document.getElementById('ws').textContent=(d.getMonth()+1)+'월 '+d.getDate()+'일';
+  } else {
+    const{m,s}=fmtWeek(wd);
+    document.getElementById('wm').textContent=m;document.getElementById('ws').textContent=s;
+  }
   // dtabs 없으면 그냥 무시
   const tabs=document.getElementById('dtabs');
   if(tabs){
@@ -1258,15 +1292,16 @@ function animWeekChange(dir){
 
 function renderTimes(){
   const wd=getWeekDates(weekOff);
+  const displayDays=calView==='day'?[wd[selDay]]:wd;
   const list=document.getElementById('tlist');if(!list)return;const _savedScrollTop=(list.querySelector('.week-body')||{}).scrollTop||0;
-  const _savedScrollLeft=(list.querySelector('.week-body')||{}).scrollLeft||0;list.innerHTML='';
+  const _savedScrollLeft=calView==='day'?0:(list.querySelector('.week-body')||{}).scrollLeft||0;list.innerHTML='';
   list.style.cssText='display:flex;flex-direction:column;overflow:hidden;';
 
   // ── 요일 헤더 ──
   const hdrRow=list.appendChild(el('div','week-hdr-row'));
   const timePad=hdrRow.appendChild(el('div'));timePad.style.cssText='width:44px;flex-shrink:0;background:var(--bg1);border-right:1px solid var(--bd);position:sticky;left:0;z-index:5;';
 
-  wd.forEach((d,i)=>{
+  displayDays.forEach((d,i)=>{
     const isT=isToday(d);
     const hdr=hdrRow.appendChild(el('div','week-col-hdr'+(isT?' today':'')));
     hdr.dataset.hdrcol='1';
@@ -1277,9 +1312,9 @@ function renderTimes(){
     const dot=hdr.appendChild(el('div','week-col-dot'));dot.style.visibility=hasSch?'visible':'hidden';
   });
 
-  // ── 바디 (시간 + 7열 그리드) ──
+  // ── 바디 (시간 + 열 그리드) ──
   const body=list.appendChild(el('div','week-body'));
-  body.style.cssText='flex:1;display:flex;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;';
+  body.style.cssText='flex:1;display:flex;overflow-y:auto;'+(calView==='day'?'overflow-x:hidden;':'overflow-x:auto;')+'-webkit-overflow-scrolling:touch;';
   initSwipe(body);
   initCalPinch(body);
   requestAnimationFrame(()=>{body.scrollTop=_savedScrollTop;body.scrollLeft=_savedScrollLeft;});
@@ -1296,7 +1331,7 @@ function renderTimes(){
   timeCol.style.position='sticky';timeCol.style.left='0';timeCol.style.zIndex='4';timeCol.style.background='var(--bg1)';
 
   // 날짜별 컬럼 (data-daycol 마킹)
-  const dayCols=wd.map((d,i)=>{
+  const dayCols=displayDays.map((d,i)=>{
     const col=body.appendChild(el('div',''));
     col.dataset.daycol='1';
     col.style.cssText='flex:1;min-width:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;';
@@ -1312,7 +1347,7 @@ function renderTimes(){
     tlbl.textContent=half?'30':time;
     tlbl.style.cssText='font-size:10px;background:var(--bg1);'+(half?'color:#444;font-weight:400;':'color:var(--t3);font-weight:700;')+'padding:4px 4px 0;text-align:right;white-space:nowrap;min-height:44px;border-bottom:'+(half?'2px solid #3a3a3a':'1px dashed #252525')+';';
 
-    wd.forEach((d,i)=>{
+    displayDays.forEach((d,i)=>{
       const key=dateKey(d);
       const cell=dayCols[i].appendChild(el('div','week-cell'));
       cell.style.cssText='min-height:44px;border-bottom:'+(half?'2px solid #3a3a3a':'1px dashed #252525')+';padding:2px;display:flex;flex-direction:column;gap:1px;position:relative;overflow:visible;';
@@ -1385,9 +1420,10 @@ function applyCalZoom(){
   const TIME_COL_W=44;
   const totalW=body.clientWidth||window.innerWidth;
   const availW=totalW-TIME_COL_W;
+  const numCols=calView==='day'?1:7;
   // 기본 열 너비: 화면을 딱 채우는 크기. scale 적용하면 넘칠 수 있음
-  const baseColW=Math.floor(availW/7);
-  const colW=Math.max(28, Math.round(baseColW*Math.max(calScale,1)));
+  const baseColW=Math.floor(availW/numCols);
+  const colW=calView==='day'?availW:Math.max(28, Math.round(baseColW*Math.max(calScale,1)));
 
   // day columns
   body.querySelectorAll('[data-daycol]').forEach(col=>{
@@ -1403,8 +1439,8 @@ function applyCalZoom(){
       hdr.style.width=colW+'px';
       hdr.style.minWidth=colW+'px';
     });
-    // hdrRow 전체 너비 (timePad sticky + 7 cols)
-    hdrRow.style.minWidth=(TIME_COL_W + colW*7)+'px';
+    // hdrRow 전체 너비 (timePad sticky + N cols)
+    hdrRow.style.minWidth=(TIME_COL_W + colW*numCols)+'px';
   }
 }
 
@@ -2428,11 +2464,12 @@ function renderAdm(){
   if(!curUser){const lb=ct.appendChild(el('div','lockbox'));lb.appendChild(mk('p','','관리 탭은 로그인이 필요합니다.'));lb.appendChild(mk('small','','관리자로 등록된 계정으로 로그인해주세요.'));lb.appendChild(mk('button','','로그인하기')).onclick=()=>openLogin(()=>renderAdm());return;}
   // 트레이너도 접근 가능 (직원관리·설정 탭은 관리자 전용)
   const isAdmin=isAdminUser();
-  if(!isAdmin&&(admSubTab==='staff'||admSubTab==='code'))admSubTab='pkg';
+  if(!isAdmin&&(admSubTab==='staff'||admSubTab==='code'||admSubTab==='book'))admSubTab='pkg';
+  if(admSubTab==='book')admSubTab='pkg';
   const bar=ct.appendChild(el('div','adminbar'));bar.appendChild(mk('span','abadge',isAdmin?'관리자 모드':'센터 설정'));
   const stbar=ct.appendChild(el('div','admsubtabs'));
-  const admTabOrder=isAdmin?['staff','pkg','book','avail','code']:['pkg','book','avail'];
-  const tabList=isAdmin?[['staff','직원'],['pkg','상품관리'],['book','예약관리'],['avail','예약설정'],['code','설정']]:[['pkg','상품관리'],['book','예약관리'],['avail','예약설정']];
+  const admTabOrder=isAdmin?['staff','pkg','avail','code']:['pkg','avail'];
+  const tabList=isAdmin?[['staff','직원'],['pkg','상품관리'],['avail','예약설정'],['code','설정']]:[['pkg','상품관리'],['avail','예약설정']];
   tabList.forEach(([id,lbl])=>{stbar.appendChild(mk('button','admsubtab'+(admSubTab===id?' on':''),lbl)).onclick=()=>{
     const oldIdx=admTabOrder.indexOf(admSubTab);const newIdx=admTabOrder.indexOf(id);
     window._admSlideDir=newIdx>oldIdx?'right':'left';admSubTab=id;renderAdm();
@@ -2521,17 +2558,19 @@ function renderAdmBookings(ct){
   db2.collection('og10_bk').orderBy('requestedAt','desc').limit(50).get().then(snap=>{
     ct.innerHTML='';
     ct.appendChild(mk('div','sec','예약 신청 현황'));
-    const docs=snap.docs.map(d=>({id:d.id,...d.data()}));
-    if(!docs.length){ct.appendChild(mk('div','sal-empty','예약 신청이 없습니다.'));return;}
+    const docs=snap.docs.map(d=>({id:d.id,...d.data()})).filter(b=>b.source!=='crm');
+    if(!docs.length){ct.appendChild(mk('div','sal-empty','회원 예약 신청이 없습니다.'));return;}
     const statusMap={pending:'대기',approved:'확정',rejected:'거절'};
     docs.forEach(b=>{
+      const reqAt=b.requestedAt?(b.requestedAt.toDate?b.requestedAt.toDate():new Date(b.requestedAt)):null;
+      const reqStr=reqAt?reqAt.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})+' '+reqAt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}):'-';
       const card=ct.appendChild(el('div','stcard'));card.style.cssText='flex-direction:column;gap:8px;align-items:flex-start;';
       const hdr=card.appendChild(el('div'));hdr.style.cssText='display:flex;justify-content:space-between;width:100%;align-items:center;';
       hdr.appendChild(mk('div','stnm',b.memberName+' · '+b.date+' '+b.time));
       const badge=hdr.appendChild(mk('span','',statusMap[b.status]||'대기'));
       badge.style.cssText='font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;background:'+(b.status==='approved'?'rgba(61,200,122,.15)':b.status==='rejected'?'rgba(248,113,113,.15)':'rgba(251,191,36,.15)')+';color:'+(b.status==='approved'?'#3dc87a':b.status==='rejected'?'#f87171':'#fbbf24')+';';
       const info=card.appendChild(el('div'));info.style.cssText='font-size:12px;color:var(--t2);';
-      info.textContent='트레이너: '+(trainers.find(t=>t.id===b.trainerId)||{name:'-'}).name+' · '+b.duration+'분'+(b.memo?' · '+b.memo:'');
+      info.textContent='신청: '+reqStr+' · 트레이너: '+(trainers.find(t=>t.id===b.trainerId)||{name:'-'}).name+' · '+b.duration+'분'+(b.memo?' · '+b.memo:'');
       if(b.rejectReason&&b.status==='rejected'){
         const reasonRow=card.appendChild(el('div'));
         reasonRow.style.cssText='font-size:12px;color:#f87171;padding:6px 10px;background:rgba(248,113,113,.08);border-radius:8px;margin-top:2px;';
@@ -3775,6 +3814,7 @@ const MOB_NAV = [
   {id:'sch', label:'스케줄'},
   {id:'mem', label:'고객관리'},
   {id:'sal', label:'매출관리'},
+  {id:'bk', label:'예약관리'},
   {id:'adm', label:'센터설정'},
 ];
 
@@ -3838,6 +3878,8 @@ function switchMobPage(id){
     switchTab('mem');
   } else if(id==='sal'){
     switchTab('sal');
+  } else if(id==='bk'){
+    switchTab('bk');
   } else if(id==='adm'){
     switchTab('adm');
   }
@@ -4105,58 +4147,62 @@ function renderMobHome(){
       +'</div>';
   });
 
-  // ── 트레이너별 회원수 ──
-  sec('트레이너별 회원수', body=>{
-    const maxCnt=Math.max(1,...Object.values(trStats).map(t=>t.cnt));
-    Object.values(trStats).sort((a,b)=>b.cnt-a.cnt).forEach(t=>{
-      const row=body.appendChild(document.createElement('div'));
-      row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:9px;';
-      row.innerHTML='<span style="font-size:12px;color:#c4cde8;width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+t.name+'</span>'
-        +'<div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;">'
-        +'<div style="height:100%;width:'+Math.round(t.cnt/maxCnt*100)+'%;background:'+t.color+';border-radius:4px;"></div></div>'
-        +'<span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:36px;text-align:right;">'+t.cnt+'명</span>';
+  // ── 트레이너별 회원수 / 매출 / 유입경로 (관리자만) ──
+  if(isAdminUser()){
+    sec('트레이너별 회원수', body=>{
+      const maxCnt=Math.max(1,...Object.values(trStats).map(t=>t.cnt));
+      Object.values(trStats).sort((a,b)=>b.cnt-a.cnt).forEach(t=>{
+        const row=body.appendChild(document.createElement('div'));
+        row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:9px;';
+        row.innerHTML='<span style="font-size:12px;color:#c4cde8;width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+t.name+'</span>'
+          +'<div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;">'
+          +'<div style="height:100%;width:'+Math.round(t.cnt/maxCnt*100)+'%;background:'+t.color+';border-radius:4px;"></div></div>'
+          +'<span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:36px;text-align:right;">'+t.cnt+'명</span>';
+      });
+      if(!trainers.length)body.innerHTML='<div style="color:#2a2d45;font-size:12px;">등록된 직원 없음</div>';
     });
-    if(!trainers.length)body.innerHTML='<div style="color:#2a2d45;font-size:12px;">등록된 직원 없음</div>';
-  });
 
-  // ── 트레이너별 이번달 누적매출 ──
-  sec('트레이너별 이번달 매출', body=>{
-    const maxRev=Math.max(1,...Object.values(trStats).map(t=>t.rev));
-    Object.values(trStats).sort((a,b)=>b.rev-a.rev).forEach(t=>{
-      const row=body.appendChild(document.createElement('div'));
-      row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:9px;';
-      row.innerHTML='<span style="font-size:12px;color:#c4cde8;width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+t.name+'</span>'
-        +'<div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;">'
-        +'<div style="height:100%;width:'+Math.round(t.rev/maxRev*100)+'%;background:'+t.color+';border-radius:4px;"></div></div>'
-        +'<span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:52px;text-align:right;">'+(t.rev>0?(t.rev/10000).toFixed(1)+'만':'-')+'</span>';
+    sec('트레이너별 이번달 매출', body=>{
+      const maxRev=Math.max(1,...Object.values(trStats).map(t=>t.rev));
+      Object.values(trStats).sort((a,b)=>b.rev-a.rev).forEach(t=>{
+        const row=body.appendChild(document.createElement('div'));
+        row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:9px;';
+        row.innerHTML='<span style="font-size:12px;color:#c4cde8;width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+t.name+'</span>'
+          +'<div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;">'
+          +'<div style="height:100%;width:'+Math.round(t.rev/maxRev*100)+'%;background:'+t.color+';border-radius:4px;"></div></div>'
+          +'<span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:52px;text-align:right;">'+(t.rev>0?(t.rev/10000).toFixed(1)+'만':'-')+'</span>';
+      });
+      if(!trainers.length)body.innerHTML='<div style="color:#2a2d45;font-size:12px;">등록된 직원 없음</div>';
     });
-    if(!trainers.length)body.innerHTML='<div style="color:#2a2d45;font-size:12px;">등록된 직원 없음</div>';
-  });
 
-  // ── 유입경로 현황 ──
-  sec('유입경로 현황', body=>{
-    const entries=Object.entries(inflowMap).sort((a,b)=>b[1]-a[1]);
-    const maxV=Math.max(1,...entries.map(e=>e[1]));
-    if(!entries.length){body.innerHTML='<div style="color:#2a2d45;font-size:12px;">데이터 없음</div>';return;}
-    entries.forEach(([k,v])=>{
-      const row=body.appendChild(document.createElement('div'));
-      row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:9px;';
-      row.innerHTML='<span style="font-size:12px;color:#c4cde8;width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+k+'</span>'
-        +'<div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;">'
-        +'<div style="height:100%;width:'+Math.round(v/maxV*100)+'%;background:'+(infC[k]||'#818cf8')+';border-radius:4px;"></div></div>'
-        +'<span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:36px;text-align:right;">'+v+'명</span>';
+    sec('유입경로 현황', body=>{
+      const entries=Object.entries(inflowMap).sort((a,b)=>b[1]-a[1]);
+      const maxV=Math.max(1,...entries.map(e=>e[1]));
+      if(!entries.length){body.innerHTML='<div style="color:#2a2d45;font-size:12px;">데이터 없음</div>';return;}
+      entries.forEach(([k,v])=>{
+        const row=body.appendChild(document.createElement('div'));
+        row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:9px;';
+        row.innerHTML='<span style="font-size:12px;color:#c4cde8;width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+k+'</span>'
+          +'<div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;">'
+          +'<div style="height:100%;width:'+Math.round(v/maxV*100)+'%;background:'+(infC[k]||'#818cf8')+';border-radius:4px;"></div></div>'
+          +'<span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:36px;text-align:right;">'+v+'명</span>';
+      });
     });
-  });
+  }
 
-  // ── 오늘 일정 ──
-  const todayList=slots.filter(s=>s.date===todayStr).sort((a,b)=>a.time.localeCompare(b.time));
+  // ── 오늘 일정 (트레이너는 본인 것만, 전체 표시) ──
+  const todayList=slots.filter(s=>s.date===todayStr&&(isAdminUser()||!curUser||s.trainerId===curUser)).sort((a,b)=>a.time.localeCompare(b.time));
   const schDiv=hp.appendChild(document.createElement('div'));
   schDiv.style.cssText='margin:0 16px 14px;';
-  schDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:#4a5068;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">오늘 일정</div>';
+  const schTtl=schDiv.appendChild(document.createElement('div'));
+  schTtl.style.cssText='font-size:11px;font-weight:700;color:#4a5068;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;';
+  schTtl.textContent='오늘 일정';
   if(!todayList.length){
-    schDiv.innerHTML+='<div style="font-size:13px;color:#2a2d45;text-align:center;padding:20px;background:#111318;border:1px solid #1e2026;border-radius:12px;">오늘 등록된 일정이 없습니다</div>';
+    const emp=schDiv.appendChild(document.createElement('div'));
+    emp.style.cssText='font-size:13px;color:#2a2d45;text-align:center;padding:20px;background:#111318;border:1px solid #1e2026;border-radius:12px;';
+    emp.textContent='오늘 등록된 일정이 없습니다';
   } else {
-    todayList.slice(0,5).forEach(s=>{
+    todayList.forEach(s=>{
       const tr3=trainers.find(t=>t.id===s.trainerId);const mb=s.memberId?members.find(m=>m.id===s.memberId):null;
       const col=tr3?getTrainerColor(tr3):{bg:'#1e2026',text:'#8892aa',dot:'#8892aa'};
       const item=schDiv.appendChild(document.createElement('div'));
@@ -4165,9 +4211,9 @@ function renderMobHome(){
         +'<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:700;color:#c4cde8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(mb?mb.name:(s.memo||s.type||'일정'))+'</div>'
         +'<div style="font-size:11px;color:#4a5068;">'+(tr3?tr3.name:'')+'  '+(s.type||'')+'</div></div>'
         +'<div style="font-size:13px;font-weight:700;color:#e2e8f0;flex-shrink:0;">'+s.time.slice(0,5)+'</div>';
-      item.onclick=()=>openSlotDetail(s.id);
+      const _sid=s.id;
+      item.onclick=()=>{switchMobPage('sch');setTimeout(()=>openSlotDetail(_sid),150);};
     });
-    if(todayList.length>5)schDiv.innerHTML+='<div style="font-size:12px;color:#3a3f58;text-align:center;padding:8px;">+ '+(todayList.length-5)+'건 더보기</div>';
   }
 
   // ── 만료임박 ──
@@ -4193,7 +4239,8 @@ const PC_NAV=[
   {id:'customers',label:'고객관리',icon:'',subs:[{id:'members',label:'고객 관리'},{id:'consult',label:'상담 관리'},{id:'consult_hist',label:'상담 내역'},{id:'noweek',label:'주간미수업'},{id:'nextweek',label:'차주미수업'}]},
   {id:'calendar',label:'캘린더',icon:''},
   {id:'sales',label:'매출관리',icon:'',subs:[{id:'all',label:'매출내역'},{id:'bypkg',label:'상품별내역'},{id:'bypay',label:'결제수단별'},{id:'sessions',label:'세션로그'},{id:'refund',label:'환불내역'}]},
-  {id:'settings',label:'센터설정',icon:'',subs:[{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'},{id:'book',label:'예약관리'},{id:'avail',label:'예약설정'}]},
+  {id:'bookings',label:'예약관리',icon:''},
+  {id:'settings',label:'센터설정',icon:'',subs:[{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'},{id:'avail',label:'예약설정'}]},
 ];
 function _mk(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;}
 function initPcNav(){
@@ -4279,6 +4326,7 @@ function renderPcContent(){
   }
   else if(pcV==='calendar')renderPcCal(ct,acts);
   else if(pcV==='sales')renderPcSales(ct,acts);
+  else if(pcV==='bookings')renderPcBookings(ct,acts);
   else if(pcV==='settings')renderPcSettings(ct,acts);
 }
 function pcMbStatus(mb){
@@ -4421,8 +4469,8 @@ function renderPcHome(ct,acts){
   nextWeekCard.onmouseleave=()=>{nextWeekCard.style.background='';nextWeekCard.style.borderColor='';};
   nextWeekCard.onclick=()=>{const _n=document.getElementById('pc-nav');if(_n)_n._col=new Set();pcV='customers';pcSV='nextweek';custSV='nextweek';initPcNav();renderPcContent();};
 
-  // ── 2열: 성비 + 유입경로 ──
-  const g2=ct.appendChild(_mk('div','pc-dash-g2'));
+  // ── 2열: 성비 + 유입경로 (유입경로는 관리자만) ──
+  const g2=ct.appendChild(_mk('div',isAdminUser()?'pc-dash-g2':''));
 
   const genderCard=g2.appendChild(_mk('div','pc-card pc-card-anim'));
   const tot2=total||1;
@@ -4439,39 +4487,41 @@ function renderPcHome(ct,acts){
     +(unknownC>0?'<span style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5068;"><span style="width:10px;height:10px;border-radius:50%;background:#2a2d45;display:inline-block;"></span>미입력 '+unknownC+'명</span>':'')
     +'</div>';
 
-  const ic=g2.appendChild(_mk('div','pc-card pc-card-anim'));
-  const entries=Object.entries(inflowMap).sort((a,b)=>b[1]-a[1]);
-  const maxInf=Math.max(1,...entries.map(e=>e[1]));
-  let inflowHtml='<div class="pc-card-ttl">유입경로 현황</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
-  entries.forEach(([k,v])=>{inflowHtml+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:#c4cde8;width:64px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+k+'</span><div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+Math.round(v/maxInf*100)+'%;background:'+(infC[k]||'#818cf8')+';border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:36px;text-align:right;">'+v+'명</span></div>';});
-  if(!entries.length)inflowHtml+='<div style="color:#252830;font-size:12px;">데이터 없음</div>';
-  ic.innerHTML=inflowHtml+'</div>';
+  if(isAdminUser()){
+    const ic=g2.appendChild(_mk('div','pc-card pc-card-anim'));
+    const entries=Object.entries(inflowMap).sort((a,b)=>b[1]-a[1]);
+    const maxInf=Math.max(1,...entries.map(e=>e[1]));
+    let inflowHtml='<div class="pc-card-ttl">유입경로 현황</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
+    entries.forEach(([k,v])=>{inflowHtml+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:#c4cde8;width:64px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+k+'</span><div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+Math.round(v/maxInf*100)+'%;background:'+(infC[k]||'#818cf8')+';border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:36px;text-align:right;">'+v+'명</span></div>';});
+    if(!entries.length)inflowHtml+='<div style="color:#252830;font-size:12px;">데이터 없음</div>';
+    ic.innerHTML=inflowHtml+'</div>';
 
-  // ── 3열: 트레이너별 회원수 / 트레이너별 이번달 매출 / 이번달 매출요약 ──
-  const g3=ct.appendChild(_mk('div','pc-dash-g3'));
+    // ── 3열: 트레이너별 회원수 / 트레이너별 이번달 매출 / 이번달 매출요약 ──
+    const g3=ct.appendChild(_mk('div','pc-dash-g3'));
 
-  const tc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
-  const trList=Object.values(trStats).sort((a,b)=>b.cnt-a.cnt);
-  const maxCnt=Math.max(1,...trList.map(t=>t.cnt));
-  let trHtml='<div class="pc-card-ttl">트레이너별 회원수</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
-  trList.forEach(t=>{trHtml+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:#c4cde8;width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+t.name+'</span><div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+Math.round(t.cnt/maxCnt*100)+'%;background:'+t.color+';border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:36px;text-align:right;">'+t.cnt+'명</span></div>';});
-  if(!trainers.length)trHtml+='<div style="color:#252830;font-size:12px;">직원 없음</div>';
-  tc.innerHTML=trHtml+'</div>';
+    const tc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
+    const trList=Object.values(trStats).sort((a,b)=>b.cnt-a.cnt);
+    const maxCnt=Math.max(1,...trList.map(t=>t.cnt));
+    let trHtml='<div class="pc-card-ttl">트레이너별 회원수</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
+    trList.forEach(t=>{trHtml+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:#c4cde8;width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+t.name+'</span><div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+Math.round(t.cnt/maxCnt*100)+'%;background:'+t.color+';border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:36px;text-align:right;">'+t.cnt+'명</span></div>';});
+    if(!trainers.length)trHtml+='<div style="color:#252830;font-size:12px;">직원 없음</div>';
+    tc.innerHTML=trHtml+'</div>';
 
-  const trc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
-  const trRevList=Object.values(trStats).sort((a,b)=>b.rev-a.rev);
-  const maxRev=Math.max(1,...trRevList.map(t=>t.rev));
-  let trRevHtml='<div class="pc-card-ttl">트레이너별 이번달 매출</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
-  trRevList.forEach(t=>{trRevHtml+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:#c4cde8;width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+t.name+'</span><div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+Math.round(t.rev/maxRev*100)+'%;background:'+t.color+';border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:52px;text-align:right;">'+(t.rev>0?(t.rev/10000).toFixed(1)+'만':'-')+'</span></div>';});
-  if(!trainers.length)trRevHtml+='<div style="color:#252830;font-size:12px;">직원 없음</div>';
-  trc.innerHTML=trRevHtml+'</div>';
+    const trc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
+    const trRevList=Object.values(trStats).sort((a,b)=>b.rev-a.rev);
+    const maxRev=Math.max(1,...trRevList.map(t=>t.rev));
+    let trRevHtml='<div class="pc-card-ttl">트레이너별 이번달 매출</div><div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">';
+    trRevList.forEach(t=>{trRevHtml+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:#c4cde8;width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">'+t.name+'</span><div style="flex:1;height:8px;background:#1a1c22;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+Math.round(t.rev/maxRev*100)+'%;background:'+t.color+';border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:52px;text-align:right;">'+(t.rev>0?(t.rev/10000).toFixed(1)+'만':'-')+'</span></div>';});
+    if(!trainers.length)trRevHtml+='<div style="color:#252830;font-size:12px;">직원 없음</div>';
+    trc.innerHTML=trRevHtml+'</div>';
 
-  const sc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
-  sc.innerHTML='<div class="pc-card-ttl">이번달 수업권 매출</div>'
-    +'<div style="font-size:28px;font-weight:800;color:#e2e8f0;margin:8px 0 4px;">'+mRev.toLocaleString()+'원</div>'
-    +'<div style="font-size:12px;color:#4a5068;margin-bottom:16px;">수업권 '+mCnt+'건</div>'
-    +'<div class="pc-bar" style="height:8px;"><div class="pc-bar-fill" style="width:'+Math.min(mRev/2000000*100,100).toFixed(1)+'%;background:#818cf8;"></div></div>'
-    +'<div style="display:flex;justify-content:space-between;font-size:11px;color:#252830;margin-top:5px;"><span>'+(m2+1)+'월</span><span>목표 200만원</span></div>';
+    const sc=g3.appendChild(_mk('div','pc-card pc-card-anim'));
+    sc.innerHTML='<div class="pc-card-ttl">이번달 수업권 매출</div>'
+      +'<div style="font-size:28px;font-weight:800;color:#e2e8f0;margin:8px 0 4px;">'+mRev.toLocaleString()+'원</div>'
+      +'<div style="font-size:12px;color:#4a5068;margin-bottom:16px;">수업권 '+mCnt+'건</div>'
+      +'<div class="pc-bar" style="height:8px;"><div class="pc-bar-fill" style="width:'+Math.min(mRev/2000000*100,100).toFixed(1)+'%;background:#818cf8;"></div></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:11px;color:#252830;margin-top:5px;"><span>'+(m2+1)+'월</span><span>목표 200만원</span></div>';
+  }
 }
 // ═══ 고객관리 전체 시스템 ═══
 
@@ -5427,14 +5477,14 @@ function renderPcBookings(ct,acts){
   const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
   const thead=tbl.appendChild(document.createElement('thead'));
   const hr=thead.appendChild(document.createElement('tr'));
-  ['회원명','트레이너','날짜','시간','수업시간','메모','상태','처리'].forEach(h=>{hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));});
+  ['신청일시','회원명','트레이너','날짜','시간','수업시간','메모','상태','처리'].forEach(h=>{hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));});
   const tbody=tbl.appendChild(document.createElement('tbody'));
   const loadRow=tbody.appendChild(document.createElement('tr'));
-  const ltd=loadRow.appendChild(document.createElement('td'));ltd.colSpan=8;ltd.style.cssText='text-align:center;padding:32px;color:#4a5068;';ltd.textContent='로딩 중...';
+  const ltd=loadRow.appendChild(document.createElement('td'));ltd.colSpan=9;ltd.style.cssText='text-align:center;padding:32px;color:#4a5068;';ltd.textContent='로딩 중...';
   db2.collection('og10_bk').orderBy('requestedAt','desc').limit(100).get().then(snap=>{
     tbody.innerHTML='';
-    const docs=snap.docs.map(d=>({id:d.id,...d.data()}));
-    if(!docs.length){const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=8;td.style.cssText='text-align:center;padding:48px;color:#4a5068;';td.textContent='예약 신청이 없습니다.';return;}
+    const docs=snap.docs.map(d=>({id:d.id,...d.data()})).filter(b=>b.source!=='crm');
+    if(!docs.length){const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=9;td.style.cssText='text-align:center;padding:48px;color:#4a5068;';td.textContent='회원 예약 신청이 없습니다.';return;}
     const statusLbl={pending:'대기',approved:'확정',rejected:'거절'};
     const statusColor={pending:'#fbbf24',approved:'#3dc87a',rejected:'#f87171'};
     const statusBg={pending:'rgba(251,191,36,.12)',approved:'rgba(61,200,122,.12)',rejected:'rgba(248,113,113,.12)'};
@@ -5442,7 +5492,9 @@ function renderPcBookings(ct,acts){
       const row=tbody.appendChild(document.createElement('tr'));
       const trName=(trainers.find(t=>t.id===b.trainerId)||{name:'-'}).name;
       const st=b.status||'pending';
-      [b.memberName||'-',trName,b.date||'-',b.time||'-',(b.duration||'-')+'분',b.memo||'-'].forEach(v=>{row.appendChild(Object.assign(document.createElement('td'),{textContent:v}));});
+      const reqAt=b.requestedAt?(b.requestedAt.toDate?b.requestedAt.toDate():new Date(b.requestedAt)):null;
+      const reqStr=reqAt?reqAt.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})+' '+reqAt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}):'-';
+      [reqStr,b.memberName||'-',trName,b.date||'-',b.time||'-',(b.duration||'-')+'분',b.memo||'-'].forEach(v=>{row.appendChild(Object.assign(document.createElement('td'),{textContent:v}));});
       // 상태 뱃지
       const stTd=row.appendChild(document.createElement('td'));
       const badge=stTd.appendChild(document.createElement('span'));
@@ -5486,7 +5538,7 @@ function renderPcBookings(ct,acts){
         actTd.appendChild(Object.assign(document.createElement('span'),{textContent:'-'})).style.cssText='color:#4a5068;font-size:12px;';
       }
     });
-  }).catch(()=>{tbody.innerHTML='';const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=8;td.style.cssText='text-align:center;padding:32px;color:#f87171;';td.textContent='로드 실패. 다시 시도해주세요.';});
+  }).catch(()=>{tbody.innerHTML='';const tr3=tbody.appendChild(document.createElement('tr'));const td=tr3.appendChild(document.createElement('td'));td.colSpan=9;td.style.cssText='text-align:center;padding:32px;color:#f87171;';td.textContent='로드 실패. 다시 시도해주세요.';});
 }
 
 // ── 센터설정 ─────────────────────────────────────────────────────────────
@@ -5494,12 +5546,10 @@ function renderPcSettings(ct,acts){
   if(!pcSV)pcSV='staff';
   const stbar2=document.getElementById('pc-subtabbar');
   if(stbar2){stbar2.innerHTML='';stbar2.style.display='flex';stbar2.style.padding='0 24px';
-    [{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'},{id:'book',label:'예약관리'},{id:'avail',label:'예약설정'}].forEach(s=>{const tab=stbar2.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(pcSV===s.id?' on':''),textContent:s.label}));tab.onclick=()=>{pcSV=s.id;initPcNav();renderPcContent();};});
+    [{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'},{id:'avail',label:'예약설정'}].forEach(s=>{const tab=stbar2.appendChild(Object.assign(document.createElement('div'),{className:'pc-stab'+(pcSV===s.id?' on':''),textContent:s.label}));tab.onclick=()=>{pcSV=s.id;initPcNav();renderPcContent();};});
   }
   if(pcSV==='avail'){
     renderAdmAvail(ct);
-  } else if(pcSV==='book'){
-    renderPcBookings(ct,acts);
   } else if(pcSV==='staff'){
     if(acts){acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 직원 추가'})).onclick=()=>openPcAddStaff();}
     const tw=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-tw'}));const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
