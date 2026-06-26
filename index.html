@@ -1246,7 +1246,8 @@ function initSwipe(el2){
       el2.style.transform='translateX('+(dir<0?w:-w)+'px)';
       setTimeout(()=>{
         el2.style.transition='none';el2.style.transform='';
-        weekOff+=dir;renderDays();renderTimes();
+        if(calView==='day'){selDay+=dir;if(selDay<0){weekOff--;selDay=6;}else if(selDay>6){weekOff++;selDay=0;}}else{weekOff+=dir;}
+        renderDays();renderTimes();
         const newBody=document.querySelector('.week-body');
         if(newBody){
           newBody.style.transition='none';
@@ -1269,16 +1270,19 @@ function initSwipe(el2){
   },{passive:true});
 }
 
+function _applyNavDir(dir){
+  if(calView==='day'){selDay+=dir;if(selDay<0){weekOff--;selDay=6;}else if(selDay>6){weekOff++;selDay=0;}}else{weekOff+=dir;}
+}
 function animWeekChange(dir){
   const body=document.querySelector('.week-body');
-  if(!body||swAnimating){weekOff+=dir;renderDays();renderTimes();return;}
+  if(!body||swAnimating){_applyNavDir(dir);renderDays();renderTimes();return;}
   const w=body.offsetWidth||window.innerWidth;
   swAnimating=true;
   body.style.transition='transform .22s cubic-bezier(.4,0,.2,1)';
   body.style.transform='translateX('+(dir>0?-w:w)+'px)';
   setTimeout(()=>{
     body.style.transition='none';body.style.transform='';
-    weekOff+=dir;renderDays();renderTimes();
+    _applyNavDir(dir);renderDays();renderTimes();
     const nb=document.querySelector('.week-body');
     if(nb){
       nb.style.transition='none';nb.style.transform='translateX('+(dir>0?w:-w)+'px)';
