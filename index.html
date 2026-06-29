@@ -882,6 +882,7 @@ function initFB(){
   <div class="pg" id="pg-adm"><div class="pad"></div></div>
 <div class="pg" id="pg-sal"><div class="pad"></div></div>
 <div class="pg" id="pg-bk"><div class="pad"></div></div>
+<div class="pg" id="pg-ana"><div class="pad"></div></div>
   
 <button class="fab" id="fab" onclick="reqLogin(()=>openAddSheet())">+</button>
   <div id="cal-cont"></div>
@@ -1139,7 +1140,7 @@ function updChip(){
 // ── TABS ──
 
 function switchTab(id){
-  ['sch','mem','not','adm','sal','bk'].forEach(x=>{
+  ['sch','mem','not','adm','sal','bk','ana'].forEach(x=>{
     const pg=document.getElementById('pg-'+x);if(pg)pg.classList.toggle('show',x===id);
     const tb=document.getElementById('tb-'+x);
     if(tb)tb.classList.toggle('on',x===id);
@@ -3344,7 +3345,7 @@ function renderSales(){
       if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
       const wb=XLSX.utils.book_new();
       const wsData=[['TheLine CRM - 세션로그 (이용권별)'],['기간: '+salStartDate+' ~ '+salEndDate],[]];
-      wsData.push(['계약일','회원명','세션','계약료','세션단가','수업료(50%)','50%','누적진행(당월제외)','이달수업','잔여수업','정산수업료']);
+      wsData.push(['계약일','회원명','세션','계약료','부가세 전 계약료','세션단가','수업료(50%)','50%','누적진행(당월제외)','이달수업','잔여수업','정산수업료']);
       const sdM=new Date(salStartDate);
       const edM=new Date(salEndDate);edM.setHours(23,59,59);
       const planMapM={};
@@ -3378,7 +3379,7 @@ function renderSales(){
         const totalUsed=getPlanUsed(plan.id);
         const remain=totalSes-totalUsed;
         const contractDate=plan.paymentDate||(plan.addedAt?new Date(plan.addedAt).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}):'-');
-        wsData.push([contractDate,mb.name,totalSes,paid,unitP,lessonF,'50%',prevUsed,thisUsed,remain,thisUsed*lessonF]);
+        wsData.push([contractDate,mb.name,totalSes,paid,paid/1.1,unitP,lessonF,'50%',prevUsed,thisUsed,remain,thisUsed*lessonF]);
       });
       const ws=XLSX.utils.aoa_to_sheet(wsData);XLSX.utils.book_append_sheet(wb,ws,'세션로그');
       XLSX.writeFile(wb,'세션로그_'+salStartDate+'_'+salEndDate+'.xlsx');
@@ -3742,7 +3743,7 @@ function dlSalesCSV(rows,total){
   wsData.push([null,periodStr,null,null,null,null,null]);
   wsData.push([null,null,null,null,null,null,null]);
   if(isSes){
-    wsData.push([null,'계약일','회원명','세션','계약료','세션단가','수업료']);
+    wsData.push([null,'계약일','회원명','세션','계약료','부가세 전 계약료','세션단가','수업료']);
   } else {
     wsData.push([null,'등록일','트레이너','회원명','연락처','유입','결제수단','수업권','결제금액','진행세션','잔여세션']);
   }
@@ -3750,7 +3751,7 @@ function dlSalesCSV(rows,total){
     if(isSes){
       const mbS=members.find(m=>m.name===r.memberName&&m.trainerId===r.trainerId);
       const planS=mbS?(mbS.plans||[]).find(p=>(p.sessions+'회권')===r.planLabel):null;
-      wsData.push([null,r.date,r.memberName,planS?planS.sessions:0,planS?planS.totalPrice:0,r.revenue,r.revenue]);
+      wsData.push([null,r.date,r.memberName,planS?planS.sessions:0,planS?planS.totalPrice:0,(planS?planS.totalPrice:0)/1.1,r.revenue,r.revenue]);
     } else {
       const mbR=r.memberId?members.find(m=>m.id===r.memberId):members.find(m=>m.name===r.memberName);
       const planR=r.planId&&mbR?(mbR.plans||[]).find(p=>p.id===r.planId):null;
@@ -3761,11 +3762,11 @@ function dlSalesCSV(rows,total){
     }
   });
   if(isSes){
-    wsData.push([null,null,null,null,null,null,null]);
-    wsData.push([null,null,null,null,null,'합계',total]);
-    wsData.push([null,null,null,null,null,null,null]);
-    wsData.push([null,'트레이너별 요약',null,null,null,null,null]);
-    wsData.push([null,'트레이너','수업 수','합계',null,null,null]);
+    wsData.push([null,null,null,null,null,null,null,null]);
+    wsData.push([null,null,null,null,null,null,'합계',total]);
+    wsData.push([null,null,null,null,null,null,null,null]);
+    wsData.push([null,'트레이너별 요약',null,null,null,null,null,null]);
+    wsData.push([null,'트레이너','수업 수','합계',null,null,null,null]);
   } else {
     wsData.push([null,null,null,null,null,null,null,null,null,null,null]);
     wsData.push([null,null,null,null,null,null,null,null,'합계',total,null]);
@@ -3774,13 +3775,13 @@ function dlSalesCSV(rows,total){
     wsData.push([null,'트레이너','수업 수','합계',null,null,null,null,null,null,null]);
   }
   const byTr={};rows.forEach(r=>{if(!byTr[r.trainerName])byTr[r.trainerName]={cnt:0,sum:0};byTr[r.trainerName].cnt++;byTr[r.trainerName].sum+=r.revenue;});
-  if(isSes){Object.entries(byTr).forEach(([nm,d])=>wsData.push([null,nm,d.cnt,d.sum,null,null,null]));}
+  if(isSes){Object.entries(byTr).forEach(([nm,d])=>wsData.push([null,nm,d.cnt,d.sum,null,null,null,null]));}
   else{Object.entries(byTr).forEach(([nm,d])=>wsData.push([null,nm,d.cnt,d.sum,null,null,null,null,null,null,null]));}
   const ws=XLSX.utils.aoa_to_sheet(wsData);
   if(isSes){
-    ws['!cols']=[{wch:2},{wch:14},{wch:12},{wch:10},{wch:14},{wch:12},{wch:12}];
-    ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:6}},{s:{r:2,c:1},e:{r:2,c:6}}];
-    ws['!autofilter']={ref:'B5:G5'};
+    ws['!cols']=[{wch:2},{wch:14},{wch:12},{wch:10},{wch:14},{wch:14},{wch:12},{wch:12}];
+    ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:7}},{s:{r:2,c:1},e:{r:2,c:7}}];
+    ws['!autofilter']={ref:'B5:H5'};
   } else {
     ws['!cols']=[{wch:2},{wch:14},{wch:12},{wch:12},{wch:14},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:10}];
     ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:10}},{s:{r:2,c:1},e:{r:2,c:10}}];
@@ -3819,6 +3820,7 @@ const MOB_NAV = [
   {id:'mem', label:'고객관리'},
   {id:'sal', label:'매출관리'},
   {id:'bk', label:'예약관리'},
+  {id:'ana', label:'분석', adminOnly:true},
   {id:'adm', label:'센터설정'},
 ];
 
@@ -3851,6 +3853,7 @@ function renderMobNav(){
   const nav=document.getElementById('mob-nav');
   if(!nav)return; nav.innerHTML='';
   MOB_NAV.forEach(item=>{
+    if(item.adminOnly&&!isAdminUser())return;
     const isOn=mobActivePage===item.id;
     const btn=nav.appendChild(document.createElement('div'));
     btn.style.cssText='display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;border-left:3px solid '+(isOn?'#818cf8':'transparent')+';background:'+(isOn?'rgba(129,140,248,.1)':'transparent')+';font-size:15px;color:'+(isOn?'#e2e8f0':'#6b7494')+';font-weight:'+(isOn?'700':'400')+';transition:all .15s;';
@@ -3886,6 +3889,9 @@ function switchMobPage(id){
     switchTab('bk');
   } else if(id==='adm'){
     switchTab('adm');
+  } else if(id==='ana'){
+    const pg=document.getElementById('pg-ana');if(pg)pg.classList.add('show');
+    const ct=document.getElementById('pg-ana').querySelector('.pad');ct.innerHTML='';renderMobAnalytics(ct);
   }
 }
 
@@ -4244,6 +4250,7 @@ const PC_NAV=[
   {id:'calendar',label:'캘린더',icon:''},
   {id:'sales',label:'매출관리',icon:'',subs:[{id:'all',label:'매출내역'},{id:'bypkg',label:'상품별내역'},{id:'bypay',label:'결제수단별'},{id:'sessions',label:'세션로그'},{id:'refund',label:'환불내역'}]},
   {id:'bookings',label:'예약관리',icon:''},
+  {id:'analytics',label:'분석',icon:'',adminOnly:true},
   {id:'settings',label:'센터설정',icon:'',subs:[{id:'staff',label:'직원관리'},{id:'pkg',label:'상품관리'},{id:'avail',label:'예약설정'}]},
 ];
 function _mk(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;}
@@ -4252,6 +4259,7 @@ function initPcNav(){
   if(!nav._built){
     nav._built=true;
     PC_NAV.forEach(item=>{
+      if(item.adminOnly&&!isAdminUser())return;
       const el=nav.appendChild(_mk('div','pc-nav-item'));
       el.dataset.id=item.id;
       el.innerHTML=(item.icon?'<span class="ni">'+item.icon+'</span>':'')+item.label+(item.subs?'<span class="pc-nav-chevron">▾</span>':'');
@@ -4331,6 +4339,7 @@ function renderPcContent(){
   else if(pcV==='calendar')renderPcCal(ct,acts);
   else if(pcV==='sales')renderPcSales(ct,acts);
   else if(pcV==='bookings')renderPcBookings(ct,acts);
+  else if(pcV==='analytics'){if(isAdminUser())renderPcAnalytics(ct,acts);else{ct.appendChild(Object.assign(document.createElement('div'),{className:'sal-empty',textContent:'관리자만 접근할 수 있습니다.'}));}}
   else if(pcV==='settings')renderPcSettings(ct,acts);
 }
 function pcMbStatus(mb){
@@ -6249,7 +6258,7 @@ function openPcEditStaff(trId) { const tr2 = trainers.find(t => t.id === trId); 
 function openPcLogin() {
   if (curUser) {
     if (confirm('로그아웃 하시겠습니까?')) {
-      curUser = null; sv('og10_cu', null); updatePcUser(); renderPcContent();
+      curUser = null; sv('og10_cu', null); const _pn=document.getElementById('pc-nav');if(_pn){_pn._built=false;_pn.innerHTML='';} updatePcUser(); initPcNav(); renderPcContent();
     }
     return;
   }
@@ -6270,7 +6279,7 @@ function openPcLogin() {
       const tr2 = trainers.find(t => t.id === trS.value);
       if (!tr2) {errDiv.textContent = '담당자를 선택해주세요.'; return;}
       if (tr2.saban && pinI.value !== tr2.saban) {errDiv.textContent = '로그인 번호가 올바르지 않습니다.'; pinI.value=''; return;}
-      curUser = tr2.id; sv('og10_cu', curUser); close(); updatePcUser(); renderPcContent();
+      curUser = tr2.id; sv('og10_cu', curUser); const _pn2=document.getElementById('pc-nav');if(_pn2){_pn2._built=false;_pn2.innerHTML='';} close(); updatePcUser(); initPcNav(); renderPcContent();
     }
     const btns = box.appendChild(document.createElement('div')); btns.className = 'pcm-btns'; btns.style.marginTop = '20px';
     btns.appendChild(Object.assign(document.createElement('button'), {className:'pcm-btn-sec', textContent:'취소'})).onclick = close;
@@ -6279,11 +6288,145 @@ function openPcLogin() {
 }
 
 // ── 세션로그 엑셀 다운로드 ───────────────────────────────────────────────
+// ── 분석 ─────────────────────────────────────────────────────────────────
+function _anaCalc(){
+  // PT 수업권(membership 제외, sessions>0, 환불 제외)만 집계
+  const ptPlans=m=>(m.plans||[]).filter(p=>p.productType!=='membership'&&(p.sessions||0)>0&&!p.refunded);
+  // 재등록 (2회+ 등록)
+  const reregMems=members.filter(m=>ptPlans(m).length>=2);
+  // 1회만 등록한 회원 — 진행중 vs 소진 완료로 구분
+  const once=members.filter(m=>ptPlans(m).length===1);
+  const activeMems=once.filter(m=>getPlanRemain(ptPlans(m)[0])>0);   // 아직 진행중 → 분모 제외
+  const noregMems=once.filter(m=>getPlanRemain(ptPlans(m)[0])<=0);   // 소진 후 미재등록 → 실제 이탈
+  // 전환률: 소진 완료 기준만 계산
+  const denom=reregMems.length+noregMems.length;
+  const overall=denom>0?reregMems.length/denom*100:0;
+  const byTr=trainers.map(tr=>{
+    const trMems=members.filter(m=>m.trainerId===tr.id);
+    const rereg=trMems.filter(m=>ptPlans(m).length>=2);
+    const trOnce=trMems.filter(m=>ptPlans(m).length===1);
+    const trActive=trOnce.filter(m=>getPlanRemain(ptPlans(m)[0])>0);
+    const trNoreg=trOnce.filter(m=>getPlanRemain(ptPlans(m)[0])<=0);
+    const d=rereg.length+trNoreg.length;
+    const rate=d>0?rereg.length/d*100:0;
+    return{tr,rereg:rereg.length,active:trActive.length,noreg:trNoreg.length,total:rereg.length+trOnce.length,rate};
+  }).filter(d=>d.total>0).sort((a,b)=>b.rate-a.rate);
+  const noregList=noregMems.map(m=>{
+    const pp=ptPlans(m);
+    const lastDate=pp.reduce((mx,p)=>{const d=p.paymentDate||p.addedAt||'';return d>mx?d:mx;},'');
+    return{m,lastDate};
+  }).sort((a,b)=>b.lastDate.localeCompare(a.lastDate));
+  return{allRereg:reregMems.length,allActive:activeMems.length,allNoreg:noregMems.length,overall,byTr,noregList};
+}
+function renderPcAnalytics(ct){
+  const d=_anaCalc();
+  // 요약 카드 (4개: 전환률 / 재등록 / 진행중 / 소진 후 미재등록)
+  const sg=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-dash-g4'}));
+  [{v:d.overall.toFixed(1)+'%',l:'재등록 전환률',sub:'소진 완료 기준'},{v:d.allRereg+'명',l:'재등록 회원'},{v:d.allActive+'명',l:'진행중 (1회권 소진 전)',sub:'전환률 미포함'},{v:d.allNoreg+'명',l:'소진 후 미재등록'}].forEach(c=>{
+    const card=sg.appendChild(Object.assign(document.createElement('div'),{className:'pc-card pc-card-anim'}));
+    card.innerHTML='<div class="pc-card-ttl">'+c.l+(c.sub?'<br><span style="font-size:10px;color:#6b7494;font-weight:400;">'+c.sub+'</span>':'')+'</div><div class="pc-card-val">'+c.v+'</div>';
+  });
+  // 트레이너별 테이블
+  const box1=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-card'}));
+  box1.style.marginTop='24px';
+  box1.innerHTML='<div style="font-size:14px;font-weight:700;color:#818cf8;margin-bottom:14px;letter-spacing:.5px;">트레이너별 재등록 전환률</div>';
+  const tbl=box1.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
+  const thead=tbl.appendChild(document.createElement('thead'));
+  const hr=thead.appendChild(document.createElement('tr'));
+  ['트레이너','재등록','진행중','소진 후 미재등록','전환률'].forEach((h,i)=>{
+    const th=hr.appendChild(document.createElement('th'));th.textContent=h;if(i>0)th.style.textAlign='center';
+    if(i===2){th.style.color='#6b7494';th.title='아직 1회권 소진 전 — 전환률 계산에서 제외';}
+  });
+  const tbody=tbl.appendChild(document.createElement('tbody'));
+  d.byTr.forEach(row=>{
+    const tr=tbody.appendChild(document.createElement('tr'));
+    [row.tr.name,row.rereg+'명',row.active+'명',row.noreg+'명',row.rate.toFixed(1)+'%'].forEach((v,i)=>{
+      const td=tr.appendChild(document.createElement('td'));td.textContent=v;
+      if(i>0)td.style.textAlign='center';
+      if(i===2)td.style.color='#6b7494';
+      if(i===4){td.style.fontWeight='700';td.style.color=row.rate>=70?'#3dc87a':row.rate>=40?'#fbbf24':'#f87171';}
+    });
+  });
+  if(!d.byTr.length){const tr=tbody.appendChild(document.createElement('tr'));const td=tr.appendChild(document.createElement('td'));td.colSpan=5;td.textContent='등록 데이터가 없습니다.';td.style.cssText='text-align:center;color:#6b7494;padding:32px;';}
+  // 소진 후 미재등록 회원 목록 (접기)
+  const box2=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-card'}));
+  box2.style.marginTop='16px';
+  const dhdr=box2.appendChild(document.createElement('div'));
+  dhdr.style.cssText='display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
+  dhdr.innerHTML='<div style="font-size:14px;font-weight:700;color:#818cf8;">소진 후 미재등록 회원 <span style="font-size:12px;color:#6b7494;font-weight:400;">('+d.noregList.length+'명)</span></div><span id="ana-chev">▾</span>';
+  const dbody=box2.appendChild(document.createElement('div'));dbody.style.display='none';
+  dhdr.onclick=()=>{
+    const open=dbody.style.display!=='none';
+    dbody.style.display=open?'none':'block';
+    const chev=document.getElementById('ana-chev');if(chev)chev.textContent=open?'▾':'▴';
+    if(!open&&!dbody._built){
+      dbody._built=true;
+      const dtbl=dbody.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
+      dtbl.style.marginTop='12px';
+      const dth=dtbl.appendChild(document.createElement('thead')).appendChild(document.createElement('tr'));
+      ['트레이너','회원명','최근 등록일'].forEach(h=>{dth.appendChild(document.createElement('th')).textContent=h;});
+      const dtb=dtbl.appendChild(document.createElement('tbody'));
+      d.noregList.forEach(({m,lastDate})=>{
+        const tr2=trainers.find(t=>t.id===m.trainerId);
+        const drow=dtb.appendChild(document.createElement('tr'));
+        [tr2?tr2.name:'-',m.name,lastDate?lastDate.slice(0,10):'-'].forEach(v=>{drow.appendChild(document.createElement('td')).textContent=v;});
+      });
+      if(!d.noregList.length){const r=dtb.appendChild(document.createElement('tr'));const td=r.appendChild(document.createElement('td'));td.colSpan=3;td.textContent='해당 회원이 없습니다.';td.style.cssText='text-align:center;color:#6b7494;padding:24px;';}
+    }
+  };
+}
+function renderMobAnalytics(ct){
+  if(!isAdminUser()){ct.innerHTML='<div class="sal-empty">관리자만 접근할 수 있습니다.</div>';return;}
+  const d=_anaCalc();
+  const style=s=>'style="'+s+'"';
+  // 헤더
+  const hdr=ct.appendChild(document.createElement('div'));
+  hdr.style.cssText='padding:16px 16px 8px;font-size:18px;font-weight:800;color:#e2e8f0;';
+  hdr.textContent='재등록 전환률 분석';
+  // 요약 카드들
+  [{v:d.overall.toFixed(1)+'%',l:'재등록 전환률',c:'#818cf8'},{v:d.allRereg+'명',l:'재등록 회원',c:'#3dc87a'},{v:d.allActive+'명',l:'진행중 (소진 전)',c:'#6b7494'},{v:d.allNoreg+'명',l:'소진 후 미재등록',c:'#f87171'}].forEach(item=>{
+    const card=ct.appendChild(document.createElement('div'));
+    card.style.cssText='margin:6px 12px;background:#1a1c22;border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;';
+    card.innerHTML='<span style="font-size:13px;color:#6b7494;">'+item.l+'</span><span style="font-size:18px;font-weight:800;color:'+item.c+';">'+item.v+'</span>';
+  });
+  // 트레이너별
+  const sec=ct.appendChild(document.createElement('div'));
+  sec.style.cssText='margin:16px 12px 6px;font-size:12px;font-weight:700;color:#818cf8;letter-spacing:1px;';
+  sec.textContent='트레이너별';
+  d.byTr.forEach(row=>{
+    const card=ct.appendChild(document.createElement('div'));
+    card.style.cssText='margin:4px 12px;background:#1a1c22;border-radius:10px;padding:12px 14px;';
+    const rateColor=row.rate>=70?'#3dc87a':row.rate>=40?'#fbbf24':'#f87171';
+    card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:14px;font-weight:700;color:#e2e8f0;">'+row.tr.name+'</span><span style="font-size:16px;font-weight:800;color:'+rateColor+';">'+row.rate.toFixed(1)+'%</span></div>'
+      +'<div style="display:flex;gap:10px;font-size:12px;color:#6b7494;flex-wrap:wrap;">'
+      +'<span>재등록 <b style="color:#3dc87a;">'+row.rereg+'명</b></span>'
+      +'<span>진행중 <b style="color:#6b7494;">'+row.active+'명</b></span>'
+      +'<span>미재등록 <b style="color:#f87171;">'+row.noreg+'명</b></span>'
+      +'</div>'
+      // 진행률 바
+      +'<div style="margin-top:8px;height:4px;background:#2a2d3a;border-radius:2px;"><div style="height:4px;border-radius:2px;background:'+rateColor+';width:'+Math.min(row.rate,100).toFixed(1)+'%;transition:width .4s;"></div></div>';
+  });
+  if(!d.byTr.length){const e=ct.appendChild(document.createElement('div'));e.style.cssText='text-align:center;padding:40px;color:#6b7494;';e.textContent='등록 데이터가 없습니다.';}
+  // 미재등록 회원
+  if(d.noregList.length){
+    const sec2=ct.appendChild(document.createElement('div'));
+    sec2.style.cssText='margin:16px 12px 6px;font-size:12px;font-weight:700;color:#818cf8;letter-spacing:1px;';
+    sec2.textContent='소진 후 미재등록 회원 ('+d.noregList.length+'명)';
+    d.noregList.forEach(({m,lastDate})=>{
+      const tr2=trainers.find(t=>t.id===m.trainerId);
+      const card=ct.appendChild(document.createElement('div'));
+      card.style.cssText='margin:4px 12px;background:#1a1c22;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;';
+      card.innerHTML='<div><div style="font-size:13px;font-weight:700;color:#e2e8f0;">'+m.name+'</div><div style="font-size:11px;color:#6b7494;margin-top:2px;">'+(tr2?tr2.name:'-')+'</div></div>'
+        +'<div style="font-size:11px;color:#6b7494;text-align:right;">최근 등록<br><b style="color:#e2e8f0;">'+(lastDate?lastDate.slice(0,10):'-')+'</b></div>';
+    });
+  }
+}
+
 function dlSessionsXLSX(){
   if(typeof XLSX==='undefined'){alert('잠시 후 다시 시도해주세요.');return;}
   const wb=XLSX.utils.book_new();
   const wsData=[['TheLine CRM - 세션로그 (이용권별)'],['기간: '+pcSalStart+' ~ '+pcSalEnd],[]];
-  wsData.push(['계약일','회원명','세션','계약료','세션단가','수업료(50%)','50%','누적진행(당월제외)','이달수업','잔여수업','정산수업료']);
+  wsData.push(['계약일','회원명','세션','계약료','부가세 전 계약료','세션단가','수업료(50%)','50%','누적진행(당월제외)','이달수업','잔여수업','정산수업료']);
   const sd=new Date(pcSalStart),ed=new Date(pcSalEnd);ed.setHours(23,59,59);
   const typeMap2={PT:['25분 수업','50분 수업'],OT:['OT'],consult:['상담'],etc:['기타']};
   const periodSl=slots.filter(s=>{
@@ -6327,7 +6470,7 @@ function dlSessionsXLSX(){
     const totalUsed=getPlanUsed(plan.id);
     const remain=totalSes-totalUsed;
     const contractDate=plan.paymentDate||(plan.addedAt?new Date(plan.addedAt).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}):'-');
-    wsData.push([contractDate,mb.name,totalSes,paid,unitP,lessonF,'50%',prevUsed,thisUsed,remain,thisUsed*lessonF]);
+    wsData.push([contractDate,mb.name,totalSes,paid,paid/1.1,unitP,lessonF,'50%',prevUsed,thisUsed,remain,thisUsed*lessonF]);
   });
   const ws=XLSX.utils.aoa_to_sheet(wsData);XLSX.utils.book_append_sheet(wb,ws,'세션로그');
   XLSX.writeFile(wb,'세션로그_'+pcSalStart+'_'+pcSalEnd+'.xlsx');
