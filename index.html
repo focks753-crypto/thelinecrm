@@ -896,7 +896,7 @@ const CNAMES=['블루','그린','핑크','오렌지','퍼플','레드'];
 const DAYS=['일','월','화','수','목','금','토'];
 const ROLES=['트레이너','관리자','기타'];
 const SESSION_OPTIONS=[1,4,10,20,30,50,100];
-const INFLOW_OPTIONS=['워크인','플러팅','구글폼','골프상담','기타'];
+const INFLOW_OPTIONS=['워크인','플러팅','구글폼','골프상담','네이버예약','단체문자','기타'];
 const PAYMENT_OPTIONS=['카드','현금','계좌이체'];
 function fmtMoney(v){const n=String(v).replace(/[^0-9]/g,'');return n?parseInt(n).toLocaleString('ko-KR'):'';}
 function parseMoney(s){return parseInt(String(s).replace(/[^0-9]/g,''))||0;}
@@ -6312,9 +6312,9 @@ function _anaCalc(){
     return{tr,rereg:rereg.length,active:trActive.length,noreg:trNoreg.length,total:rereg.length+trOnce.length,rate};
   }).filter(d=>d.total>0).sort((a,b)=>b.rate-a.rate);
   const noregList=noregMems.map(m=>{
-    const pp=ptPlans(m);
-    const lastDate=pp.reduce((mx,p)=>{const d=p.paymentDate||p.addedAt||'';return d>mx?d:mx;},'');
-    return{m,lastDate};
+    // 마지막 수업(PT) 날짜
+    const lastSes=slots.filter(s=>s.memberId===m.id&&s.type!=='OT'&&s.type!=='상담').reduce((mx,s)=>s.date>mx?s.date:mx,'');
+    return{m,lastDate:lastSes};
   }).sort((a,b)=>b.lastDate.localeCompare(a.lastDate));
   return{allRereg:reregMems.length,allActive:activeMems.length,allNoreg:noregMems.length,overall,byTr,noregList};
 }
@@ -6364,7 +6364,7 @@ function renderPcAnalytics(ct){
       const dtbl=dbody.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
       dtbl.style.marginTop='12px';
       const dth=dtbl.appendChild(document.createElement('thead')).appendChild(document.createElement('tr'));
-      ['트레이너','회원명','최근 등록일'].forEach(h=>{dth.appendChild(document.createElement('th')).textContent=h;});
+      ['트레이너','회원명','마지막 수업일'].forEach(h=>{dth.appendChild(document.createElement('th')).textContent=h;});
       const dtb=dtbl.appendChild(document.createElement('tbody'));
       d.noregList.forEach(({m,lastDate})=>{
         const tr2=trainers.find(t=>t.id===m.trainerId);
@@ -6417,7 +6417,7 @@ function renderMobAnalytics(ct){
       const card=ct.appendChild(document.createElement('div'));
       card.style.cssText='margin:4px 12px;background:#1a1c22;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;';
       card.innerHTML='<div><div style="font-size:13px;font-weight:700;color:#e2e8f0;">'+m.name+'</div><div style="font-size:11px;color:#6b7494;margin-top:2px;">'+(tr2?tr2.name:'-')+'</div></div>'
-        +'<div style="font-size:11px;color:#6b7494;text-align:right;">최근 등록<br><b style="color:#e2e8f0;">'+(lastDate?lastDate.slice(0,10):'-')+'</b></div>';
+        +'<div style="font-size:11px;color:#6b7494;text-align:right;">마지막 수업<br><b style="color:#e2e8f0;">'+(lastDate?lastDate.slice(0,10):'-')+'</b></div>';
     });
   }
 }
