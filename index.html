@@ -7831,9 +7831,20 @@ function initPcLayout(){
     showPcGate();
   }
 }
+let _lastIsPcView=window.innerWidth>=960;
 window.addEventListener('resize',()=>{
   const pl=document.getElementById('pc-layout');if(!pl)return;
-  if(window.innerWidth>=960){pl.style.display='flex';}else{pl.style.display='none';}
+  const isPc=window.innerWidth>=960;
+  pl.style.display=isPc?'flex':'none';
+  // 브레이크포인트(960px)를 넘을 때만 뷰 다시 렌더 — 화면 줄였다 키워도 빈 화면 안 되게
+  if(isPc!==_lastIsPcView){
+    _lastIsPcView=isPc;
+    if(typeof codeVerified!=='undefined'&&codeVerified){
+      _safe('updChip',updChip);
+      if(isPc){ _safe('hidePcGate',hidePcGate); _safe('initPcNav',initPcNav); _safe('renderPcContent',renderPcContent); }
+      else { _safe('switchMobPage',()=>switchMobPage(mobActivePage||'home')); }
+    }
+  }
 },{passive:true});
 
 // ── PC 캘린더 슬롯 상세/수정/삭제 ─────────────────────────────────────────
