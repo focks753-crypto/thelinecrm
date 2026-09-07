@@ -1469,7 +1469,7 @@ function renderTimes(){
           bk.onclick=e=>{e.stopPropagation();if(confirm('이 시간 차단을 해제할까요?')){slots=slots.filter(x=>x.id!==s.id);sv('og10_sl',slots);renderTimes();}};
           return;
         }
-        const _durMin=s.type==='50분 수업'?50:s.type==='OT'?50:s.type==='25분 수업'?25:30;
+        const _durMin=s.type==='50분 수업'?50:s.type==='OT'?25:s.type==='25분 수업'?25:30;
         const _isLong=_durMin>30;
         const wslot=cell.appendChild(el('div','wslot'));
         if(_isLong){wslot.dataset.durMin=_durMin;wslot.style.cssText='background:'+col.bg+';color:'+col.text+';border-radius:3px;padding:2px 3px;overflow:hidden;line-height:1.3;position:absolute;top:2px;left:2px;right:2px;z-index:5;';}
