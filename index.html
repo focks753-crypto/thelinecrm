@@ -1178,7 +1178,7 @@ function getMemberWarn(mb){return(mb.plans||[]).some(p=>getPlanRemain(p)>0&&getP
 function isAdminUser(){if(!curUser)return false;const tr=trainers.find(t=>t.id===curUser);return tr&&tr.role==='관리자';}
 // ── 푸시 알림(FCM): 관리자 로그인 시 알림 권한+토큰 등록(og10_push). 상담 연락일 알림 발송용 ──
 const _PUSH_VAPID='BMqrSQ3vKOV_T-CagtZrxXcRfsaBvz5J8-046WLNirDzMeNQHXm2vrg86OWFm6Fvte91a2PB_zLpJ1vHdcI6bfo';
-async function initPushForAdmin(gesture){
+async function initPushForAdmin(gesture,autoPrompt){
   const say=function(m){ if(gesture){ try{alert(m);}catch(e){} } };
   try{
     if(!isAdminUser()){ say('관리자로 로그인한 상태에서만 알림을 켤 수 있어요.'); return; }
@@ -1191,7 +1191,7 @@ async function initPushForAdmin(gesture){
     if(!('serviceWorker'in navigator)||typeof firebase==='undefined'||!firebase.messaging||!db){ say('알림 준비 중 문제가 있어요. 새로고침 후 다시 시도해주세요.'); return; }
     let perm=Notification.permission;
     if(perm==='denied'){ say('알림이 차단돼 있어요.\n주소창 자물쇠 아이콘(또는 브라우저 설정)에서 이 사이트 알림을 "허용"으로 바꿔주세요.'); return; }
-    if(perm==='default'){ if(!gesture)return; perm=await Notification.requestPermission(); }
+    if(perm==='default'){ if(!gesture&&!autoPrompt)return; perm=await Notification.requestPermission(); }
     if(perm!=='granted'){ say('알림을 "허용"해야 받을 수 있어요.'); return; }
     const reg=await navigator.serviceWorker.register('firebase-messaging-sw.js',{scope:'./'});
     const messaging=firebase.messaging();
@@ -1259,7 +1259,7 @@ function showApp(){
   _safe('renderTimes',renderTimes);
   if(!isPc){ _safe('switchMobPage',()=>switchMobPage('home')); }
   const lb=document.getElementById('mob-login-btn');if(lb){const t=trainers.find(t=>t.id===curUser);lb.textContent=t?t.name+' (로그아웃)':'로그인';}
-  try{ if(isAdminUser()) initPushForAdmin(false); }catch(e){}  // 이미 로그인된 관리자: 토큰 갱신(권한 있을 때만)
+  try{ if(isAdminUser()) initPushForAdmin(false,true); }catch(e){}  // 관리자 앱 진입 시: 권한 자동 요청(조용히, 실패알림 없음). 아이폰·카톡은 자동 스킵
   if(false){
     const pl=document.getElementById('pc-layout');
     if(pl){pl.style.display='flex';hidePcGate();initPcNav();renderPcContent();}
