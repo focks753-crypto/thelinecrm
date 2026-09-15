@@ -823,6 +823,7 @@ input[type=time]::-webkit-calendar-picker-indicator:hover{opacity:1;}
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script>
 // ── Firebase 동적 로딩 ──
 let db = null;
@@ -1174,6 +1175,35 @@ function getMemberWarn(mb){return(mb.plans||[]).some(p=>getPlanRemain(p)>0&&getP
 
 // 권한: 로그인한 사람이 관리자 role인지
 function isAdminUser(){if(!curUser)return false;const tr=trainers.find(t=>t.id===curUser);return tr&&tr.role==='관리자';}
+// ── 푸시 알림(FCM): 관리자 로그인 시 알림 권한+토큰 등록(og10_push). 상담 연락일 알림 발송용 ──
+const _PUSH_VAPID='BMqrSQ3vKOV_T-CagtZrxXcRfsaBvz5J8-046WLNirDzMeNQHXm2vrg86OWFm6Fvte91a2PB_zLpJ1vHdcI6bfo';
+async function initPushForAdmin(gesture){
+  try{
+    if(!isAdminUser())return;                                     // 관리자만
+    if(!('Notification'in window)||!('serviceWorker'in navigator))return;
+    if(typeof firebase==='undefined'||!firebase.messaging||!db)return;
+    let perm=Notification.permission;
+    if(perm==='denied')return;
+    if(perm==='default'){ if(!gesture)return; perm=await Notification.requestPermission(); }
+    if(perm!=='granted')return;
+    const reg=await navigator.serviceWorker.register('firebase-messaging-sw.js',{scope:'./'});
+    const messaging=firebase.messaging();
+    const token=await messaging.getToken({vapidKey:_PUSH_VAPID,serviceWorkerRegistration:reg});
+    if(token){
+      const docId=token.replace(/[^A-Za-z0-9_-]/g,'_').slice(0,140);
+      await db.collection('og10_push').doc(docId).set({
+        token:token, trainerId:curUser||null,
+        name:(trainers.find(t=>t.id===curUser)||{}).name||'',
+        role:'관리자', ua:navigator.userAgent, updatedAt:Date.now()
+      });
+      console.log('푸시 토큰 등록 완료');
+    }
+    messaging.onMessage(function(p){   // 앱 열려있을 때
+      const n=p.notification||p.data||{};
+      try{ new Notification(n.title||'더라인 CRM',{body:n.body||'',icon:'icons/icon-192.png'}); }catch(e){}
+    });
+  }catch(e){ console.warn('푸시 초기화 실패:',e&&e.message); }
+}
 function canEditSlot(s){return isAdminUser()||(curUser&&curUser===s.trainerId);}
 function canAccessTrainer(tid){return isAdminUser()||(curUser&&curUser===tid);}
 
@@ -1221,6 +1251,7 @@ function showApp(){
   _safe('renderTimes',renderTimes);
   if(!isPc){ _safe('switchMobPage',()=>switchMobPage('home')); }
   const lb=document.getElementById('mob-login-btn');if(lb){const t=trainers.find(t=>t.id===curUser);lb.textContent=t?t.name+' (로그아웃)':'로그인';}
+  try{ if(isAdminUser()) initPushForAdmin(false); }catch(e){}  // 이미 로그인된 관리자: 토큰 갱신(권한 있을 때만)
   if(false){
     const pl=document.getElementById('pc-layout');
     if(pl){pl.style.display='flex';hidePcGate();initPcNav();renderPcContent();}
@@ -3790,7 +3821,7 @@ function openLogin(cb){
     sbi.onkeydown=e=>{if(e.key==='Enter')doLogin();};
     sheet.appendChild(mk('div','login-hint','로그인 정보는 이 기기에 자동으로 저장됩니다'));
     const btns=sheet.appendChild(el('div','shbtns'));btns.appendChild(mk('button','shno','취소')).onclick=close;btns.appendChild(mk('button','shok','로그인')).onclick=doLogin;
-    function doLogin(){if(!selId){alert('이름을 선택해주세요.');return;}const tr=trainers.find(t=>t.id===selId);if(!tr)return;if(sbi.value.trim()!==tr.saban){alert('사번이 올바르지 않습니다.');return;}curUser=selId;sv('og10_cu',curUser);close();updChip();renderTimes();if(cb)cb();}
+    function doLogin(){if(!selId){alert('이름을 선택해주세요.');return;}const tr=trainers.find(t=>t.id===selId);if(!tr)return;if(sbi.value.trim()!==tr.saban){alert('사번이 올바르지 않습니다.');return;}curUser=selId;sv('og10_cu',curUser);close();updChip();renderTimes();try{initPushForAdmin(true);}catch(e){}if(cb)cb();}
   });
 }
 
@@ -6680,7 +6711,7 @@ function openPcLogin() {
       const tr2 = trainers.find(t => t.id === trS.value);
       if (!tr2) {errDiv.textContent = '담당자를 선택해주세요.'; return;}
       if (tr2.saban && pinI.value !== tr2.saban) {errDiv.textContent = '로그인 번호가 올바르지 않습니다.'; pinI.value=''; return;}
-      curUser = tr2.id; sv('og10_cu', curUser); const _pn2=document.getElementById('pc-nav');if(_pn2){_pn2._built=false;_pn2.innerHTML='';} close(); updatePcUser(); initPcNav(); renderPcContent();
+      curUser = tr2.id; sv('og10_cu', curUser); const _pn2=document.getElementById('pc-nav');if(_pn2){_pn2._built=false;_pn2.innerHTML='';} close(); updatePcUser(); initPcNav(); renderPcContent(); try{initPushForAdmin(true);}catch(e){}
     }
     const btns = box.appendChild(document.createElement('div')); btns.className = 'pcm-btns'; btns.style.marginTop = '20px';
     btns.appendChild(Object.assign(document.createElement('button'), {className:'pcm-btn-sec', textContent:'취소'})).onclick = close;
