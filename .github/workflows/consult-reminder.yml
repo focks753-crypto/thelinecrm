@@ -2,7 +2,8 @@ name: 상담 연락일 알림
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # 매일 UTC 00:00 = KST 09:00
+    - cron: '0 1 * * *'   # 매일 KST 10:00 (UTC 01:00)
+    - cron: '0 9 * * *'   # 매일 KST 18:00 (UTC 09:00)
   workflow_dispatch:        # 수동 실행(테스트용)
 
 jobs:
