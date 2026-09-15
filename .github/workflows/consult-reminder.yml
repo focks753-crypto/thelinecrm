@@ -1,0 +1,23 @@
+name: 상담 연락일 알림
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 매일 UTC 00:00 = KST 09:00
+  workflow_dispatch:        # 수동 실행(테스트용)
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v4
+      - name: Node 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: firebase-admin 설치
+        run: npm install firebase-admin@12
+      - name: 알림 발송
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+        run: node scripts/send_consult_reminder.js
