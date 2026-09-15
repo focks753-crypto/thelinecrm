@@ -19,5 +19,5 @@ jobs:
         run: npm install firebase-admin@12
       - name: 알림 발송
         env:
-          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          FIREBASE_SA: ${{ secrets.FIREBASE }}
         run: node scripts/send_consult_reminder.js
