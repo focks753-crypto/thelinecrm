@@ -898,6 +898,7 @@ function initFB(){
   <nav id="mob-nav" style="padding:12px 0;"></nav>
   <div style="margin-top:auto;padding:16px;border-top:1px solid #1e2026;">
     <button onclick="openLogin();closeMobSidebar();" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e2026;background:transparent;color:#8892aa;font-size:13px;cursor:pointer;font-family:inherit;" id="mob-login-btn">로그인</button>
+    <button onclick="initPushForAdmin(true);closeMobSidebar();" id="mob-push-btn" style="display:none;width:100%;margin-top:8px;padding:10px;border-radius:8px;border:1px solid rgba(129,140,248,.5);background:transparent;color:#818cf8;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">🔔 상담 알림 켜기</button>
   </div>
 </div>
 
@@ -1178,14 +1179,20 @@ function isAdminUser(){if(!curUser)return false;const tr=trainers.find(t=>t.id==
 // ── 푸시 알림(FCM): 관리자 로그인 시 알림 권한+토큰 등록(og10_push). 상담 연락일 알림 발송용 ──
 const _PUSH_VAPID='BMqrSQ3vKOV_T-CagtZrxXcRfsaBvz5J8-046WLNirDzMeNQHXm2vrg86OWFm6Fvte91a2PB_zLpJ1vHdcI6bfo';
 async function initPushForAdmin(gesture){
+  const say=function(m){ if(gesture){ try{alert(m);}catch(e){} } };
   try{
-    if(!isAdminUser())return;                                     // 관리자만
-    if(!('Notification'in window)||!('serviceWorker'in navigator))return;
-    if(typeof firebase==='undefined'||!firebase.messaging||!db)return;
+    if(!isAdminUser()){ say('관리자로 로그인한 상태에서만 알림을 켤 수 있어요.'); return; }
+    if(!('Notification'in window)){ say('이 브라우저는 웹 알림을 지원하지 않아요.'); return; }
+    const ua=navigator.userAgent||'';
+    if(/kakaotalk/i.test(ua)){ say('카카오톡 안에서는 알림을 못 켜요.\nSafari(아이폰)/Chrome(안드로이드)으로 열어서 다시 시도해주세요.'); return; }
+    const isIOS=/iphone|ipad|ipod/i.test(ua);
+    const standalone=(navigator.standalone===true)||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
+    if(isIOS&&!standalone){ say('아이폰은 먼저 "홈 화면에 추가"로 설치한 뒤, 홈 아이콘으로 열어서 알림을 켜주세요. (iOS 16.4 이상)'); return; }
+    if(!('serviceWorker'in navigator)||typeof firebase==='undefined'||!firebase.messaging||!db){ say('알림 준비 중 문제가 있어요. 새로고침 후 다시 시도해주세요.'); return; }
     let perm=Notification.permission;
-    if(perm==='denied')return;
+    if(perm==='denied'){ say('알림이 차단돼 있어요.\n주소창 자물쇠 아이콘(또는 브라우저 설정)에서 이 사이트 알림을 "허용"으로 바꿔주세요.'); return; }
     if(perm==='default'){ if(!gesture)return; perm=await Notification.requestPermission(); }
-    if(perm!=='granted')return;
+    if(perm!=='granted'){ say('알림을 "허용"해야 받을 수 있어요.'); return; }
     const reg=await navigator.serviceWorker.register('firebase-messaging-sw.js',{scope:'./'});
     const messaging=firebase.messaging();
     const token=await messaging.getToken({vapidKey:_PUSH_VAPID,serviceWorkerRegistration:reg});
@@ -1194,15 +1201,16 @@ async function initPushForAdmin(gesture){
       await db.collection('og10_push').doc(docId).set({
         token:token, trainerId:curUser||null,
         name:(trainers.find(t=>t.id===curUser)||{}).name||'',
-        role:'관리자', ua:navigator.userAgent, updatedAt:Date.now()
+        role:'관리자', ua:ua, updatedAt:Date.now()
       });
+      say('✅ 알림이 켜졌어요!\n상담 연락일이 되면 매일 아침 알려드릴게요.');
       console.log('푸시 토큰 등록 완료');
-    }
+    } else { say('토큰 발급에 실패했어요. 잠시 후 다시 시도해주세요.'); }
     messaging.onMessage(function(p){   // 앱 열려있을 때
       const n=p.notification||p.data||{};
       try{ new Notification(n.title||'더라인 CRM',{body:n.body||'',icon:'icons/icon-192.png'}); }catch(e){}
     });
-  }catch(e){ console.warn('푸시 초기화 실패:',e&&e.message); }
+  }catch(e){ say('알림 켜기 실패: '+(e&&e.message||'')); console.warn('푸시 초기화 실패:',e&&e.message); }
 }
 function canEditSlot(s){return isAdminUser()||(curUser&&curUser===s.trainerId);}
 function canAccessTrainer(tid){return isAdminUser()||(curUser&&curUser===tid);}
@@ -3997,6 +4005,7 @@ function closeMobSidebar(){
 }
 
 function renderMobNav(){
+  const _pb=document.getElementById('mob-push-btn');if(_pb)_pb.style.display=isAdminUser()?'block':'none';
   const nav=document.getElementById('mob-nav');
   if(!nav)return; nav.innerHTML='';
   MOB_NAV.forEach(item=>{
