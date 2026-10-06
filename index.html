@@ -7478,9 +7478,12 @@ function renderPcAnalytics(ct){
   const _rmk=[];for(let i=5;i>=0;i--){const dt=new Date(_rnow.getFullYear(),_rnow.getMonth()-i,1);_rmk.push(dt.getFullYear()+'-'+p2(dt.getMonth()+1));}
   const _rcm=_rnow.getFullYear()+'-'+p2(_rnow.getMonth()+1);
   const _rbyM={};_rmk.forEach(k=>_rbyM[k]=0);
+  const _custM={};_rmk.forEach(k=>_custM[k]=new Set());   // 월별 결제 고객(중복 제거) — 객단가용
   const _rbyType={PT:0,'회원권':0,'그룹':0};
   let _rcmTot=0,_r6mTot=0;
-  members.forEach(mb=>(mb.plans||[]).forEach(p=>{if(p.refunded)return;const dt=new Date(p.addedAt||0);const mkey=dt.getFullYear()+'-'+p2(dt.getMonth()+1);const rev=p.totalPrice||0;if(_rbyM[mkey]!==undefined){_rbyM[mkey]+=rev;_r6mTot+=rev;}if(mkey===_rcm){_rcmTot+=rev;const t=(p.productType==='membership')?'회원권':((p.productType||'').includes('group')?'그룹':'PT');_rbyType[t]+=rev;}}));
+  members.forEach(mb=>(mb.plans||[]).forEach(p=>{if(p.refunded)return;const dt=new Date(p.addedAt||0);const mkey=dt.getFullYear()+'-'+p2(dt.getMonth()+1);const rev=p.totalPrice||0;if(_rbyM[mkey]!==undefined){_rbyM[mkey]+=rev;_r6mTot+=rev;if(rev>0)_custM[mkey].add(mb.id);}if(mkey===_rcm){_rcmTot+=rev;const t=(p.productType==='membership')?'회원권':((p.productType||'').includes('group')?'그룹':'PT');_rbyType[t]+=rev;}}));
+  const _ravg={};_rmk.forEach(k=>{const n=_custM[k].size;_ravg[k]=n>0?Math.round(_rbyM[k]/n):0;});
+  const _rcmCust=_custM[_rcm].size, _rcmAvg=_ravg[_rcm];
   const _rsg=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-dash-g4'}));
   [{v:_rcmTot.toLocaleString()+'원',l:'이번달 매출',c:'#3dc87a'},{v:_r6mTot.toLocaleString()+'원',l:'최근 6개월 매출',c:'#818cf8'},{v:_rbyType['PT'].toLocaleString()+'원',l:'이번달 PT',c:'#818cf8'},{v:_rbyType['회원권'].toLocaleString()+'원',l:'이번달 회원권',c:'#38bdf8'}].forEach(c=>{const card=_rsg.appendChild(Object.assign(document.createElement('div'),{className:'pc-card pc-card-anim'}));card.innerHTML='<div class="pc-card-ttl">'+c.l+'</div><div class="pc-card-val" style="color:'+c.c+'">'+c.v+'</div>';});
   const _rmc=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-card'}));_rmc.style.marginTop='16px';
@@ -7488,6 +7491,12 @@ function renderPcAnalytics(ct){
   const _rmaxM=Math.max(1,..._rmk.map(k=>_rbyM[k]));
   const _rbrow=_rmc.appendChild(document.createElement('div'));_rbrow.style.cssText='display:flex;align-items:flex-end;gap:12px;height:170px;padding-top:8px;';
   _rmk.forEach(k=>{const v=_rbyM[k];const col=_rbrow.appendChild(document.createElement('div'));col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;gap:4px;';const al=col.appendChild(document.createElement('div'));al.style.cssText='font-size:10px;color:#8892aa;font-weight:700;white-space:nowrap;';al.textContent=v>0?(v/10000).toFixed(0)+'만':'';const bar=col.appendChild(document.createElement('div'));bar.style.cssText='width:70%;max-width:46px;height:'+Math.round(v/_rmaxM*120)+'px;min-height:'+(v>0?4:0)+'px;background:linear-gradient(180deg,#3dc87a,#2ba866);border-radius:5px 5px 0 0;';const ml=col.appendChild(document.createElement('div'));ml.style.cssText='font-size:11px;color:#6b7494;';ml.textContent=parseInt(k.slice(5))+'월';});
+  // ── 월별 객단가 (결제 고객 1인당 평균) ──
+  const _rac=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-card'}));_rac.style.marginTop='16px';
+  _rac.innerHTML='<div class="pc-card-ttl" style="margin-bottom:4px;">월별 객단가 <span style="font-size:11px;color:#6b7494;font-weight:400;">(그 달 결제 고객 1인당 평균)</span></div><div style="font-size:12px;color:#8892aa;margin-bottom:12px;">이번달 '+(_rcmAvg>0?('<b style="color:#818cf8;">'+_rcmAvg.toLocaleString()+'원</b> · '+_rcmCust+'명 결제'):'결제 없음')+'</div>';
+  const _ramax=Math.max(1,..._rmk.map(k=>_ravg[k]));
+  const _rabrow=_rac.appendChild(document.createElement('div'));_rabrow.style.cssText='display:flex;align-items:flex-end;gap:12px;height:180px;padding-top:8px;';
+  _rmk.forEach(k=>{const v=_ravg[k];const n=_custM[k].size;const col=_rabrow.appendChild(document.createElement('div'));col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;gap:4px;';const al=col.appendChild(document.createElement('div'));al.style.cssText='font-size:10px;color:#8892aa;font-weight:700;white-space:nowrap;';al.textContent=v>0?(v/10000).toFixed(0)+'만':'';const bar=col.appendChild(document.createElement('div'));bar.style.cssText='width:70%;max-width:46px;height:'+Math.round(v/_ramax*120)+'px;min-height:'+(v>0?4:0)+'px;background:linear-gradient(180deg,#818cf8,#6366f1);border-radius:5px 5px 0 0;';const ml=col.appendChild(document.createElement('div'));ml.style.cssText='font-size:11px;color:#6b7494;text-align:center;line-height:1.3;';ml.innerHTML=parseInt(k.slice(5))+'월'+(n>0?'<br><span style="font-size:9px;color:#4a5068;">'+n+'명</span>':'');});
   const _rtc=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-card'}));_rtc.style.marginTop='16px';
   _rtc.innerHTML='<div class="pc-card-ttl" style="margin-bottom:12px;">이번달 종류별 매출</div>';
   const _rtsum=Math.max(1,_rbyType['PT']+_rbyType['회원권']+_rbyType['그룹']);
