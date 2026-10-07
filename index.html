@@ -6413,6 +6413,15 @@ function renderMbPlanCard(container, mb, p, box, close) {
       const pymSel = b2.appendChild(document.createElement('select'));
       pymSel.style.cssText=fieldStyle+'appearance:auto;';
       PAYMENT_OPTIONS.forEach(v=>{const o=pymSel.appendChild(document.createElement('option'));o.value=v;o.textContent=v;if(v===(p.paymentMethod||mb.payment||''))o.selected=true;});
+      // 회원권 이용 기간 (시작일 ~ 종료일) — 회원권(membership)만
+      let sdi=null, edi=null;
+      if(p.productType==='membership'){
+        b2.appendChild(Object.assign(document.createElement('div'),{textContent:'이용 기간 (시작일 ~ 종료일)'})).style.cssText=lblStyle;
+        const prow=b2.appendChild(document.createElement('div'));prow.style.cssText='display:flex;gap:10px;align-items:center;margin-bottom:16px;';
+        sdi=prow.appendChild(document.createElement('input'));sdi.type='date';sdi.value=p.startDate||'';sdi.style.cssText=fieldStyle+'margin-bottom:0;';
+        prow.appendChild(Object.assign(document.createElement('span'),{textContent:'~'})).style.cssText='color:#8892b0;';
+        edi=prow.appendChild(document.createElement('input'));edi.type='date';edi.value=p.endDate||'';edi.style.cssText=fieldStyle+'margin-bottom:0;';
+      }
       const row = b2.appendChild(document.createElement('div'));
       row.style.cssText = 'display:flex;gap:10px;';
       const cancel = row.appendChild(document.createElement('button'));
@@ -6432,6 +6441,11 @@ function renderMbPlanCard(container, mb, p, box, close) {
         p.paidAmount = newAmt;
         p.pricePerSession = (p.sessions&&p.sessions>0)?Math.round(newAmt/p.sessions):0;
         p.paymentMethod = pymSel.value;
+        if(p.productType==='membership'){
+          if(sdi&&edi&&sdi.value&&edi.value&&edi.value<sdi.value){alert('종료일이 시작일보다 빠릅니다.');return;}
+          if(sdi&&sdi.value)p.startDate=sdi.value;
+          if(edi)p.endDate=edi.value||null;
+        }
         sv('og10_mb', members);
         c2();
         const newDate = new Date(di.value).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
