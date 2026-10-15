@@ -1166,6 +1166,10 @@ function fmtWeek(wd){const a=wd[0],b=wd[6];return{m:'[ '+(a.getMonth()+1)+'월 '
 function getPlanUsed(planId){return slots.filter(s=>s.planId===planId&&s.type!=='OT').length;}
 function getPlanRemain(plan){if(plan&&plan.productType==='membership')return 0;return(plan.sessions||0)-getPlanUsed(plan.id);}
 function planDaysLeft(plan){if(!plan||!plan.endDate)return null;return Math.ceil((new Date(plan.endDate)-new Date())/(1000*60*60*24));}
+// 회원권 개월수: 상품에 months 있으면 그걸, 없으면 상품명에서 "N개월" 인식
+function membershipMonths(prod){if(prod&&prod.months>0)return prod.months;const m=(prod&&prod.name||'').match(/(\d+)\s*개월/);return m?parseInt(m[1]):0;}
+// 날짜(YYYY-MM-DD)에 N개월 더하기
+function addMonths(dateStr,n){if(!dateStr||!n)return dateStr||'';const d=new Date(dateStr+'T00:00:00');d.setMonth(d.getMonth()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function planRemLbl(plan){if(plan&&plan.productType==='membership'){const dl=planDaysLeft(plan);return dl==null?'기간제':(dl>=0?('D-'+dl):'만료');}return '잔여 '+getPlanRemain(plan)+'회';}
 function planRemWarn(plan){if(plan&&plan.productType==='membership'){const dl=planDaysLeft(plan);return dl!=null&&dl>=0&&dl<=14;}const r=getPlanRemain(plan);return r>=0&&r<=2;}
 // 멤버십(기간제 이용권) 중 만료일이 가장 늦은(=최신/유효) 플랜. 여러 번 재등록 시 옛 만료 플랜이 아니라 최신 것으로 상태 판정
@@ -5396,13 +5400,16 @@ function openPcPayment(mbId,parentBox,parentClose){
     if(prod.sessions&&prod.sessions>0)perHint.textContent='회당 '+Math.round(selPrice/prod.sessions).toLocaleString()+'원';
     priceInput.oninput=()=>{const raw=priceInput.value.replace(/[^0-9]/g,'');selPrice=parseInt(raw)||0;const cur=priceInput.selectionStart;priceInput.value=selPrice.toLocaleString();try{priceInput.setSelectionRange(cur,cur);}catch(e){}if(prod.sessions&&prod.sessions>0)perHint.textContent='회당 '+Math.round(selPrice/prod.sessions).toLocaleString()+'원';payBtn.textContent=selPrice.toLocaleString()+'원  결제하기';};
     if(prod.type==='membership'){
+      const _months=membershipMonths(prod);
+      if(_months>0&&selStartDate)selEndDate=addMonths(selStartDate,_months);   // 시작일+개월수 자동
       const df=c.appendChild(document.createElement('div'));
-      df.innerHTML='<div style="font-size:11px;color:#3a3f58;margin-bottom:5px;">이용 기간</div>';
+      df.innerHTML='<div style="font-size:11px;color:#3a3f58;margin-bottom:5px;">이용 기간'+(_months>0?' <span style="color:#818cf8;">('+_months+'개월 자동 · 수정 가능)</span>':'')+'</div>';
       const dr=df.appendChild(document.createElement('div'));dr.style.cssText='display:flex;align-items:center;gap:6px;';
       const sI=dr.appendChild(document.createElement('input'));sI.type='date';sI.value=selStartDate;sI.style.cssText='flex:1;padding:6px 8px;border:1px solid #1e2026;border-radius:6px;background:#0a0c10;color:#e2e8f0;font-size:12px;outline:none;color-scheme:dark;cursor:pointer;';
       dr.appendChild(Object.assign(document.createElement('span'),{textContent:'~'})).style.color='#3a3f58';
       const eI=dr.appendChild(document.createElement('input'));eI.type='date';eI.value=selEndDate;eI.style.cssText='flex:1;padding:6px 8px;border:1px solid #1e2026;border-radius:6px;background:#0a0c10;color:#e2e8f0;font-size:12px;outline:none;color-scheme:dark;cursor:pointer;';
-      sI.onchange=()=>selStartDate=sI.value;eI.onchange=()=>selEndDate=eI.value;
+      sI.onchange=()=>{selStartDate=sI.value;if(_months>0&&selStartDate){selEndDate=addMonths(selStartDate,_months);eI.value=selEndDate;}};
+      eI.onchange=()=>selEndDate=eI.value;
     }
     payBtn.textContent=prod.price.toLocaleString()+'원  결제하기'; selPrice=prod.price;
   }
@@ -6036,12 +6043,18 @@ function openPcEditProduct(prodId,onSaved){
       };
     } else {
       sessRow.style.display='none';durRow.style.display='none';
+      let monthsEI=null;
+      if(p.type==='membership'){
+        const mF=box.appendChild(_f('이용 개월수'));monthsEI=mF.appendChild(_inp('예) 3','number'));monthsEI.min='1';monthsEI.style.width='100%';monthsEI.value=membershipMonths(p)||'';
+        mF.appendChild(Object.assign(document.createElement('div'),{textContent:'등록 시 시작일+이 개월수로 종료일 자동 계산'})).style.cssText='font-size:11px;color:#3a3f58;margin-top:4px;';
+      }
       const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='24px';
       btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
       btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'저장'})).onclick=()=>{
         const name=nameI.value.trim();const price=parseMoney(priceI.value);
         if(!name){alert('상품명을 입력해주세요.');return;}if(!price){alert('가격을 입력해주세요.');return;}
         p.name=name;p.price=price;
+        if(p.type==='membership'&&monthsEI)p.months=parseInt(monthsEI.value)||undefined;
         sv('og10_pr',products);close();
         if(onSaved)onSaved();else renderPcContent();
       };
@@ -6065,10 +6078,13 @@ function openPcCreateProduct(onCreated){
       btn.textContent=t.l;typeBtns.push({btn,v:t.v});
       btn.onclick=()=>{selType=t.v;typeBtns.forEach(({btn:b,v})=>{b.style.borderColor=selType===v?'#818cf8':'#1e2026';b.style.background=selType===v?'rgba(129,140,248,.1)':'#0f1117';b.style.color=selType===v?'#818cf8':'#6b7494';});
         sessRow.style.display=selType==='pt'?'block':'none';durRow.style.display=selType==='pt'?'block':'none';
+        monthsRow.style.display=selType==='membership'?'block':'none';
         grpRow.style.display=selType==='group'?'block':'none';grpSpmRow.style.display=selType==='group'?'block':'none';};
     });
     const sessRow=box.appendChild(_f('횟수 (PT)'));const sessS=sessRow.appendChild(_inp('예) 10','number'));sessS.min='1';sessS.style.width='100%';
     const durRow=box.appendChild(_f('수업 시간 (PT)'));const durS=durRow.appendChild(_sel([{v:25,l:'25분'},{v:50,l:'50분'}]));
+    const monthsRow=box.appendChild(_f('이용 개월수 (회원권)'));const monthsI=monthsRow.appendChild(_inp('예) 3','number'));monthsI.min='1';monthsI.style.width='100%';monthsRow.style.display='none';
+    monthsRow.appendChild(Object.assign(document.createElement('div'),{textContent:'등록 시 시작일+이 개월수로 종료일이 자동 계산됩니다.'})).style.cssText='font-size:11px;color:#3a3f58;margin-top:4px;';
     // 그룹수업 전용 필드
     const grpRow=box.appendChild(_f('연결 그룹수업'));
     const grpS=grpRow.appendChild(_sel([{v:'',l:'선택 안함'},...groupClasses.filter(g=>g.active!==false).map(g=>({v:g.id,l:g.name}))]));
@@ -6085,6 +6101,7 @@ function openPcCreateProduct(onCreated){
       const prod={id:'pr'+Date.now(),name,price,type:selType,
         sessions:selType==='pt'?parseInt(sessS.value):undefined,
         duration:selType==='pt'?parseInt(durS.value):undefined,
+        months:selType==='membership'?(parseInt(monthsI.value)||undefined):undefined,
         groupClassId:selType==='group'?grpS.value:undefined,
         sessionsPerMonth:selType==='group'?parseInt(grpSpmI.value):undefined,
         createdAt:Date.now()};
