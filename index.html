@@ -1170,6 +1170,8 @@ function planDaysLeft(plan){if(!plan||!plan.endDate)return null;return Math.ceil
 function membershipMonths(prod){if(prod&&prod.months>0)return prod.months;const m=(prod&&prod.name||'').match(/(\d+)\s*개월/);return m?parseInt(m[1]):0;}
 // 날짜(YYYY-MM-DD)에 N개월 더하기
 function addMonths(dateStr,n){if(!dateStr||!n)return dateStr||'';const d=new Date(dateStr+'T00:00:00');d.setMonth(d.getMonth()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// 결제수단 표시: 분할(payments 2개 이상)이면 "카드 90만 · 이체 9만", 아니면 단일 수단
+function fmtPayMethods(p){if(p&&Array.isArray(p.payments)&&p.payments.length>1){return p.payments.map(x=>x.method+' '+(x.amount%10000===0?((x.amount/10000).toLocaleString()+'만'):x.amount.toLocaleString())).join(' · ');}return (p&&p.paymentMethod)||'';}
 function planRemLbl(plan){if(plan&&plan.productType==='membership'){const dl=planDaysLeft(plan);return dl==null?'기간제':(dl>=0?('D-'+dl):'만료');}return '잔여 '+getPlanRemain(plan)+'회';}
 function planRemWarn(plan){if(plan&&plan.productType==='membership'){const dl=planDaysLeft(plan);return dl!=null&&dl>=0&&dl<=14;}const r=getPlanRemain(plan);return r>=0&&r<=2;}
 // 멤버십(기간제 이용권) 중 만료일이 가장 늦은(=최신/유효) 플랜. 여러 번 재등록 시 옛 만료 플랜이 아니라 최신 것으로 상태 판정
@@ -6425,11 +6427,29 @@ function renderMbPlanCard(container, mb, p, box, close) {
       const amtIn = b2.appendChild(document.createElement('input'));
       amtIn.type='number'; amtIn.value=p.totalPrice||0; amtIn.min=0; amtIn.style.cssText=fieldStyle;
       amtIn.placeholder='결제금액 입력';
-      // 결제수단
-      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'결제수단'})).style.cssText=lblStyle;
-      const pymSel = b2.appendChild(document.createElement('select'));
-      pymSel.style.cssText=fieldStyle+'appearance:auto;';
-      PAYMENT_OPTIONS.forEach(v=>{const o=pymSel.appendChild(document.createElement('option'));o.value=v;o.textContent=v;if(v===(p.paymentMethod||mb.payment||''))o.selected=true;});
+      // 결제수단 (분할 결제 가능 — 예: 90만 카드 + 9만 이체)
+      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'결제수단 (여러 방법으로 나눠 입력 가능)'})).style.cssText=lblStyle;
+      const payWrap=b2.appendChild(document.createElement('div'));
+      const sumLine=b2.appendChild(document.createElement('div'));sumLine.style.cssText='font-size:11px;font-weight:700;margin:-6px 0 10px;text-align:right;';
+      const _payRows=[];
+      function _renderSum(){const s=_payRows.reduce((a,r)=>a+(parseInt(r.ai.value.replace(/[^0-9]/g,''))||0),0);const t=parseInt(amtIn.value)||0;sumLine.textContent='분할 합계 '+s.toLocaleString()+'원 / 결제금액 '+t.toLocaleString()+'원'+(s===t?' ✓':'');sumLine.style.color=(s===t)?'#3dc87a':'#f87171';}
+      function _addPayRow(method,amount){
+        const r=payWrap.appendChild(document.createElement('div'));r.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+        const ai=r.appendChild(document.createElement('input'));ai.type='text';ai.value=(amount||0).toLocaleString();ai.placeholder='금액';ai.style.cssText='flex:1.2;padding:10px 12px;border:1px solid #2a3050;border-radius:8px;background:#0d1117;color:#e2e8f0;font-size:14px;text-align:right;outline:none;box-sizing:border-box;font-family:inherit;';
+        const si=r.appendChild(document.createElement('select'));si.style.cssText='flex:1;padding:10px 12px;border:1px solid #2a3050;border-radius:8px;background:#0d1117;color:#e2e8f0;font-size:14px;appearance:auto;outline:none;box-sizing:border-box;';
+        PAYMENT_OPTIONS.forEach(v=>{const o=si.appendChild(document.createElement('option'));o.value=v;o.textContent=v;if(v===method)o.selected=true;});
+        const del=r.appendChild(document.createElement('button'));del.type='button';del.textContent='×';del.style.cssText='width:36px;height:40px;border-radius:8px;border:1px solid #2a3050;background:transparent;color:#8892b0;font-size:16px;cursor:pointer;flex-shrink:0;';
+        const obj={ai,si,r};
+        ai.oninput=()=>{const c=ai.selectionStart;ai.value=(parseInt(ai.value.replace(/[^0-9]/g,''))||0).toLocaleString();try{ai.setSelectionRange(c,c);}catch(e){}_renderSum();};
+        del.onclick=()=>{if(_payRows.length<=1)return;const i=_payRows.indexOf(obj);if(i>=0)_payRows.splice(i,1);r.remove();_renderSum();};
+        _payRows.push(obj);return obj;
+      }
+      if(Array.isArray(p.payments)&&p.payments.length){p.payments.forEach(x=>_addPayRow(x.method,x.amount));}
+      else{_addPayRow(p.paymentMethod||mb.payment||'카드', p.totalPrice||0);}
+      const addPmBtn=b2.appendChild(document.createElement('button'));addPmBtn.type='button';addPmBtn.textContent='+ 결제수단 추가 (분할)';addPmBtn.style.cssText='width:100%;padding:9px;margin:-2px 0 16px;border-radius:8px;border:1px dashed #2a3050;background:transparent;color:#818cf8;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;';
+      addPmBtn.onclick=()=>{_addPayRow('카드',0);_renderSum();};
+      amtIn.oninput=()=>{if(_payRows.length===1){_payRows[0].ai.value=(parseInt(amtIn.value)||0).toLocaleString();}_renderSum();};
+      _renderSum();
       // 회원권 이용 기간 (시작일 ~ 종료일) — 회원권(membership)만
       let sdi=null, edi=null;
       if(p.productType==='membership'){
@@ -6457,7 +6477,13 @@ function renderMbPlanCard(container, mb, p, box, close) {
         p.totalPrice = newAmt;
         p.paidAmount = newAmt;
         p.pricePerSession = (p.sessions&&p.sessions>0)?Math.round(newAmt/p.sessions):0;
-        p.paymentMethod = pymSel.value;
+        // 분할 결제 수집 + 검증
+        const _pays=_payRows.map(r=>({method:r.si.value, amount:parseInt(r.ai.value.replace(/[^0-9]/g,''))||0})).filter(x=>x.amount>0);
+        if(!_pays.length){alert('결제수단 금액을 입력해주세요.');return;}
+        const _psum=_pays.reduce((a,x)=>a+x.amount,0);
+        if(_psum!==newAmt){alert('분할 합계('+_psum.toLocaleString()+'원)가 결제금액('+newAmt.toLocaleString()+'원)과 다릅니다.\n금액을 맞춰주세요.');return;}
+        if(_pays.length>1){p.payments=_pays;}else{delete p.payments;}
+        p.paymentMethod = _pays.slice().sort((a,b)=>b.amount-a.amount)[0].method;  // 가장 큰 금액의 수단을 대표로
         if(p.productType==='membership'){
           if(sdi&&edi&&sdi.value&&edi.value&&edi.value<sdi.value){alert('종료일이 시작일보다 빠릅니다.');return;}
           if(sdi&&sdi.value)p.startDate=sdi.value;
@@ -6466,7 +6492,7 @@ function renderMbPlanCard(container, mb, p, box, close) {
         sv('og10_mb', members);
         c2();
         const newDate = new Date(di.value).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
-        info.innerHTML = '결제: ' + newAmt.toLocaleString() + '원' + (p.paymentMethod ? ' · ' + p.paymentMethod : '') + ' · ' + newDate + '<br>'
+        info.innerHTML = '결제: ' + newAmt.toLocaleString() + '원' + (fmtPayMethods(p) ? ' · ' + fmtPayMethods(p) : '') + ' · ' + newDate + '<br>'
           + (p.productType==='membership' ? planRemLbl(p) : ('사용 ' + used + '회 / 잔여 ' + rem + '회'))
           + (p.startDate ? '<br>기간: ' + p.startDate + ' ~ ' + (p.endDate||'') : '');
       };
@@ -6482,7 +6508,7 @@ function renderMbPlanCard(container, mb, p, box, close) {
   // 상세 정보
   const info = card.appendChild(document.createElement('div'));
   info.style.cssText = 'font-size:11px;color:#4a5068;line-height:1.8;';
-  info.innerHTML = '결제: ' + (p.totalPrice||0).toLocaleString() + '원' + (p.paymentMethod ? ' · ' + p.paymentMethod : '') + (pDate ? ' · ' + pDate : '') + '<br>'
+  info.innerHTML = '결제: ' + (p.totalPrice||0).toLocaleString() + '원' + (fmtPayMethods(p) ? ' · ' + fmtPayMethods(p) : '') + (pDate ? ' · ' + pDate : '') + '<br>'
     + (p.productType==='membership' ? planRemLbl(p) : ('사용 ' + used + '회 / 잔여 ' + rem + '회'))
     + (p.startDate ? '<br>기간: ' + p.startDate + ' ~ ' + (p.endDate||'') : '');
 
