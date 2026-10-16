@@ -1172,6 +1172,17 @@ function membershipMonths(prod){if(prod&&prod.months>0)return prod.months;const 
 function addMonths(dateStr,n){if(!dateStr||!n)return dateStr||'';const d=new Date(dateStr+'T00:00:00');d.setMonth(d.getMonth()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 // 결제수단 표시: 분할(payments 2개 이상)이면 "카드 90만 · 이체 9만", 아니면 단일 수단
 function fmtPayMethods(p){if(p&&Array.isArray(p.payments)&&p.payments.length>1){return p.payments.map(x=>x.method+' '+(x.amount%10000===0?((x.amount/10000).toLocaleString()+'만'):x.amount.toLocaleString())).join(' · ');}return (p&&p.paymentMethod)||'';}
+/* 결제건을 '결제수단별 이벤트'로 전개 — 분할결제는 각 결제수단·금액·입금일을 개별 이벤트로, 단일결제는 1건.
+ * 매출내역/결제수단별/월별 집계가 각 결제의 실제 입금일과 금액을 정확히 반영하도록 공통 사용. */
+function planPayEvents(p){
+  let baseDate='';
+  if(p&&p.paymentDate)baseDate=p.paymentDate;
+  else if(p&&p.addedAt){const d=new Date(p.addedAt);baseDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  if(p&&Array.isArray(p.payments)&&p.payments.length){
+    return p.payments.map(x=>({method:x.method||'',amount:x.amount||0,date:(x.date||baseDate)}));
+  }
+  return [{method:(p&&p.paymentMethod)||'',amount:(p&&p.totalPrice)||0,date:baseDate}];
+}
 function planRemLbl(plan){if(plan&&plan.productType==='membership'){const dl=planDaysLeft(plan);return dl==null?'기간제':(dl>=0?('D-'+dl):'만료');}return '잔여 '+getPlanRemain(plan)+'회';}
 function planRemWarn(plan){if(plan&&plan.productType==='membership'){const dl=planDaysLeft(plan);return dl!=null&&dl>=0&&dl<=14;}const r=getPlanRemain(plan);return r>=0&&r<=2;}
 // 멤버십(기간제 이용권) 중 만료일이 가장 늦은(=최신/유효) 플랜. 여러 번 재등록 시 옛 만료 플랜이 아니라 최신 것으로 상태 판정
@@ -3292,9 +3303,12 @@ function computeSales(){
       if(salSearch&&!mb.name.includes(salSearch))return;
       const tr=trainers.find(t=>t.id===mb.trainerId);
       (mb.plans||[]).forEach(plan=>{
-        const pDate=new Date(plan.addedAt||0);if(pDate<sd||pDate>ed)return;
-        const ds=pDate.getFullYear()+'-'+String(pDate.getMonth()+1).padStart(2,'0')+'-'+String(pDate.getDate()).padStart(2,'0');
-        rows.push({date:ds,time:p2(pDate.getHours())+':'+p2(pDate.getMinutes()),trainerId:mb.trainerId,trainerName:tr?tr.name:'?',memberName:mb.name,phone:mb.phone||'',type:plan.duration+'분',planLabel:plan.sessions+'회권',planId:plan.id,memberId:mb.id,revenue:plan.totalPrice||0,groupKey:getGroupKey(ds),inflow:mb.inflow||'',payment:plan.paymentMethod||mb.payment||''});
+        const at=new Date(plan.addedAt||0);
+        planPayEvents(plan).forEach(ev=>{
+          const pDate=ev.date?new Date(ev.date+'T12:00:00'):new Date(plan.addedAt||0);if(pDate<sd||pDate>ed)return;
+          const ds=pDate.getFullYear()+'-'+String(pDate.getMonth()+1).padStart(2,'0')+'-'+String(pDate.getDate()).padStart(2,'0');
+          rows.push({date:ds,time:p2(at.getHours())+':'+p2(at.getMinutes()),trainerId:mb.trainerId,trainerName:tr?tr.name:'?',memberName:mb.name,phone:mb.phone||'',type:plan.duration+'분',planLabel:plan.sessions+'회권',planId:plan.id,memberId:mb.id,revenue:ev.amount||0,groupKey:getGroupKey(ds),inflow:mb.inflow||'',payment:ev.method||mb.payment||''});
+        });
       });
     });
   } else {
@@ -3382,11 +3396,14 @@ function renderSales(){
     if(salSearch&&!mb.name.includes(salSearch))return;
     const tr2=trainers.find(t=>t.id===mb.trainerId);
     (mb.plans||[]).forEach(p=>{
-      const pd=new Date(p.addedAt||0);if(pd<sd||pd>ed)return;
-      const ds=pd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
-      const tm=String(pd.getHours()).padStart(2,'0')+':'+String(pd.getMinutes()).padStart(2,'0');
-      salRows.push({mb,p,tr2,ds,tm,amt:p.totalPrice||0,pay:p.paymentMethod||mb.payment||'카드'});
-      salTotal+=p.totalPrice||0;
+      const multi=Array.isArray(p.payments)&&p.payments.length>1;const at=new Date(p.addedAt||0);
+      planPayEvents(p).forEach(ev=>{
+        const pd=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);if(pd<sd||pd>ed)return;
+        const ds=pd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
+        const tm=multi?'':String(at.getHours()).padStart(2,'0')+':'+String(at.getMinutes()).padStart(2,'0');
+        salRows.push({mb,p,tr2,ds,tm,ts:pd.getTime(),amt:ev.amount||0,pay:ev.method||mb.payment||'카드'});
+        salTotal+=ev.amount||0;
+      });
     });
   });
   // 환불 total
@@ -3420,7 +3437,8 @@ function renderSales(){
     if(refTotal>0){const ns=nc.appendChild(el('div','sal-net-subs'));ns.appendChild(mk('div','sal-net-sub','환불: -'+refTotal.toLocaleString()+'원')).style.color='#f87171';}
     // 요약 카드
     const cards=salContent.appendChild(el('div','sal-cards'));
-    [{v:salRows.length+'건',l:'판매 건수'},{v:new Set(salRows.map(r=>r.mb.name)).size+'명',l:'회원 수'},{v:salRows.length?Math.round(salTotal/salRows.length).toLocaleString()+'원':'-',l:'건당 평균'}].forEach(c=>{
+    const _salPlanCnt=new Set(salRows.map(r=>r.p.id||(r.mb.name+'|'+(r.p.addedAt||0)))).size;
+    [{v:_salPlanCnt+'건',l:'판매 건수'},{v:new Set(salRows.map(r=>r.mb.name)).size+'명',l:'회원 수'},{v:_salPlanCnt?Math.round(salTotal/_salPlanCnt).toLocaleString()+'원':'-',l:'건당 평균'}].forEach(c=>{
       const card=cards.appendChild(el('div','sal-card'));
       card.appendChild(mk('div','sal-card-val',c.v));card.appendChild(mk('div','sal-card-lbl',c.l));
     });
@@ -3431,7 +3449,7 @@ function renderSales(){
     makeSortThs(hr,['등록일','트레이너','회원','수업권','결제수단','금액'],['addedAt','tr','mbName','plan','pay','amt'],mobSalSortCol,mobSalSortDir,(col,dir)=>{mobSalSortCol=col;mobSalSortDir=dir;renderSales();});
     const tbody=tbl.appendChild(el('tbody'));
     // 매출 + 환불 합쳐서 정렬
-    const allRows=[...salRows.map(r=>({ds:r.ds,tm:r.tm,tr:r.tr2?r.tr2.name:'-',mbName:r.mb.name,plan:(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권'),pay:r.pay,amt:r.amt,isRefund:false,addedAt:r.p.addedAt||0}))];
+    const allRows=[...salRows.map(r=>({ds:r.ds,tm:r.tm,tr:r.tr2?r.tr2.name:'-',mbName:r.mb.name,plan:(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권'),pay:r.pay,amt:r.amt,isRefund:false,addedAt:r.ts||r.p.addedAt||0}))];
     refunds.filter(r=>{if(!r.processedAt)return false;const d=new Date(r.processedAt);return d>=sd&&d<=ed;}).forEach(r=>{
       const rd=new Date(r.processedAt);
       allRows.push({ds:rd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}),tm:String(rd.getHours()).padStart(2,'0')+':'+String(rd.getMinutes()).padStart(2,'0'),tr:'-',mbName:r.memberName,plan:(r.type==='transfer'?'[양도]':'[환불]')+' '+r.planName,pay:'-',amt:-(r.refundAmount||0),isRefund:true,addedAt:r.processedAt});
@@ -3588,7 +3606,7 @@ function renderSales(){
   } else if(salSubTab==='bypkg'){
     if(!salRows.length){salContent.appendChild(mk('div','sal-empty','해당 기간 데이터가 없습니다.'));return;}
     const pkgMap={};
-    salRows.forEach(r=>{const k=(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권');if(!pkgMap[k])pkgMap[k]={cnt:0,tot:0};pkgMap[k].cnt++;pkgMap[k].tot+=r.amt;});
+    salRows.forEach(r=>{const k=(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권');if(!pkgMap[k])pkgMap[k]={ids:new Set(),cnt:0,tot:0};pkgMap[k].ids.add(r.p.id||(r.mb.name+'|'+(r.p.addedAt||0)));pkgMap[k].cnt=pkgMap[k].ids.size;pkgMap[k].tot+=r.amt;});
     const tw=salContent.appendChild(el('div','sal-table-wrap'));const tbl=tw.appendChild(el('table','sal-table'));
     const thead=tbl.appendChild(el('thead'));const hr=thead.appendChild(el('tr'));
     makeSortThs(hr,['No','수업권','건수','합계'],[null,'name','cnt','tot'],mobBypkgSortCol,mobBypkgSortDir,(col,dir)=>{mobBypkgSortCol=col;mobBypkgSortDir=dir;renderSales();});
@@ -3606,7 +3624,8 @@ function renderSales(){
       });
     });
     const tfoot=tbl.appendChild(el('tfoot'));const srow=tfoot.appendChild(el('tr','total-row'));
-    ['','합계',salRows.length+'건',salTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===3?'amount':'',v)));
+    const _pkgTotCnt=Object.values(pkgMap).reduce((a,v)=>a+v.cnt,0);
+    ['','합계',_pkgTotCnt+'건',salTotal.toLocaleString()+'원'].forEach((v,i)=>srow.appendChild(mk('td',i===3?'amount':'',v)));
   } else if(salSubTab==='bypay'){
     if(!salRows.length){salContent.appendChild(mk('div','sal-empty','해당 기간 데이터가 없습니다.'));return;}
     const pmMap={};
@@ -4209,7 +4228,7 @@ function renderMobHome(){
   const expiringMembers = members.filter(m=>pcMbStatus&&pcMbStatus(m)==='expiring').length;
   const todaySlots = slots.filter(s=>s.date===todayStr).length;
   let thisMonthSales=0;
-  members.forEach(mb=>{(mb.plans||[]).forEach(p=>{const d=new Date(p.addedAt||0);if(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')===thisMonthKey)thisMonthSales+=p.totalPrice||0;});});
+  members.forEach(mb=>{(mb.plans||[]).forEach(p=>{planPayEvents(p).forEach(ev=>{const d=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);if(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')===thisMonthKey)thisMonthSales+=ev.amount||0;});});});
 
   // ── 성비 ──
   const maleC=members.filter(m=>m.gender==='남').length;
@@ -4222,10 +4241,12 @@ function renderMobHome(){
   members.forEach(mb=>{
     if(trStats[mb.trainerId])trStats[mb.trainerId].cnt++;
     (mb.plans||[]).forEach(p=>{
-      const d=new Date(p.addedAt||0);
-      if(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')===thisMonthKey){
-        if(trStats[mb.trainerId])trStats[mb.trainerId].rev+=p.totalPrice||0;
-      }
+      planPayEvents(p).forEach(ev=>{
+        const d=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);
+        if(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')===thisMonthKey){
+          if(trStats[mb.trainerId])trStats[mb.trainerId].rev+=ev.amount||0;
+        }
+      });
     });
   });
 
@@ -4574,7 +4595,7 @@ function renderPcHome(ct,acts){
   const n=new Date(),y=n.getFullYear(),m2=n.getMonth();
   const thisMonthKey=y+'-'+String(m2+1).padStart(2,'0');
   let mRev=0,mCnt=0;
-  members.forEach(mb=>{(mb.plans||[]).forEach(p=>{const d=new Date(p.addedAt||0);if(d.getFullYear()===y&&d.getMonth()===m2){mRev+=p.totalPrice||0;mCnt++;}});});
+  members.forEach(mb=>{(mb.plans||[]).forEach(p=>{let _counted=false;planPayEvents(p).forEach(ev=>{const d=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);if(d.getFullYear()===y&&d.getMonth()===m2){mRev+=ev.amount||0;if(!_counted){mCnt++;_counted=true;}}});});});
 
   // 성비
   const maleC=members.filter(m=>m.gender==='남').length;
@@ -4587,8 +4608,10 @@ function renderPcHome(ct,acts){
   members.forEach(mb=>{
     if(trStats[mb.trainerId])trStats[mb.trainerId].cnt++;
     (mb.plans||[]).forEach(p=>{
-      const d=new Date(p.addedAt||0);
-      if(d.getFullYear()===y&&d.getMonth()===m2)if(trStats[mb.trainerId])trStats[mb.trainerId].rev+=p.totalPrice||0;
+      planPayEvents(p).forEach(ev=>{
+        const d=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);
+        if(d.getFullYear()===y&&d.getMonth()===m2)if(trStats[mb.trainerId])trStats[mb.trainerId].rev+=ev.amount||0;
+      });
     });
   });
 
@@ -5666,7 +5689,7 @@ function renderPcSales(ct,acts){
    {l:'이번달',fn:()=>{const t=new Date();const s=new Date(t.getFullYear(),t.getMonth(),1);const e=new Date(t.getFullYear(),t.getMonth()+1,0);setQuick(fmtD(s),fmtD(e));}},
   ].forEach(({l,fn,title},i)=>{const btn=qb.appendChild(document.createElement('button'));btn.className='pc-tbtn';btn.textContent=l;if(title)btn.title=title;btn.style.cssText='padding:8px '+(i<2?'12px':'16px')+';font-size:13px;font-weight:600;border-color:#818cf8;color:#818cf8;'+(i===1?'margin-right:8px;':'');btn.onclick=fn;});
   const sd=new Date(pcSalStart),ed=new Date(pcSalEnd);ed.setHours(23,59,59);const rows=[];let total=0;
-  members.forEach(mb=>{if(pcSalTr&&mb.trainerId!==pcSalTr)return;const tr2=trainers.find(t=>t.id===mb.trainerId);(mb.plans||[]).forEach(p=>{const pd=new Date(p.addedAt||0);if(pd<sd||pd>ed)return;rows.push({mb,p,tr2,ds:pd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}),tm:String(pd.getHours()).padStart(2,'0')+':'+String(pd.getMinutes()).padStart(2,'0')});total+=p.totalPrice||0;});});
+  members.forEach(mb=>{if(pcSalTr&&mb.trainerId!==pcSalTr)return;const tr2=trainers.find(t=>t.id===mb.trainerId);(mb.plans||[]).forEach(p=>{const multi=Array.isArray(p.payments)&&p.payments.length>1;planPayEvents(p).forEach(ev=>{const pd=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);if(pd<sd||pd>ed)return;const at=new Date(p.addedAt||0);rows.push({mb,p,tr2,method:ev.method,amount:ev.amount,ts:pd.getTime(),ds:pd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}),tm:multi?'':String(at.getHours()).padStart(2,'0')+':'+String(at.getMinutes()).padStart(2,'0')});total+=ev.amount||0;});});});
   const sd2=new Date(pcSalStart),ed2=new Date(pcSalEnd);ed2.setHours(23,59,59);
   const refundTotal=refunds.filter(r=>{if(!r.processedAt)return false;const d=new Date(r.processedAt);return d>=sd2&&d<=ed2;}).reduce((s,r)=>s+(r.refundAmount||0),0);
   const netTotal=total-refundTotal;
@@ -5700,9 +5723,9 @@ function renderPcSales(ct,acts){
     // PC 매출 테이블은 computeSales rows 기반으로 재렌더
     {
       const{rows:allRows}=(()=>{
-        const sd2=new Date(pcSalStart),ed2=new Date(pcSalEnd);ed2.setHours(23,59,59);const r2=[];
-        members.forEach(mb=>{if(pcSalTr&&mb.trainerId!==pcSalTr)return;const tr3=trainers.find(t=>t.id===mb.trainerId);
-          (mb.plans||[]).forEach(p=>{const pd=new Date(p.addedAt||0);if(pd<sd2||pd>ed2)return;r2.push({date:pd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}),tm:String(pd.getHours()).padStart(2,'0')+':'+String(pd.getMinutes()).padStart(2,'0'),tr:tr3?tr3.name:'-',mbName:mb.name,phone:mb.phone||'-',inflow:mb.inflow||'-',pay:p.paymentMethod||mb.payment||'-',plan:(p.productName||p.duration+'분 '+p.sessions+'회권'),amount:p.totalPrice||0,isRefund:false,addedAt:p.addedAt||0});});});
+        const sd2=new Date(pcSalStart),ed2=new Date(pcSalEnd);ed2.setHours(23,59,59);
+        // 위에서 만든 결제이벤트 rows(분할결제는 입금일·수단별로 분리됨)를 그대로 표에 사용
+        const r2=rows.map(r=>({date:r.ds,tm:r.tm,tr:r.tr2?r.tr2.name:'-',mbName:r.mb.name,phone:r.mb.phone||'-',inflow:r.mb.inflow||'-',pay:r.method||'-',plan:(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권'),amount:r.amount||0,isRefund:false,addedAt:r.ts,planId:r.p.id,memberId:r.mb.id,fullAmount:r.p.totalPrice||0}));
         // 환불 추가
         refunds.forEach(rf=>{if(!rf.processedAt)return;const rd=new Date(rf.processedAt);if(rd<sd2||rd>ed2)return;r2.push({date:rd.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}),tm:String(rd.getHours()).padStart(2,'0')+':'+String(rd.getMinutes()).padStart(2,'0'),tr:'-',mbName:rf.memberName,phone:rf.phone||'-',inflow:'-',pay:'-',plan:(rf.type==='transfer'?'[양도]':'[환불]')+' '+rf.planName,amount:-(rf.refundAmount||0),isRefund:true,addedAt:rf.processedAt});});
         // 기본 정렬(최신순) 또는 선택된 컬럼 정렬
@@ -5733,18 +5756,21 @@ function renderPcSales(ct,acts){
             cancelBtn.style.cssText='padding:5px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(251,191,36,.4);background:transparent;color:#fbbf24;cursor:pointer;white-space:nowrap;';
             cancelBtn.textContent='매출 취소';
             cancelBtn.onclick=async()=>{
-              if(!confirm('[관리자] '+r.mbName+' '+r.plan+' '+Math.abs(r.amount).toLocaleString()+'원 매출 취소? (환불기록 없이 삭제)'))return;
-              const mb=members.find(m=>m.name===r.mbName);
+              // 분할결제여도 결제건(plan) 전체를 취소 — 확인 금액은 결제건 총액 기준
+              const _fa=(r.fullAmount||r.amount);
+              if(!confirm('[관리자] '+r.mbName+' '+r.plan+' '+Math.abs(_fa).toLocaleString()+'원 매출 취소? (환불기록 없이 삭제)'))return;
+              const mb=members.find(m=>m.id===r.memberId)||members.find(m=>m.name===r.mbName);
               if(mb){
-                // 삭제될 plan 중 grpBillId가 있는지 확인 → 청구 레코드 미수 처리
-                const removedPlans=(mb.plans||[]).filter(p=>{const d=new Date(p.addedAt||0);const ds=d.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});return ds===r.date&&p.totalPrice===r.amount&&!p.refunded;});
+                // 삭제될 plan 식별 (planId 우선, 없으면 날짜+총액 매칭)
+                const _match=p=>!p.refunded&&(r.planId?p.id===r.planId:(new Date(p.addedAt||0).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})===r.date&&(p.totalPrice||0)===_fa));
+                const removedPlans=(mb.plans||[]).filter(_match);
                 for(const rp of removedPlans){
                   if(rp.grpBillId){
                     const bill=grpBillings.find(b=>b.id===rp.grpBillId);
                     if(bill){bill.paid=false;bill.paidDate=null;bill.paymentMethod=null;await svGrpBilling(bill);}
                   }
                 }
-                mb.plans=(mb.plans||[]).filter(p=>{const d=new Date(p.addedAt||0);const ds=d.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});return!(ds===r.date&&p.totalPrice===r.amount&&!p.refunded);});
+                mb.plans=(mb.plans||[]).filter(p=>!_match(p));
                 sv('og10_mb',members);
               }
               alert('매출이 취소되었습니다.');renderPcContent();
@@ -5765,12 +5791,12 @@ function renderPcSales(ct,acts){
     }
   } else if(pcSV==='bypkg'){
     ['No','수업권','판매 건수','현금','카드/이체','합계'].forEach(h=>{hr.appendChild(Object.assign(document.createElement('th'),{textContent:h}));});
-    const pkgMap={};rows.forEach(r=>{const k=(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권');if(!pkgMap[k])pkgMap[k]={cnt:0,cash:0,card:0,tot:0};pkgMap[k].cnt++;const amt=r.p.totalPrice||0;if((r.p.paymentMethod||r.mb.payment||'')==='현금')pkgMap[k].cash+=amt;else pkgMap[k].card+=amt;pkgMap[k].tot+=amt;});
-    Object.entries(pkgMap).sort((a,b)=>b[1].tot-a[1].tot).forEach(([k,v],i)=>{const row=tbody.appendChild(document.createElement('tr'));[i+1,k,v.cnt+'건',v.cash.toLocaleString()+'원',v.card.toLocaleString()+'원',v.tot.toLocaleString()+'원'].forEach((val,ci)=>{const td=document.createElement('td');td.textContent=val;if(ci>=3)td.style.fontWeight='700';row.appendChild(td);});});
+    const pkgMap={};rows.forEach(r=>{const k=(r.p.productName||r.p.duration+'분 '+r.p.sessions+'회권');if(!pkgMap[k])pkgMap[k]={ids:new Set(),cash:0,card:0,tot:0};pkgMap[k].ids.add(r.p.id||(r.mb.name+'|'+(r.p.addedAt||0)));const amt=r.amount||0;if((r.method||'')==='현금')pkgMap[k].cash+=amt;else pkgMap[k].card+=amt;pkgMap[k].tot+=amt;});
+    Object.entries(pkgMap).sort((a,b)=>b[1].tot-a[1].tot).forEach(([k,v],i)=>{const row=tbody.appendChild(document.createElement('tr'));[i+1,k,v.ids.size+'건',v.cash.toLocaleString()+'원',v.card.toLocaleString()+'원',v.tot.toLocaleString()+'원'].forEach((val,ci)=>{const td=document.createElement('td');td.textContent=val;if(ci>=3)td.style.fontWeight='700';row.appendChild(td);});});
   } else {
     makeSortThs(hr,['No','결제수단','건수','합계'],[null,'name','cnt','tot'],pcBypaySort,pcBypayDir,(col,dir)=>{pcBypaySort=col;pcBypayDir=dir;renderPcContent();});
-    const pm2={카드:0,현금:0,계좌이체:0};rows.forEach(r=>{const k=r.p.paymentMethod||r.mb.payment||'카드';pm2[k]!==undefined?pm2[k]+=r.p.totalPrice||0:pm2['카드']+=r.p.totalPrice||0;});
-    const sortedPm=Object.entries(pm2).map(([k,v])=>{const cnt=rows.filter(r=>(r.p.paymentMethod||r.mb.payment||'카드')===k).length;return{k,v,cnt};}).sort((a,b)=>{
+    const pm2={카드:0,현금:0,계좌이체:0};rows.forEach(r=>{const k=r.method||'카드';pm2[k]!==undefined?pm2[k]+=r.amount||0:pm2['카드']+=r.amount||0;});
+    const sortedPm=Object.entries(pm2).map(([k,v])=>{const cnt=rows.filter(r=>(r.method||'카드')===k).length;return{k,v,cnt};}).sort((a,b)=>{
       if(pcBypaySort==='name')return pcBypayDir*(a.k<b.k?-1:a.k>b.k?1:0);
       if(pcBypaySort==='cnt')return pcBypayDir*(b.cnt-a.cnt);
       return pcBypayDir*(b.v-a.v);
@@ -6433,21 +6459,25 @@ function renderMbPlanCard(container, mb, p, box, close) {
       const sumLine=b2.appendChild(document.createElement('div'));sumLine.style.cssText='font-size:11px;font-weight:700;margin:-6px 0 10px;text-align:right;';
       const _payRows=[];
       function _renderSum(){const s=_payRows.reduce((a,r)=>a+(parseInt(r.ai.value.replace(/[^0-9]/g,''))||0),0);const t=parseInt(amtIn.value)||0;sumLine.textContent='분할 합계 '+s.toLocaleString()+'원 / 결제금액 '+t.toLocaleString()+'원'+(s===t?' ✓':'');sumLine.style.color=(s===t)?'#3dc87a':'#f87171';}
-      function _addPayRow(method,amount){
-        const r=payWrap.appendChild(document.createElement('div'));r.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:8px;';
-        const ai=r.appendChild(document.createElement('input'));ai.type='text';ai.value=(amount||0).toLocaleString();ai.placeholder='금액';ai.style.cssText='flex:1.2;padding:10px 12px;border:1px solid #2a3050;border-radius:8px;background:#0d1117;color:#e2e8f0;font-size:14px;text-align:right;outline:none;box-sizing:border-box;font-family:inherit;';
-        const si=r.appendChild(document.createElement('select'));si.style.cssText='flex:1;padding:10px 12px;border:1px solid #2a3050;border-radius:8px;background:#0d1117;color:#e2e8f0;font-size:14px;appearance:auto;outline:none;box-sizing:border-box;';
+      // 분할 결제 안내: 결제가 2건 이상일 때 각 행의 입금/결제일 입력칸을 노출(서로 다른 날짜 가능)
+      function _refreshDateCols(){const multi=_payRows.length>1;_payRows.forEach(r=>{r.dti.style.display=multi?'block':'none';});}
+      function _addPayRow(method,amount,date){
+        const r=payWrap.appendChild(document.createElement('div'));r.style.cssText='display:flex;gap:6px;align-items:center;margin-bottom:8px;';
+        const ai=r.appendChild(document.createElement('input'));ai.type='text';ai.value=(amount||0).toLocaleString();ai.placeholder='금액';ai.style.cssText='flex:1.1;padding:10px 12px;border:1px solid #2a3050;border-radius:8px;background:#0d1117;color:#e2e8f0;font-size:14px;text-align:right;outline:none;box-sizing:border-box;font-family:inherit;min-width:0;';
+        const si=r.appendChild(document.createElement('select'));si.style.cssText='flex:.9;padding:10px 8px;border:1px solid #2a3050;border-radius:8px;background:#0d1117;color:#e2e8f0;font-size:13px;appearance:auto;outline:none;box-sizing:border-box;min-width:0;';
         PAYMENT_OPTIONS.forEach(v=>{const o=si.appendChild(document.createElement('option'));o.value=v;o.textContent=v;if(v===method)o.selected=true;});
-        const del=r.appendChild(document.createElement('button'));del.type='button';del.textContent='×';del.style.cssText='width:36px;height:40px;border-radius:8px;border:1px solid #2a3050;background:transparent;color:#8892b0;font-size:16px;cursor:pointer;flex-shrink:0;';
-        const obj={ai,si,r};
+        const dti=r.appendChild(document.createElement('input'));dti.type='date';dti.value=date||di.value||'';dti.title='이 결제의 입금/결제일';dti.style.cssText='flex:1.1;padding:10px 6px;border:1px solid #2a3050;border-radius:8px;background:#0d1117;color:#e2e8f0;font-size:12px;outline:none;box-sizing:border-box;min-width:0;';
+        const del=r.appendChild(document.createElement('button'));del.type='button';del.textContent='×';del.style.cssText='width:32px;height:40px;border-radius:8px;border:1px solid #2a3050;background:transparent;color:#8892b0;font-size:16px;cursor:pointer;flex-shrink:0;';
+        const obj={ai,si,dti,r};
         ai.oninput=()=>{const c=ai.selectionStart;ai.value=(parseInt(ai.value.replace(/[^0-9]/g,''))||0).toLocaleString();try{ai.setSelectionRange(c,c);}catch(e){}_renderSum();};
-        del.onclick=()=>{if(_payRows.length<=1)return;const i=_payRows.indexOf(obj);if(i>=0)_payRows.splice(i,1);r.remove();_renderSum();};
+        del.onclick=()=>{if(_payRows.length<=1)return;const i=_payRows.indexOf(obj);if(i>=0)_payRows.splice(i,1);r.remove();_refreshDateCols();_renderSum();};
         _payRows.push(obj);return obj;
       }
-      if(Array.isArray(p.payments)&&p.payments.length){p.payments.forEach(x=>_addPayRow(x.method,x.amount));}
-      else{_addPayRow(p.paymentMethod||mb.payment||'카드', p.totalPrice||0);}
+      if(Array.isArray(p.payments)&&p.payments.length){p.payments.forEach(x=>_addPayRow(x.method,x.amount,x.date));}
+      else{_addPayRow(p.paymentMethod||mb.payment||'카드', p.totalPrice||0, curDate);}
       const addPmBtn=b2.appendChild(document.createElement('button'));addPmBtn.type='button';addPmBtn.textContent='+ 결제수단 추가 (분할)';addPmBtn.style.cssText='width:100%;padding:9px;margin:-2px 0 16px;border-radius:8px;border:1px dashed #2a3050;background:transparent;color:#818cf8;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;';
-      addPmBtn.onclick=()=>{_addPayRow('카드',0);_renderSum();};
+      addPmBtn.onclick=()=>{_addPayRow('카드',0,di.value);_refreshDateCols();_renderSum();};
+      _refreshDateCols();
       amtIn.oninput=()=>{if(_payRows.length===1){_payRows[0].ai.value=(parseInt(amtIn.value)||0).toLocaleString();}_renderSum();};
       _renderSum();
       // 회원권 이용 기간 (시작일 ~ 종료일) — 회원권(membership)만
@@ -6477,8 +6507,8 @@ function renderMbPlanCard(container, mb, p, box, close) {
         p.totalPrice = newAmt;
         p.paidAmount = newAmt;
         p.pricePerSession = (p.sessions&&p.sessions>0)?Math.round(newAmt/p.sessions):0;
-        // 분할 결제 수집 + 검증
-        const _pays=_payRows.map(r=>({method:r.si.value, amount:parseInt(r.ai.value.replace(/[^0-9]/g,''))||0})).filter(x=>x.amount>0);
+        // 분할 결제 수집 + 검증 (각 결제의 입금/결제일 포함)
+        const _pays=_payRows.map(r=>({method:r.si.value, amount:parseInt(r.ai.value.replace(/[^0-9]/g,''))||0, date:r.dti.value||di.value})).filter(x=>x.amount>0);
         if(!_pays.length){alert('결제수단 금액을 입력해주세요.');return;}
         const _psum=_pays.reduce((a,x)=>a+x.amount,0);
         if(_psum!==newAmt){alert('분할 합계('+_psum.toLocaleString()+'원)가 결제금액('+newAmt.toLocaleString()+'원)과 다릅니다.\n금액을 맞춰주세요.');return;}
@@ -7538,7 +7568,7 @@ function renderPcAnalytics(ct){
   const _custM={};_rmk.forEach(k=>_custM[k]=new Set());   // 월별 결제 고객(중복 제거) — 객단가용
   const _rbyType={PT:0,'회원권':0,'그룹':0};
   let _rcmTot=0,_r6mTot=0;
-  members.forEach(mb=>(mb.plans||[]).forEach(p=>{if(p.refunded)return;const dt=new Date(p.addedAt||0);const mkey=dt.getFullYear()+'-'+p2(dt.getMonth()+1);const rev=p.totalPrice||0;if(_rbyM[mkey]!==undefined){_rbyM[mkey]+=rev;_r6mTot+=rev;if(rev>0)_custM[mkey].add(mb.id);}if(mkey===_rcm){_rcmTot+=rev;const t=(p.productType==='membership')?'회원권':((p.productType||'').includes('group')?'그룹':'PT');_rbyType[t]+=rev;}}));
+  members.forEach(mb=>(mb.plans||[]).forEach(p=>{if(p.refunded)return;const t=(p.productType==='membership')?'회원권':((p.productType||'').includes('group')?'그룹':'PT');planPayEvents(p).forEach(ev=>{const dt=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);const mkey=dt.getFullYear()+'-'+p2(dt.getMonth()+1);const rev=ev.amount||0;if(_rbyM[mkey]!==undefined){_rbyM[mkey]+=rev;_r6mTot+=rev;if(rev>0)_custM[mkey].add(mb.id);}if(mkey===_rcm){_rcmTot+=rev;_rbyType[t]+=rev;}});}));
   const _ravg={};_rmk.forEach(k=>{const n=_custM[k].size;_ravg[k]=n>0?Math.round(_rbyM[k]/n):0;});
   const _rcmCust=_custM[_rcm].size, _rcmAvg=_ravg[_rcm];
   const _rsg=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-dash-g4'}));
