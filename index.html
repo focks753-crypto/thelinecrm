@@ -5044,8 +5044,9 @@ function renderPcCust(ct,acts){
       return String(va).localeCompare(String(vb),'ko')*pcCustSortDir;
     });
   }
+  const _dmNotes=ld('og10_dormant_notes',{});
   list.forEach((mb,i)=>{
-    const tr2=trainers.find(t=>t.id===mb.trainerId);const st=pcMbStatus(mb);
+    const tr2=trainers.find(t=>t.id===mb.trainerId);const st=pcMbStatus(mb);const isDm=isDormantMember(mb,_dmNotes);
     const plans=mb.plans||[];const latest=plans[plans.length-1];const rem=plans.reduce((s,p)=>s+getPlanRemain(p),0);
     const row=tbody.appendChild(document.createElement('tr'));row.style.cursor='pointer';
     row.onclick=()=>openPcMemberDetail(mb.id);
@@ -5053,7 +5054,7 @@ function renderPcCust(ct,acts){
     const regDate=mb.registeredAt?new Date(mb.registeredAt).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}):'-';
     const payDate=latest?(latest.paymentDate||(latest.addedAt?new Date(latest.addedAt).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}):regDate)):regDate;
     [i+1,'',mb.name,mb.phone||'-',mb.gender||'-',tr2?tr2.name:'-',mb.inflow||'-',latest?(latest.productName||latest.duration+'분 '+latest.sessions+'회권'):'-',memRemLbl(mb),totalPaid?totalPaid.toLocaleString()+'원':'-',payDate].forEach((v,ci)=>{
-      const td=document.createElement('td');if(ci===9)td.style.fontWeight='700';if(ci===1)td.innerHTML='<span class="pbs '+pcSCls(st)+'">'+pcSLbl(st)+'</span>';else if(ci===10)td.innerHTML=v+'<div style="font-size:10px;color:#4a5068;margin-top:2px;">등록 '+regDate+'</div>';else td.textContent=v;if(ci===9)td.style.fontWeight='700';row.appendChild(td);
+      const td=document.createElement('td');if(ci===9)td.style.fontWeight='700';if(ci===1)td.innerHTML=isDm?'<span class="pbs" style="background:rgba(251,146,60,.15);color:#fb923c;">휴면</span>':'<span class="pbs '+pcSCls(st)+'">'+pcSLbl(st)+'</span>';else if(ci===10)td.innerHTML=v+'<div style="font-size:10px;color:#4a5068;margin-top:2px;">등록 '+regDate+'</div>';else td.textContent=v;if(ci===9)td.style.fontWeight='700';row.appendChild(td);
     });
   });
   if(!list.length){const tr3=tbody.appendChild(document.createElement('tr'));const td=document.createElement('td');td.colSpan=11;td.style.cssText='text-align:center;padding:40px;color:#2a2d45;';td.textContent='회원이 없습니다.';tr3.appendChild(td);}
@@ -5110,7 +5111,8 @@ function renderMbDetailModal(box,close,mbId){
   av.style.cssText='width:56px;height:56px;border-radius:50%;background:#1c1f28;color:#818cf8;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;margin-bottom:12px;';
   av.textContent=(mb.name||'?')[0];
   left.appendChild(Object.assign(document.createElement('div'),{textContent:mb.name})).style.cssText='font-size:16px;font-weight:800;color:#e2e8f0;margin-bottom:4px;';
-  const stBdg=left.appendChild(document.createElement('div'));stBdg.className='pbs '+pcSCls(st);stBdg.textContent=pcSLbl(st);stBdg.style.marginBottom='16px';
+  const _dmStat=isDormantMember(mb,ld('og10_dormant_notes',{}));
+  const stBdg=left.appendChild(document.createElement('div'));stBdg.className='pbs '+(_dmStat?'':pcSCls(st));stBdg.textContent=_dmStat?'휴면':pcSLbl(st);stBdg.style.marginBottom='16px';if(_dmStat){stBdg.style.background='rgba(251,146,60,.15)';stBdg.style.color='#fb923c';}
 
   // 정보 리스트
   const infoItems=[
