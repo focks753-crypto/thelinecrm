@@ -4542,6 +4542,22 @@ function pcMbStatus(mb){
   // 만료된 플랜이라도 있으면 expired, 플랜 자체가 없으면 none
   return plans.length?'expired':'none';
 }
+// ── 휴면 회원 (오래 수업 안 나온 회원) ──
+const DORMANT_DAYS=21; // 마지막 수업 이후 이 일수 넘으면 자동 휴면
+function _dmFmt(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
+function memberLastSessionDate(m){const t=_dmFmt(new Date());return slots.filter(s=>s.memberId===m.id&&s.date<=t&&s.type!=='OT'&&s.type!=='상담'&&s.type!=='차단').reduce((mx,s)=>s.date>mx?s.date:mx,'');}
+function _daysSinceDm(ds){if(!ds)return Infinity;const d=new Date((''+ds).slice(0,10)+'T00:00:00');if(isNaN(d))return Infinity;const t=new Date();t.setHours(0,0,0,0);return Math.round((t-d)/86400000);}
+function memberRefDateDm(m){const last=memberLastSessionDate(m);if(last)return last;if(m.registeredAt){const d=new Date(m.registeredAt);if(!isNaN(d))return _dmFmt(d);}const ad=(m.plans||[]).map(p=>p.addedAt).filter(Boolean);if(ad.length)return _dmFmt(new Date(Math.min(...ad)));return '';}
+// 휴면 판정: 수동제외면 제외, 수동추가면 포함, 아니면 (유효회원 && 마지막수업 21일+경과)
+function isDormantMember(m,notes){
+  notes=notes||ld('og10_dormant_notes',{});const note=notes[m.id]||{};
+  if(note.manual==='exclude')return false;
+  if(note.manual===true)return true;
+  const st=pcMbStatus(m);if(st!=='active'&&st!=='expiring')return false;
+  const ref=memberRefDateDm(m);if(!ref)return false;
+  return _daysSinceDm(ref)>DORMANT_DAYS;
+}
+function getDormantMembers(base){const notes=ld('og10_dormant_notes',{});return (base||members).filter(m=>isDormantMember(m,notes));}
 function getThisWeek(){
   const now=new Date();const dow=now.getDay();
   const mon=new Date(now);mon.setDate(now.getDate()-(dow===0?6:dow-1));mon.setHours(0,0,0,0);
@@ -4915,11 +4931,12 @@ function renderPcCust(ct,acts){
   const nextWeekAll=getNextWeekNoSesMembers();
   const nextWeekList3=custTr?nextWeekAll.filter(m=>m.trainerId===custTr):nextWeekAll;
 
-  const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'},{id:'noweek',label:'주간미수업'},{id:'nextweek',label:'차주미수업'}];
+  const subs=[{id:'all',label:'전체'},{id:'active',label:'활성'},{id:'expiring',label:'만료임박'},{id:'expired',label:'만료'},{id:'none',label:'미등록'},{id:'dormant',label:'휴면'},{id:'noweek',label:'주간미수업'},{id:'nextweek',label:'차주미수업'}];
   const sb=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-sub-tabs'}));
   subs.forEach(s=>{
     let cnt;
     if(s.id==='all')cnt=baseList.length;
+    else if(s.id==='dormant')cnt=getDormantMembers(baseList).length;
     else if(s.id==='noweek')cnt=noWeekList2.length;
     else if(s.id==='nextweek')cnt=nextWeekList3.length;
     else if(s.id==='expiring')cnt=baseList.filter(m=>{let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;}).length;
@@ -4930,7 +4947,8 @@ function renderPcCust(ct,acts){
   });
   // ── 상태 필터 적용 (유형 칩 카운트 기준이 될 리스트) ──
   let list=baseList.slice();
-  if(custSV==='noweek')list=noWeekList2.slice();
+  if(custSV==='dormant')list=getDormantMembers(baseList);
+  else if(custSV==='noweek')list=noWeekList2.slice();
   else if(custSV==='nextweek')list=nextWeekList3.slice();
   else if(custSV==='expiring')list=list.filter(m=>{if(pcMbStatus(m)==='expiring')return true;let t=0;(m.plans||[]).forEach(p=>{t+=getPlanRemain(p);});return t>0&&t<=2;});
   else if(custSV==='active')list=list.filter(m=>{const st=pcMbStatus(m);return st==='active'||st==='expiring';});
@@ -4957,6 +4975,35 @@ function renderPcCust(ct,acts){
   fb.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn xl-btn',textContent:'⬇ 엑셀'})).onclick=()=>dlCustXLSX(getCurrentCustList());
 
   if(pcCustKw)list=list.filter(m=>m.name.includes(pcCustKw)||(m.phone||'').includes(pcCustKw));
+
+  // ── 휴면 회원 전용 목록 ──
+  if(custSV==='dormant'){
+    const info=ct.appendChild(document.createElement('div'));info.style.cssText='font-size:12px;color:#8892aa;background:#13161d;border:1px solid #1e2026;border-radius:8px;padding:10px 14px;margin-bottom:12px;line-height:1.6;';
+    info.innerHTML='마지막 수업 후 <b style="color:#e2e8f0;">'+DORMANT_DAYS+'일</b> 넘게 안 나온 유효회원이 자동으로 들어옵니다. 회원 상세에서 <b style="color:#fbbf24;">휴면 표시</b>로 직접 추가할 수도 있어요. (홀딩과 별개 — 연락·재방문 관리용)';
+    const notes=ld('og10_dormant_notes',{});
+    list.sort((a,b)=>_daysSinceDm(memberRefDateDm(b))-_daysSinceDm(memberRefDateDm(a)));
+    const tw2=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-tw'}));
+    const tbl2=tw2.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
+    const hr2=tbl2.appendChild(document.createElement('thead')).appendChild(document.createElement('tr'));
+    ['No','담당','회원명','연락처','마지막 수업','경과','연락','메모','액션'].forEach(h=>hr2.appendChild(Object.assign(document.createElement('th'),{textContent:h})));
+    const tbody2=tbl2.appendChild(document.createElement('tbody'));
+    if(!list.length){const r=tbody2.appendChild(document.createElement('tr'));const td=r.appendChild(document.createElement('td'));td.colSpan=9;td.style.cssText='text-align:center;color:#6b7494;padding:28px;';td.textContent='휴면 회원이 없습니다.';}
+    list.forEach((m,i)=>{
+      const tr2=trainers.find(t=>t.id===m.trainerId);const note=notes[m.id]||{};
+      const last=memberLastSessionDate(m);const gap=_daysSinceDm(memberRefDateDm(m));
+      const row=tbody2.appendChild(document.createElement('tr'));row.style.cursor='pointer';
+      if(note.contacted)row.style.opacity='0.6';
+      row.onclick=()=>openPcMemberDetail(m.id);
+      [i+1,tr2?tr2.name:'-',m.name,m.phone||'-',last?last.slice(5):'수업 없음'].forEach((v,ci)=>{const td=row.appendChild(document.createElement('td'));td.textContent=v;if(ci===4&&!last)td.style.color='#f87171';});
+      const gapTd=row.appendChild(document.createElement('td'));gapTd.textContent=(gap===Infinity?'-':gap+'일');gapTd.style.cssText='font-weight:700;color:'+(gap>=30?'#f87171':gap>=DORMANT_DAYS?'#fbbf24':'#8892aa')+';';
+      const cTd=row.appendChild(document.createElement('td'));cTd.innerHTML=note.contacted?('<span style="color:#3dc87a;font-size:12px;">✓ '+(note.contactedDate||'완료')+'</span>'):'<span style="color:#3a3f58;font-size:12px;">미연락</span>';
+      const mTd=row.appendChild(document.createElement('td'));mTd.textContent=(note.memo||'').slice(0,24)+((note.memo||'').length>24?'…':'');mTd.style.cssText='font-size:12px;color:#6b7494;';
+      const aTd=row.appendChild(document.createElement('td'));aTd.style.whiteSpace='nowrap';
+      const mg=aTd.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'관리'}));mg.style.cssText='padding:5px 10px;font-size:11px;';
+      mg.onclick=e=>{e.stopPropagation();openDormantEditModal(m.id,m.name,()=>renderPcContent());};
+    });
+    return;
+  }
 
   const tw=ct.appendChild(Object.assign(document.createElement('div'),{className:'pc-tw'}));
   const tbl=tw.appendChild(Object.assign(document.createElement('table'),{className:'pc-tbl'}));
@@ -5079,6 +5126,12 @@ function renderMbDetailModal(box,close,mbId){
   });
   // 수정 버튼
   left.appendChild(Object.assign(document.createElement('button'),{className:'pcdp-add-btn',textContent:'회원 정보 수정'})).onclick=()=>openPcEditMemberModal(mbId,box,close);
+  // 휴면 표시/해제 (오래 미출석 회원 수동 관리)
+  const _dmNow=isDormantMember(mb,ld('og10_dormant_notes',{}));
+  const dmBtn=left.appendChild(document.createElement('button'));
+  dmBtn.style.cssText='width:100%;padding:10px;border-radius:8px;border:1px solid '+(_dmNow?'rgba(251,191,36,.5)':'#1e2026')+';background:'+(_dmNow?'rgba(251,191,36,.1)':'transparent')+';color:'+(_dmNow?'#fbbf24':'#8892aa')+';font-size:12px;font-weight:600;cursor:pointer;margin-top:6px;font-family:inherit;';
+  dmBtn.textContent=_dmNow?'휴면 해제':'휴면으로 표시';
+  dmBtn.onclick=()=>{toggleDormantManual(mbId);renderMbDetailModal(box,close,mbId);};
   const delMbBtn=left.appendChild(document.createElement('button'));
   delMbBtn.style.cssText='width:100%;padding:10px;border-radius:8px;border:1px solid rgba(248,113,113,.3);background:transparent;color:#f87171;font-size:12px;font-weight:600;cursor:pointer;margin-top:6px;font-family:inherit;';
   delMbBtn.textContent='회원 삭제';
@@ -7747,6 +7800,46 @@ function openNoregEditModal(mId,mName,cb){
       if(cb)cb(cur2[mId]);
     };
   });
+}
+// 휴면 회원 관리 모달 (연락 여부·날짜·메모·휴면 제외)
+function openDormantEditModal(mId,mName,cb){
+  const cur=ld('og10_dormant_notes',{});const note=cur[mId]||{};
+  const fieldStyle='width:100%;padding:11px 14px;border:1px solid #2a3050;border-radius:10px;background:#0d1117;color:#e2e8f0;font-size:14px;margin-bottom:16px;box-sizing:border-box;font-family:inherit;';
+  const lblStyle='font-size:11px;color:#8892b0;margin-bottom:6px;font-weight:700;letter-spacing:.5px;';
+  pcModal((b2,c2)=>{
+    b2.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'휴면 회원 관리'}));
+    b2.appendChild(Object.assign(document.createElement('div'),{textContent:mName})).style.cssText='font-size:13px;color:#8892b0;margin-bottom:20px;';
+    b2.appendChild(Object.assign(document.createElement('div'),{textContent:'연락 여부'})).style.cssText=lblStyle;
+    const chkWrap=b2.appendChild(document.createElement('label'));chkWrap.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#e2e8f0;margin-bottom:16px;';
+    const chk=chkWrap.appendChild(document.createElement('input'));chk.type='checkbox';chk.checked=!!note.contacted;chk.style.cssText='width:16px;height:16px;cursor:pointer;accent-color:#3dc87a;';
+    chkWrap.appendChild(document.createTextNode('연락 완료'));
+    b2.appendChild(Object.assign(document.createElement('div'),{textContent:'연락 날짜'})).style.cssText=lblStyle;
+    const di=b2.appendChild(document.createElement('input'));di.type='date';di.value=note.contactedDate||'';di.style.cssText=fieldStyle;
+    b2.appendChild(Object.assign(document.createElement('div'),{textContent:'메모'})).style.cssText=lblStyle;
+    const ta=b2.appendChild(document.createElement('textarea'));ta.value=note.memo||'';ta.placeholder='연락 결과, 재방문 약속 등...';ta.style.cssText=fieldStyle+'resize:vertical;min-height:80px;';
+    const exWrap=b2.appendChild(document.createElement('label'));exWrap.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#f87171;margin-bottom:4px;';
+    const exChk=exWrap.appendChild(document.createElement('input'));exChk.type='checkbox';exChk.checked=note.manual==='exclude';exChk.style.cssText='width:15px;height:15px;cursor:pointer;accent-color:#f87171;';
+    exWrap.appendChild(document.createTextNode('휴면 목록에서 제외 (더 이상 안 뜨게)'));
+    const row=b2.appendChild(document.createElement('div'));row.style.cssText='display:flex;gap:10px;margin-top:16px;';
+    const cancelBtn=row.appendChild(document.createElement('button'));cancelBtn.textContent='취소';cancelBtn.className='pc-tbtn';cancelBtn.style.cssText='flex:1;padding:12px;';cancelBtn.onclick=c2;
+    const saveBtn=row.appendChild(document.createElement('button'));saveBtn.textContent='저장';saveBtn.className='pc-tbtn pri';saveBtn.style.cssText='flex:1;padding:12px;';
+    saveBtn.onclick=()=>{
+      const cur2=ld('og10_dormant_notes',{});const n=cur2[mId]||{};
+      n.contacted=chk.checked;n.contactedDate=chk.checked?(di.value||_dmFmt(new Date())):'';n.memo=ta.value.trim();
+      if(exChk.checked)n.manual='exclude';else if(n.manual==='exclude')delete n.manual;
+      cur2[mId]=n;sv('og10_dormant_notes',cur2);
+      c2();if(cb)cb(n);
+    };
+  });
+}
+// 회원을 휴면으로 수동 표시/해제 (회원 상세에서 호출)
+function toggleDormantManual(mId){
+  const cur=ld('og10_dormant_notes',{});const n=cur[mId]||{};
+  const mb=members.find(m=>m.id===mId);
+  const nowDormant=mb?isDormantMember(mb,cur):false;
+  if(nowDormant){n.manual='exclude';} // 현재 휴면 → 제외
+  else{n.manual=true;if(n.contacted){n.contacted=false;n.contactedDate='';}} // 현재 아님 → 수동 추가
+  cur[mId]=n;sv('og10_dormant_notes',cur);
 }
 function renderMobAnalytics(ct){
   if(!isAdminUser()){ct.innerHTML='<div class="sal-empty">관리자만 접근할 수 있습니다.</div>';return;}
