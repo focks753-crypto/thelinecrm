@@ -4534,7 +4534,7 @@ function renderPcContent(){
 }
 function pcMbStatus(mb){
   const plans=(mb.plans||[]).filter(p=>!p.refunded);
-  if(!plans.length)return'none';
+  if(!plans.length)return (mb.plans&&mb.plans.length)?'expired':'none'; // 등록했다 환불했으면 만료, 플랜 자체가 없으면 미등록
   const mPlan=latestMembershipPlan(plans);
   if(mPlan){const rem=Math.ceil((new Date(mPlan.endDate)-new Date())/(1000*60*60*24));if(rem<=0)return'expired';if(rem<=14)return'expiring';return'active';}
   let total=0;plans.forEach(p=>{if(p.productType!=='membership'){const r=getPlanRemain(p);if(r>0)total+=r;}});
