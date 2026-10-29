@@ -1830,7 +1830,7 @@ function openAddSheet(time){
       let types=[];
       if(mb){
         const durs=[...new Set((mb.plans||[]).map(p=>p.duration))];
-        if(durs.includes(25))types.push('25분 수업');if(durs.includes(50))types.push('50분 수업');types.push('OT');
+        if(durs.includes(25))types.push('25분 수업');if(durs.includes(50))types.push('50분 수업');types.push('OT');if(freePtRemain(mb)>0)types.push('SPT');
       } else {types=['OT','25분 수업','50분 수업','상담','차단'];}
       const tr2=trainers.find(t=>t.id===tid);
       if(tr2&&tr2.role==='관리자'&&!types.includes('상담'))types.push('상담');
@@ -1865,8 +1865,9 @@ function openAddSheet(time){
     btns.appendChild(mk('button','shok','추가')).onclick=()=>{
       const tid=getTid();const tm=tmsel.value;const ty=tysel?tysel.value:'OT';
       const mbId=mbsel.value||null;
-      const planId=(!mbId||ty==='OT'||ty==='상담')?null:selectedPlanId;
-      if(mbId&&ty!=='OT'&&ty!=='상담'&&!planId){alert('권종을 선택해주세요.');return;}
+      const planId=(!mbId||!ty.includes('수업'))?null:selectedPlanId;
+      if(mbId&&ty.includes('수업')&&!planId){alert('권종을 선택해주세요.');return;}
+      if(ty==='SPT'){const _mb=mbId?members.find(m=>m.id===mbId):null;if(!_mb){alert('SPT는 회원을 선택해야 합니다.');return;}if(freePtRemain(_mb)<=0){alert('남은 SPT가 없습니다.');return;}}
       const _newSlot={id:'s'+Date.now(),trainerId:tid,memberId:mbId,planId,date:key,time:tm,type:ty,memo:mo.value.trim()};
       slots.push(_newSlot);sv('og10_sl',slots);
       if(mbId)writeCrmBk(_newSlot);
@@ -5207,23 +5208,30 @@ function renderMbTab(ct,mb,tab,box,close){
 
 function _fpToday(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
 function _fpFmt(d){if(!d)return'';const p=String(d).split('-');return p.length>=3?(parseInt(p[1],10)+'/'+parseInt(p[2],10)):d;}
+// SPT(무료체험 PT) 집계: 총횟수 - (수동 소진 + 캘린더 SPT 일정)
+function freePtTotal(mb){return (mb&&mb.freePT&&mb.freePT.total)||0;}
+function freePtManualUsed(mb){return ((mb&&mb.freePT&&mb.freePT.used)||[]).slice().sort();}
+function freePtSlotUses(mb){return slots.filter(s=>s.memberId===mb.id&&s.type==='SPT').map(s=>({date:s.date,slotId:s.id})).sort((a,b)=>String(a.date).localeCompare(String(b.date)));}
+function freePtUsedCount(mb){return freePtManualUsed(mb).length+freePtSlotUses(mb).length;}
+function freePtRemain(mb){return Math.max(0,freePtTotal(mb)-freePtUsedCount(mb));}
 
 function renderFreePtCard(ct,mb,box,close){
-  const fp=mb.freePT||{total:0,used:[]};
-  const total=fp.total||0;
-  const used=(fp.used||[]).slice().sort();
-  const remain=Math.max(0,total-used.length);
+  const total=freePtTotal(mb);
+  const manual=freePtManualUsed(mb);
+  const slotUses=freePtSlotUses(mb);
+  const usedCount=manual.length+slotUses.length;
+  const remain=Math.max(0,total-usedCount);
   const rerender=()=>renderMbTab(ct,mb,'dashboard',box,close);
 
   const card=ct.appendChild(document.createElement('div'));
   card.style.cssText='background:#0f1117;border:1px solid #1e2026;border-radius:10px;padding:16px;margin-top:16px;';
 
   const hd=card.appendChild(document.createElement('div'));
-  hd.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:'+((total||used.length)?'12px':'14px')+';';
+  hd.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:'+((total||usedCount)?'12px':'14px')+';';
   const title=hd.appendChild(document.createElement('div'));
   title.style.cssText='font-size:13px;font-weight:700;color:#e2e8f0;';
   title.textContent='SPT내역';
-  if(total||used.length){
+  if(total||usedCount){
     const badge=hd.appendChild(document.createElement('span'));
     badge.style.cssText='font-size:12px;font-weight:800;color:'+(remain>0?'#34d399':'#4a5068')+';';
     badge.textContent='잔여 '+remain+'회';
@@ -5232,20 +5240,21 @@ function renderFreePtCard(ct,mb,box,close){
   // 횟수 설정 함수
   const setTotal=()=>{
     const cur=mb.freePT?mb.freePT.total:0;
-    const v=prompt('무료체험 PT 총 횟수를 입력하세요.',cur||'');
+    const v=prompt('SPT 총 횟수를 입력하세요.',cur||'');
     if(v===null)return;
     const n=parseInt(v,10);
     if(isNaN(n)||n<0){alert('0 이상의 숫자를 입력하세요.');return;}
     if(!mb.freePT)mb.freePT={total:0,used:[]};
-    if(n<(mb.freePT.used||[]).length){alert('이미 사용한 '+mb.freePT.used.length+'회보다 적게 설정할 수 없습니다.');return;}
+    const uc=freePtUsedCount(mb);
+    if(n<uc){alert('이미 사용한 '+uc+'회보다 적게 설정할 수 없습니다.');return;}
     mb.freePT.total=n;
     sv('og10_mb',members);rerender();
   };
 
-  if(!total&&!used.length){
+  if(!total&&!usedCount){
     // 아직 부여 안 됨
     const btn=card.appendChild(document.createElement('button'));
-    btn.textContent='+ 무료 PT 부여하기';
+    btn.textContent='+ SPT 부여하기';
     btn.style.cssText='width:100%;padding:11px;background:#16181f;border:1px dashed #2a2d45;border-radius:8px;color:#818cf8;font-size:13px;font-weight:600;cursor:pointer;';
     btn.onclick=setTotal;
     return;
@@ -5254,13 +5263,25 @@ function renderFreePtCard(ct,mb,box,close){
   // 통계 라인
   const stat=card.appendChild(document.createElement('div'));
   stat.style.cssText='font-size:11px;color:#4a5068;margin-bottom:10px;';
-  stat.textContent='총 '+total+'회 · 사용 '+used.length+'회';
+  stat.textContent='총 '+total+'회 · 사용 '+usedCount+'회'+(slotUses.length?' (일정 '+slotUses.length+'회)':'');
 
-  // 사용 날짜 칩
-  if(used.length){
+  // 사용 날짜 칩 (캘린더 SPT 일정 + 수동 소진)
+  if(slotUses.length||manual.length){
     const list=card.appendChild(document.createElement('div'));
     list.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;';
-    used.forEach(d=>{
+    // 캘린더에서 등록된 SPT 일정
+    slotUses.forEach(u=>{
+      const chip=list.appendChild(document.createElement('span'));
+      chip.style.cssText='display:inline-flex;align-items:center;gap:6px;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);border-radius:6px;padding:4px 8px;font-size:11px;color:#c4cde8;';
+      const lbl=chip.appendChild(document.createElement('span'));lbl.textContent=_fpFmt(u.date);
+      const tag=chip.appendChild(document.createElement('span'));tag.textContent='일정';tag.style.cssText='font-size:9px;color:#818cf8;font-weight:800;';
+      const x=chip.appendChild(document.createElement('span'));
+      x.textContent='×';x.style.cssText='cursor:pointer;color:#6b7280;font-weight:700;';
+      x.title='SPT 일정 삭제';
+      x.onclick=()=>{if(!confirm(_fpFmt(u.date)+' SPT 일정을 삭제할까요?'))return;const _s=slots.find(s=>s.id===u.slotId);slots=slots.filter(s=>s.id!==u.slotId);sv('og10_sl',slots);if(_s&&_s.bkId)firebase.firestore().collection('og10_bk').doc(_s.bkId).delete().catch(()=>{});rerender();};
+    });
+    // 수동 소진
+    manual.forEach(d=>{
       const chip=list.appendChild(document.createElement('span'));
       chip.style.cssText='display:inline-flex;align-items:center;gap:6px;background:#16181f;border:1px solid #242730;border-radius:6px;padding:4px 8px;font-size:11px;color:#cbd5e1;';
       const lbl=chip.appendChild(document.createElement('span'));lbl.textContent=_fpFmt(d);
@@ -5271,7 +5292,7 @@ function renderFreePtCard(ct,mb,box,close){
     });
   }
 
-  // 소진 입력 (날짜 + 버튼)
+  // 수동 소진 입력 (날짜 + 버튼) — 캘린더 없이 바로 차감
   const row=card.appendChild(document.createElement('div'));
   row.style.cssText='display:flex;gap:8px;align-items:center;';
   const dinp=row.appendChild(document.createElement('input'));
@@ -5283,7 +5304,7 @@ function renderFreePtCard(ct,mb,box,close){
   useBtn.style.cssText='padding:8px 16px;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:'+(can?'pointer':'not-allowed')+';background:'+(can?'#818cf8':'#242730')+';color:'+(can?'#0b0d12':'#4a5068')+';';
   useBtn.disabled=!can;
   useBtn.onclick=()=>{
-    if(remain<=0){alert('남은 무료체험 PT가 없습니다.');return;}
+    if(remain<=0){alert('남은 SPT가 없습니다.');return;}
     const d=dinp.value||_fpToday();
     if(!mb.freePT)mb.freePT={total:0,used:[]};
     if(!mb.freePT.used)mb.freePT.used=[];
@@ -8203,7 +8224,7 @@ function openPcAddSchedule(dateStr){
       tyWrap.innerHTML='';
       const mbId=mbS.value;const mb=mbId?members.find(m=>m.id===mbId):null;
       let types=[];
-      if(mb){const durs=[...new Set((mb.plans||[]).map(p=>p.duration))];if(durs.includes(25))types.push('25분 수업');if(durs.includes(50))types.push('50분 수업');types.push('OT');}
+      if(mb){const durs=[...new Set((mb.plans||[]).map(p=>p.duration))];if(durs.includes(25))types.push('25분 수업');if(durs.includes(50))types.push('50분 수업');types.push('OT');if(freePtRemain(mb)>0)types.push('SPT');}
       else types=['OT','25분 수업','50분 수업','상담','차단'];
       const tr2=trainers.find(t=>t.id===getTid());if(tr2&&tr2.role==='관리자'&&!types.includes('상담'))types.push('상담');
       tySel=tyWrap.appendChild(_sel(types.map(t=>({v:t,l:t}))));
@@ -8233,6 +8254,7 @@ function openPcAddSchedule(dateStr){
       const tm=timeS.value;const mbId=mbS.value||null;const ty=tySel?tySel.value:'OT';
       const planId=(!mbId||!ty.includes('수업'))?null:selectedPlanId;
       if(mbId&&ty.includes('수업')&&!planId){alert('권종을 선택해주세요.');return;}
+      if(ty==='SPT'){const _mb=mbId?members.find(m=>m.id===mbId):null;if(!_mb){alert('SPT는 회원을 선택해야 합니다.');return;}if(freePtRemain(_mb)<=0){alert('남은 SPT가 없습니다.');return;}}
       const _newSlot={id:'s'+Date.now(),trainerId:tid,memberId:mbId,planId,date:dt,time:tm,type:ty,memo:moI.value.trim()};
       slots.push(_newSlot);sv('og10_sl',slots);
       if(mbId)writeCrmBk(_newSlot);
@@ -8372,7 +8394,8 @@ function openPcSlotDetail(slotId){
       const tmS=tmF.appendChild(_sel(TIMES.map(t=>({v:t,l:t}))));tmS.value=s.time;
 
       const r3=editForm.appendChild(document.createElement('div'));r3.className='pcm-row2';
-      const tyF=r3.appendChild(_f('유형'));const tyS=tyF.appendChild(_sel(['OT','25분 수업','50분 수업','상담'].map(v=>({v,l:v}))));tyS.value=s.type||'25분 수업';
+      const _tyOpts=['OT','25분 수업','50분 수업','상담'];if(s.type==='SPT'||(mb&&freePtRemain(mb)>0))_tyOpts.push('SPT');
+      const tyF=r3.appendChild(_f('유형'));const tyS=tyF.appendChild(_sel(_tyOpts.map(v=>({v,l:v}))));tyS.value=s.type||'25분 수업';
       const trF=r3.appendChild(_f('트레이너'));const trS=trF.appendChild(_sel([{v:'',l:'선택'},...trainers.map(t=>({v:t.id,l:t.name}))]));if(s.trainerId)trS.value=s.trainerId;
 
       // 수업권 선택
