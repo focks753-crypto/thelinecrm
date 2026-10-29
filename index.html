@@ -5182,6 +5182,9 @@ function renderMbTab(ct,mb,tab,box,close){
     // 이용권 추가 버튼
     ct.appendChild(Object.assign(document.createElement('button'),{className:'pcdp-add-btn',textContent:'+ 이용권 추가하기'})).onclick=()=>openPcPayment(mb.id,box,close);
 
+    // 무료체험 PT 카드
+    renderFreePtCard(ct,mb,box,close);
+
     // 결제 내역 통계
     const sec2=ct.appendChild(document.createElement('div'));sec2.style.marginTop='20px';
     sec2.innerHTML='<div style="font-size:11px;font-weight:700;color:#3a3f58;letter-spacing:1px;margin-bottom:12px;">결제 내역 통계</div>';
@@ -5200,6 +5203,97 @@ function renderMbTab(ct,mb,tab,box,close){
         +'<div style="font-size:15px;font-weight:800;color:#e2e8f0;">'+(p.totalPrice||0).toLocaleString()+'원</div>';
     });
   }
+}
+
+function _fpToday(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+function _fpFmt(d){if(!d)return'';const p=String(d).split('-');return p.length>=3?(parseInt(p[1],10)+'/'+parseInt(p[2],10)):d;}
+
+function renderFreePtCard(ct,mb,box,close){
+  const fp=mb.freePT||{total:0,used:[]};
+  const total=fp.total||0;
+  const used=(fp.used||[]).slice().sort();
+  const remain=Math.max(0,total-used.length);
+  const rerender=()=>renderMbTab(ct,mb,'dashboard',box,close);
+
+  const card=ct.appendChild(document.createElement('div'));
+  card.style.cssText='background:#0f1117;border:1px solid #1e2026;border-radius:10px;padding:16px;margin-top:16px;';
+
+  const hd=card.appendChild(document.createElement('div'));
+  hd.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:'+((total||used.length)?'12px':'14px')+';';
+  const title=hd.appendChild(document.createElement('div'));
+  title.style.cssText='font-size:13px;font-weight:700;color:#e2e8f0;';
+  title.textContent='🎁 무료체험 PT';
+  if(total||used.length){
+    const badge=hd.appendChild(document.createElement('span'));
+    badge.style.cssText='font-size:12px;font-weight:800;color:'+(remain>0?'#34d399':'#4a5068')+';';
+    badge.textContent='잔여 '+remain+'회';
+  }
+
+  // 횟수 설정 함수
+  const setTotal=()=>{
+    const cur=mb.freePT?mb.freePT.total:0;
+    const v=prompt('무료체험 PT 총 횟수를 입력하세요.',cur||'');
+    if(v===null)return;
+    const n=parseInt(v,10);
+    if(isNaN(n)||n<0){alert('0 이상의 숫자를 입력하세요.');return;}
+    if(!mb.freePT)mb.freePT={total:0,used:[]};
+    if(n<(mb.freePT.used||[]).length){alert('이미 사용한 '+mb.freePT.used.length+'회보다 적게 설정할 수 없습니다.');return;}
+    mb.freePT.total=n;
+    sv('og10_mb',members);rerender();
+  };
+
+  if(!total&&!used.length){
+    // 아직 부여 안 됨
+    const btn=card.appendChild(document.createElement('button'));
+    btn.textContent='+ 무료 PT 부여하기';
+    btn.style.cssText='width:100%;padding:11px;background:#16181f;border:1px dashed #2a2d45;border-radius:8px;color:#818cf8;font-size:13px;font-weight:600;cursor:pointer;';
+    btn.onclick=setTotal;
+    return;
+  }
+
+  // 통계 라인
+  const stat=card.appendChild(document.createElement('div'));
+  stat.style.cssText='font-size:11px;color:#4a5068;margin-bottom:10px;';
+  stat.textContent='총 '+total+'회 · 사용 '+used.length+'회';
+
+  // 사용 날짜 칩
+  if(used.length){
+    const list=card.appendChild(document.createElement('div'));
+    list.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;';
+    used.forEach(d=>{
+      const chip=list.appendChild(document.createElement('span'));
+      chip.style.cssText='display:inline-flex;align-items:center;gap:6px;background:#16181f;border:1px solid #242730;border-radius:6px;padding:4px 8px;font-size:11px;color:#cbd5e1;';
+      const lbl=chip.appendChild(document.createElement('span'));lbl.textContent=_fpFmt(d);
+      const x=chip.appendChild(document.createElement('span'));
+      x.textContent='×';x.style.cssText='cursor:pointer;color:#6b7280;font-weight:700;';
+      x.title='소진 취소';
+      x.onclick=()=>{const i=mb.freePT.used.indexOf(d);if(i>=0)mb.freePT.used.splice(i,1);sv('og10_mb',members);rerender();};
+    });
+  }
+
+  // 소진 입력 (날짜 + 버튼)
+  const row=card.appendChild(document.createElement('div'));
+  row.style.cssText='display:flex;gap:8px;align-items:center;';
+  const dinp=row.appendChild(document.createElement('input'));
+  dinp.type='date';dinp.value=_fpToday();
+  dinp.style.cssText='flex:1;padding:8px 10px;background:#0b0d12;border:1px solid #242730;border-radius:7px;color:#e2e8f0;font-size:12px;';
+  const useBtn=row.appendChild(document.createElement('button'));
+  useBtn.textContent='소진';
+  const can=remain>0;
+  useBtn.style.cssText='padding:8px 16px;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:'+(can?'pointer':'not-allowed')+';background:'+(can?'#818cf8':'#242730')+';color:'+(can?'#0b0d12':'#4a5068')+';';
+  useBtn.disabled=!can;
+  useBtn.onclick=()=>{
+    if(remain<=0){alert('남은 무료체험 PT가 없습니다.');return;}
+    const d=dinp.value||_fpToday();
+    if(!mb.freePT)mb.freePT={total:0,used:[]};
+    if(!mb.freePT.used)mb.freePT.used=[];
+    mb.freePT.used.push(d);
+    sv('og10_mb',members);rerender();
+  };
+  const editBtn=row.appendChild(document.createElement('button'));
+  editBtn.textContent='횟수 수정';
+  editBtn.style.cssText='padding:8px 12px;background:transparent;border:1px solid #242730;border-radius:7px;color:#9aa0b4;font-size:12px;cursor:pointer;';
+  editBtn.onclick=setTotal;
 }
 
 // ── 이용권 추가 / 결제 (Image 4 참고) ────────────────────────────────────
