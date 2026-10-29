@@ -1844,11 +1844,18 @@ function openAddSheet(time){
       const showConsult=ty==='상담'&&isAdminRole;
       moLbl.textContent=showConsult?'상담 내용':'메모 (선택)';mo.placeholder=showConsult?'상담 내용 입력':'메모';
       if(ty==='차단'){planLbl.style.display='none';pw.style.display='none';return;}
+      if(mb&&ty==='SPT'){
+        planLbl.textContent='SPT 잔여';planLbl.style.display='block';pw.style.display='block';
+        const info=pw.appendChild(el('div'));
+        info.style.cssText='padding:10px 12px;background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.3);border-radius:8px;font-size:13px;font-weight:700;color:#818cf8;';
+        info.textContent='SPT 잔여 '+freePtRemain(mb)+'회 (무료체험 · 수업권 차감 없음)';
+        return;
+      }
       if(!mb||ty==='OT'||ty==='상담'||!ty.includes('수업')){planLbl.style.display='none';pw.style.display='none';return;}
       const dur=ty.startsWith('25')?25:50;
       const matchPlans=(mb.plans||[]).filter(p=>p.duration===dur);
       if(!matchPlans.length){planLbl.style.display='none';pw.style.display='none';return;}
-      planLbl.style.display='block';pw.style.display='block';
+      planLbl.textContent='권종 선택';planLbl.style.display='block';pw.style.display='block';
       matchPlans.forEach((p,i)=>{
         const rem=getPlanRemain(p);
         const card=pw.appendChild(el('div','plan-option'+(i===0?' sel':'')));
@@ -8234,6 +8241,15 @@ function openPcAddSchedule(dateStr){
       planWrap.innerHTML='';selectedPlanId=null;
       const mbId=mbS.value;const mb=mbId?members.find(m=>m.id===mbId):null;
       const ty=tySel?tySel.value:'';
+      const _lbl=planF.querySelector('.pcm-label');
+      if(mb&&ty==='SPT'){
+        planF.style.display='block';if(_lbl)_lbl.textContent='SPT 잔여';
+        const info=planWrap.appendChild(document.createElement('div'));
+        info.style.cssText='padding:10px 12px;background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.3);border-radius:8px;font-size:13px;font-weight:700;color:#818cf8;';
+        info.textContent='SPT 잔여 '+freePtRemain(mb)+'회 (무료체험 · 수업권 차감 없음)';
+        return;
+      }
+      if(_lbl)_lbl.textContent='권종 선택';
       if(!mb||!ty.includes('수업')){planF.style.display='none';return;}
       const dur=ty.startsWith('25')?25:50;
       const matchPlans=(mb.plans||[]).filter(p=>p.duration===dur);
