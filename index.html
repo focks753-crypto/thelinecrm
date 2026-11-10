@@ -1231,6 +1231,8 @@ async function initPushForAdmin(gesture,autoPrompt){
 }
 function canEditSlot(s){return isAdminUser()||(curUser&&curUser===s.trainerId);}
 function canAccessTrainer(tid){return isAdminUser()||(curUser&&curUser===tid);}
+// 일정 삭제 권한: 관리자는 항상 가능. 트레이너는 본인 일정이라도 noDelete(삭제 금지) 설정 시 삭제 불가
+function canDeleteSlot(s){if(isAdminUser())return true;if(!curUser||!s||curUser!==s.trainerId)return false;const tr=trainers.find(t=>t.id===curUser);return !(tr&&tr.noDelete);}
 
 // ── GATE (센터 코드) ──
 let pinBuffer='';
@@ -1754,13 +1756,16 @@ function openSlotDetail(slotId){
       };
     }
 
-    // 삭제 버튼
+    // 삭제 버튼 (삭제 권한 있을 때만)
+    if(canDeleteSlot(s)){
     const delBtn=sheet.appendChild(mk('button','','일정 삭제'));
     delBtn.style.cssText='width:100%;padding:11px;border-radius:10px;border:1px solid #3d1a1a;background:transparent;color:#e05555;font-size:13px;cursor:pointer;margin-top:8px;';
     delBtn.onclick=()=>{
       if(!canEditSlot(s)){alert('본인 일정만 삭제할 수 있습니다.');return;}
+      if(!canDeleteSlot(s)){alert('수업 삭제 권한이 없습니다. 관리자에게 문의하세요.');return;}
       if(confirm('이 일정을 삭제할까요?')){const _bkId=s.bkId;slots=slots.filter(x=>x.id!==s.id);sv('og10_sl',slots);if(_bkId)firebase.firestore().collection('og10_bk').doc(_bkId).delete().catch(()=>{});close();renderTimes();}
     };
+    }
   });
 }
 
@@ -5282,10 +5287,12 @@ function renderFreePtCard(ct,mb,box,close){
       chip.style.cssText='display:inline-flex;align-items:center;gap:6px;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);border-radius:6px;padding:4px 8px;font-size:11px;color:#c4cde8;';
       const lbl=chip.appendChild(document.createElement('span'));lbl.textContent=_fpFmt(u.date);
       const tag=chip.appendChild(document.createElement('span'));tag.textContent='일정';tag.style.cssText='font-size:9px;color:#818cf8;font-weight:800;';
+      if(canDeleteSlot(slots.find(s=>s.id===u.slotId))){
       const x=chip.appendChild(document.createElement('span'));
       x.textContent='×';x.style.cssText='cursor:pointer;color:#6b7280;font-weight:700;';
       x.title='SPT 일정 삭제';
-      x.onclick=()=>{if(!confirm(_fpFmt(u.date)+' SPT 일정을 삭제할까요?'))return;const _s=slots.find(s=>s.id===u.slotId);slots=slots.filter(s=>s.id!==u.slotId);sv('og10_sl',slots);if(_s&&_s.bkId)firebase.firestore().collection('og10_bk').doc(_s.bkId).delete().catch(()=>{});rerender();};
+      x.onclick=()=>{const _s=slots.find(s=>s.id===u.slotId);if(!canDeleteSlot(_s)){alert('수업 삭제 권한이 없습니다. 관리자에게 문의하세요.');return;}if(!confirm(_fpFmt(u.date)+' SPT 일정을 삭제할까요?'))return;slots=slots.filter(s=>s.id!==u.slotId);sv('og10_sl',slots);if(_s&&_s.bkId)firebase.firestore().collection('og10_bk').doc(_s.bkId).delete().catch(()=>{});rerender();};
+      }
     });
     // 수동 소진
     manual.forEach(d=>{
@@ -6937,6 +6944,15 @@ function openPcStaffModal(tr2, onSave) {
       btn.onclick = () => {selColor = i; colBtns.forEach((b,j) => b.style.borderColor = j===i?'#fff':'transparent');};
       return btn;
     });
+    // 권한: 수업 삭제 금지 (관리자 설정)
+    const permF = box.appendChild(_f('권한'));
+    const permLbl = permF.appendChild(document.createElement('label'));
+    permLbl.style.cssText = 'display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13px;color:#c4cde8;padding:4px 0;';
+    const permChk = permLbl.appendChild(document.createElement('input'));
+    permChk.type = 'checkbox'; permChk.checked = tr2 ? !!tr2.noDelete : false;
+    permChk.style.cssText = 'width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#818cf8;';
+    const permTxt = permLbl.appendChild(document.createElement('span'));
+    permTxt.innerHTML = '수업 삭제 금지 <span style="color:#6b7494;">· 등록한 일정을 본인이 삭제할 수 없음 (관리자는 가능)</span>';
     const btns = box.appendChild(document.createElement('div')); btns.className = 'pcm-btns'; btns.style.marginTop = '24px';
     btns.appendChild(Object.assign(document.createElement('button'), {className:'pcm-btn-sec', textContent:'취소'})).onclick = close;
     btns.appendChild(Object.assign(document.createElement('button'), {className:'pcm-btn-pri', textContent: tr2 ? '저장' : '추가'})).onclick = () => {
@@ -6944,12 +6960,13 @@ function openPcStaffModal(tr2, onSave) {
       if (!name) {alert('이름을 입력해주세요.'); return;}
       if (tr2) {
         tr2.name = name; tr2.role = roleI.value.trim(); tr2.phone = phoneI.value.trim(); tr2.color = selColor;
+        tr2.noDelete = permChk.checked;
         if (sabanI.value) tr2.saban = sabanI.value;
         sv('og10_tr', trainers);
       } else {
         const saban = sabanI.value;
         if (!saban) {alert('로그인 번호를 입력해주세요.'); return;}
-        trainers.push({id:'tr'+Date.now(), name, role:roleI.value.trim(), phone:phoneI.value.trim(), color:selColor, saban});
+        trainers.push({id:'tr'+Date.now(), name, role:roleI.value.trim(), phone:phoneI.value.trim(), color:selColor, saban, noDelete:permChk.checked});
         sv('og10_tr', trainers);
       }
       close(); renderPcContent(); updatePcUser();
@@ -8334,10 +8351,12 @@ function openPcDayView(ds){
         const editBtn=btns.appendChild(document.createElement('button'));
         editBtn.className='pc-tbtn';editBtn.textContent='수정';editBtn.style.cssText='padding:6px 12px;font-size:11px;';
         editBtn.onclick=()=>{close();openPcSlotDetail(s.id);};
+        if(canDeleteSlot(s)){
         const delBtn=btns.appendChild(document.createElement('button'));
         delBtn.style.cssText='padding:6px 12px;border-radius:6px;border:1px solid rgba(248,113,113,.3);background:transparent;color:#f87171;font-size:11px;cursor:pointer;font-family:inherit;';
         delBtn.textContent='삭제';
         delBtn.onclick=()=>{
+          if(!canDeleteSlot(s)){alert('수업 삭제 권한이 없습니다. 관리자에게 문의하세요.');return;}
           if(!confirm((mb?mb.name:'이 일정')+'을 삭제하시겠습니까?'))return;
           const _dvBkId=s.bkId;
           slots=slots.filter(x=>x.id!==s.id);sv('og10_sl',slots);
@@ -8345,6 +8364,7 @@ function openPcDayView(ds){
           renderPcContent();renderList();
           if(!slots.filter(x=>x.date===ds).length)close();
         };
+        }
       });
     }
 
@@ -8436,19 +8456,22 @@ function openPcSlotDetail(slotId){
     }
     editBtn.onclick=()=>{showEditForm();};
 
-    // 삭제 버튼
+    // 삭제 버튼 (삭제 권한 있을 때만)
+    if(canDeleteSlot(s)){
     const delWrap=box.appendChild(document.createElement('div'));
     delWrap.style.cssText='display:flex;justify-content:flex-end;margin-top:8px;';
     const delBtn=delWrap.appendChild(document.createElement('button'));
     delBtn.style.cssText='padding:5px 12px;border-radius:6px;border:1px solid rgba(248,113,113,.4);background:transparent;color:#f87171;font-size:11px;cursor:pointer;';
     delBtn.textContent='일정 삭제';
     delBtn.onclick=()=>{
+      if(!canDeleteSlot(s)){alert('수업 삭제 권한이 없습니다. 관리자에게 문의하세요.');return;}
       if(!confirm((mb?mb.name:'이 일정')+'을 삭제하시겠습니까?'))return;
       const _bkId=s.bkId;
       slots=slots.filter(x=>x.id!==s.id);sv('og10_sl',slots);
       if(_bkId)firebase.firestore().collection('og10_bk').doc(_bkId).delete().catch(()=>{});
       closeModal();renderPcContent();
     };
+    }
   },{});
 }
 
