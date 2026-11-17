@@ -4252,7 +4252,7 @@ function renderMobHome(){
   const trStats={};
   trainers.forEach(t=>{trStats[t.id]={name:t.name,cnt:0,rev:0,color:getTrainerColor(t).dot};});
   members.forEach(mb=>{
-    if(trStats[mb.trainerId])trStats[mb.trainerId].cnt++;
+    if(trStats[mb.trainerId]&&pcMbActivePT(mb))trStats[mb.trainerId].cnt++; // PT 유효회원만 집계(만료·헬스회원권 제외)
     (mb.plans||[]).forEach(p=>{
       planPayEvents(p).forEach(ev=>{
         const d=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);
@@ -4611,6 +4611,8 @@ function pcSLbl(s){return{active:'활성',expiring:'만료임박',expired:'만�
 function pcSCls(s){return{active:'pbs-on',expiring:'pbs-ex',expired:'pbs-off',none:'pbs-no'}[s]||'pbs-no';}
 // ── 회원 유형 분류: PT수업권 / 헬스회원권 (환불 제외, 그룹수업 제외) ──
 function pcMbHasPT(mb){return(mb.plans||[]).some(p=>p&&!p.refunded&&p.productType!=='membership'&&p.productType!=='group'&&p.productType!=='group_monthly'&&(p.sessions||0)>0);}
+// PT 유효회원: 환불X·멤버십/그룹/적립 아닌 PT 수업권 중 잔여 횟수 1회 이상 보유
+function pcMbActivePT(mb){return(mb.plans||[]).some(p=>p&&!p.refunded&&p.productType!=='membership'&&p.productType!=='group'&&p.productType!=='group_monthly'&&p.productType!=='credit'&&getPlanRemain(p)>0);}
 function pcMbHasMembership(mb){return(mb.plans||[]).some(p=>p&&!p.refunded&&p.productType==='membership');}
 function pcMbMatchType(mb,type){if(!type||type==='all')return true;if(type==='pt')return pcMbHasPT(mb);if(type==='membership')return pcMbHasMembership(mb);return true;}
 function renderPcHome(ct,acts){
@@ -4635,7 +4637,7 @@ function renderPcHome(ct,acts){
   const trStats={};
   trainers.forEach(t=>{trStats[t.id]={name:t.name,cnt:0,rev:0,color:getTrainerColor(t).dot};});
   members.forEach(mb=>{
-    if(trStats[mb.trainerId])trStats[mb.trainerId].cnt++;
+    if(trStats[mb.trainerId]&&pcMbActivePT(mb))trStats[mb.trainerId].cnt++; // PT 유효회원만 집계(만료·헬스회원권 제외)
     (mb.plans||[]).forEach(p=>{
       planPayEvents(p).forEach(ev=>{
         const d=ev.date?new Date(ev.date+'T12:00:00'):new Date(p.addedAt||0);
@@ -5795,7 +5797,8 @@ function renderPcSessions(ct,acts){
 
 // ── 캘린더 ──────────────────────────────────────────────────────────────
 function renderPcCal(ct,acts){
-  if(acts){acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 일정 추가'})).onclick=()=>openPcAddSchedule();}
+  if(acts){acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn pri',textContent:'+ 일정 추가'})).onclick=()=>openPcAddSchedule();
+    acts.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'+ 고정수업'})).onclick=()=>openPcRecurringSchedule();}
   const hdr=ct.appendChild(Object.assign(document.createElement('div'),{style:'display:flex;align-items:center;gap:12px;margin-bottom:16px;'}));
   hdr.appendChild(Object.assign(document.createElement('button'),{className:'pc-tbtn',textContent:'◀'})).onclick=()=>{pcCalM--;if(pcCalM<0){pcCalM=11;pcCalY--;}renderPcContent();};
   const ttlDiv=hdr.appendChild(Object.assign(document.createElement('div'),{}));ttlDiv.style.cssText='font-size:18px;font-weight:800;flex:1;';ttlDiv.textContent=pcCalY+'년 '+(pcCalM+1)+'월';
@@ -8292,6 +8295,112 @@ function openPcAddSchedule(dateStr){
       slots.push(_newSlot);sv('og10_sl',slots);
       if(mbId)writeCrmBk(_newSlot);
       close();renderPcContent();
+    };
+  },{});
+}
+
+// ── 고정수업(반복) 등록: 기간 내 선택 요일마다 일정 자동 생성 ───────────────
+function openPcRecurringSchedule(){
+  const _fmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const today=new Date();
+  pcModal((box,close)=>{
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'고정수업 등록'}));
+    box.appendChild(Object.assign(document.createElement('div'),{className:'pcm-sub',textContent:'기간 내 선택한 요일마다 같은 시간에 일정이 자동 생성됩니다'}));
+    const r1=box.appendChild(document.createElement('div'));r1.className='pcm-row2';
+    const trF=r1.appendChild(_f('강사',true));
+    const trS=trF.appendChild(_sel(trainers.map(t=>({v:t.id,l:t.name}))));
+    if(curUser&&trainers.some(t=>t.id===curUser))trS.value=curUser;
+    if(!isAdminUser())trS.disabled=true;
+    const mbF=r1.appendChild(_f('회원',true));
+    const mbS=mbF.appendChild(_sel([{v:'',l:'-- 회원 선택 --'}]));
+    const tyF=box.appendChild(_f('일정 유형',true));const tyWrap=tyF.appendChild(document.createElement('div'));
+    const planF=box.appendChild(_f('권종 선택'));const planWrap=planF.appendChild(document.createElement('div'));
+    // 요일 복수선택
+    const dowF=box.appendChild(_f('반복 요일',true));
+    const dowWrap=dowF.appendChild(document.createElement('div'));dowWrap.style.cssText='display:flex;gap:6px;flex-wrap:wrap;';
+    const DOWS=[{l:'월',v:1},{l:'화',v:2},{l:'수',v:3},{l:'목',v:4},{l:'금',v:5},{l:'토',v:6},{l:'일',v:0}];
+    const dowChks=DOWS.map(d=>{
+      const b=dowWrap.appendChild(document.createElement('label'));
+      b.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:7px 11px;border:1px solid #242730;border-radius:8px;cursor:pointer;font-size:13px;color:#c4cde8;user-select:none;';
+      const c=b.appendChild(document.createElement('input'));c.type='checkbox';c.value=d.v;c.style.cssText='width:15px;height:15px;accent-color:#818cf8;cursor:pointer;';
+      b.appendChild(document.createElement('span')).textContent=d.l;
+      c.onchange=()=>{b.style.borderColor=c.checked?'#818cf8':'#242730';b.style.background=c.checked?'rgba(129,140,248,.1)':'';updatePreview();};
+      return c;
+    });
+    const r2=box.appendChild(document.createElement('div'));r2.className='pcm-row2';
+    const timeF=r2.appendChild(_f('시간',true));
+    const timeS=timeF.appendChild(_sel(TIMES.map(t=>({v:t,l:t}))));
+    const _dummy=r2.appendChild(document.createElement('div'));
+    const r3=box.appendChild(document.createElement('div'));r3.className='pcm-row2';
+    const sF=r3.appendChild(_f('시작일',true));const sI=sF.appendChild(_inp('','date'));sI.value=_fmt(today);
+    const eF=r3.appendChild(_f('종료일',true));const eI=eF.appendChild(_inp('','date'));const _e=new Date(today);_e.setMonth(_e.getMonth()+1);eI.value=_fmt(_e);
+    const moF=box.appendChild(_f('메모 (선택)'));const moI=moF.appendChild(_inp('메모'));
+    const preview=box.appendChild(document.createElement('div'));
+    preview.style.cssText='margin-top:10px;font-size:12px;color:#818cf8;font-weight:600;min-height:18px;';
+    let tySel=null,selectedPlanId=null;
+    function getTid(){return trS.value;}
+    function fillMbs(){const tid=getTid();mbS.innerHTML='';[{v:'',l:'-- 회원 선택 --'},...members.filter(m=>m.trainerId===tid).map(m=>({v:m.id,l:m.name}))].forEach(o=>{const op=document.createElement('option');op.value=o.v;op.textContent=o.l;mbS.appendChild(op);});}
+    function updateTypes(){
+      tyWrap.innerHTML='';
+      const mbId=mbS.value;const mb=mbId?members.find(m=>m.id===mbId):null;
+      let types=[];
+      if(mb){const durs=[...new Set((mb.plans||[]).map(p=>p.duration))];if(durs.includes(25))types.push('25분 수업');if(durs.includes(50))types.push('50분 수업');}
+      if(!types.length)types=['25분 수업','50분 수업'];
+      types.push('OT');
+      tySel=tyWrap.appendChild(_sel(types.map(t=>({v:t,l:t}))));
+      tySel.onchange=updatePlans;updatePlans();
+    }
+    function updatePlans(){
+      planWrap.innerHTML='';selectedPlanId=null;
+      const mbId=mbS.value;const mb=mbId?members.find(m=>m.id===mbId):null;
+      const ty=tySel?tySel.value:'';
+      if(!mb||!ty.includes('수업')){planF.style.display='none';return;}
+      const dur=ty.startsWith('25')?25:50;
+      const matchPlans=(mb.plans||[]).filter(p=>p.duration===dur);
+      if(!matchPlans.length){planF.style.display='none';return;}
+      planF.style.display='block';
+      const plS=planWrap.appendChild(_sel(matchPlans.map(p=>({v:p.id,l:(p.sessions||0)+'회권 · '+planRemLbl(p)}))));
+      selectedPlanId=matchPlans[0].id;plS.value=selectedPlanId;
+      plS.onchange=()=>{selectedPlanId=plS.value;};
+    }
+    function calcDates(){
+      const sVal=sI.value,eVal=eI.value;
+      const dows=dowChks.filter(c=>c.checked).map(c=>parseInt(c.value,10));
+      if(!sVal||!eVal||!dows.length)return[];
+      const sD=new Date(sVal+'T00:00:00'),eD=new Date(eVal+'T00:00:00');
+      if(eD<sD)return[];
+      const out=[];
+      for(let d=new Date(sD);d<=eD;d.setDate(d.getDate()+1)){if(dows.includes(d.getDay()))out.push(_fmt(d));if(out.length>400)break;}
+      return out;
+    }
+    function updatePreview(){
+      const n=calcDates().length;
+      preview.textContent=n?('총 '+n+'회 일정이 생성됩니다.'):'반복 요일과 기간을 선택하세요.';
+    }
+    trS.onchange=()=>{fillMbs();updateTypes();};
+    mbS.onchange=()=>updateTypes();
+    sI.onchange=updatePreview;eI.onchange=updatePreview;
+    fillMbs();updateTypes();updatePreview();
+    const btns=box.appendChild(document.createElement('div'));btns.className='pcm-btns';btns.style.marginTop='20px';
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-sec',textContent:'취소'})).onclick=close;
+    btns.appendChild(Object.assign(document.createElement('button'),{className:'pcm-btn-pri',textContent:'등록'})).onclick=()=>{
+      const tid=trS.value;if(!tid){alert('강사를 선택해주세요.');return;}
+      const mbId=mbS.value;if(!mbId){alert('회원을 선택해주세요.');return;}
+      const ty=tySel?tySel.value:'';
+      const planId=(!ty.includes('수업'))?null:selectedPlanId;
+      if(ty.includes('수업')&&!planId){alert('권종을 선택해주세요.');return;}
+      const tm=timeS.value;
+      const dates=calcDates();
+      if(!dates.length){alert('반복 요일과 기간을 올바르게 선택해주세요.');return;}
+      if(dates.length>400){alert('한 번에 400회까지만 등록할 수 있습니다. 기간을 줄여주세요.');return;}
+      if(!confirm(dates.length+'회의 고정수업을 등록합니다.\n('+dates[0]+' ~ '+dates[dates.length-1]+')\n진행할까요?'))return;
+      const base=Date.now();const memo=moI.value.trim()||'고정수업';
+      const created=[];
+      dates.forEach((ds,i)=>{const slot={id:'s'+(base+i),trainerId:tid,memberId:mbId,planId,date:ds,time:tm,type:ty,memo};slots.push(slot);created.push(slot);});
+      sv('og10_sl',slots);
+      created.forEach(writeCrmBk);
+      close();renderPcContent();
+      alert(created.length+'회의 고정수업이 등록되었습니다.');
     };
   },{});
 }
