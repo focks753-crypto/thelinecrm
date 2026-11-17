@@ -1707,7 +1707,8 @@ function openSlotDetail(slotId){
     // 유형 수정
     sheet.appendChild(mk('label','','일정 유형'));
     const tysel=sheet.appendChild(el('select'));tysel.style.cssText=iSt;
-    ['OT','25분 수업','50분 수업','상담'].forEach(t=>{const o=tysel.appendChild(document.createElement('option'));o.value=t;o.textContent=t;if(t===s.type)o.selected=true;});
+    const _tyList=['OT','25분 수업','50분 수업','상담'];if(s.type==='SPT'||(mb&&freePtRemain(mb)>0))_tyList.push('SPT');
+    _tyList.forEach(t=>{const o=tysel.appendChild(document.createElement('option'));o.value=t;o.textContent=t;if(t===s.type)o.selected=true;});
 
     // 권종 선택 (회원의 플랜 목록)
     if(mb&&(mb.plans||[]).length>0){
@@ -1735,7 +1736,7 @@ function openSlotDetail(slotId){
       btns.appendChild(mk('button','shno','취소')).onclick=close;
       btns.appendChild(mk('button','shok','저장')).onclick=()=>{
         s.date=dtinp.value;s.time=tmsel.value;s.type=tysel.value;
-        s.planId=plsel.value||null;s.memo=mo.value;
+        s.planId=(tysel.value==='SPT')?null:(plsel.value||null);s.memo=mo.value;
         sv('og10_sl',slots);
         if(s.bkId)updateCrmBk(s.bkId,{date:s.date,time:s.time,type:s.type,planId:s.planId||null,memo:s.memo});
         close();renderTimes();
@@ -4169,6 +4170,11 @@ function renderMobCal(container){
   fab2.style.cssText='display:flex;align-items:center;gap:8px;margin-top:12px;width:100%;padding:12px;border-radius:10px;border:1px solid #1e2026;background:#111318;color:#8892aa;font-size:14px;cursor:pointer;font-family:inherit;justify-content:center;';
   fab2.innerHTML='<span>+</span><span>일정 추가</span>';
   fab2.onclick=()=>openAddSheet_mobile(null);
+  // + 고정수업 (반복) 버튼
+  const fab3=container.appendChild(document.createElement('button'));
+  fab3.style.cssText='display:flex;align-items:center;gap:8px;margin-top:8px;width:100%;padding:12px;border-radius:10px;border:1px solid rgba(129,140,248,.3);background:rgba(129,140,248,.08);color:#818cf8;font-size:14px;cursor:pointer;font-family:inherit;justify-content:center;';
+  fab3.innerHTML='<span>🔁</span><span>고정수업 등록</span>';
+  fab3.onclick=()=>openPcRecurringSchedule();
 }
 
 function openAddSheet_mobile(dateStr){
@@ -8400,6 +8406,8 @@ function openPcRecurringSchedule(){
       sv('og10_sl',slots);
       created.forEach(writeCrmBk);
       close();renderPcContent();
+      const _mcw=document.getElementById('mob-cal-wrap');if(_mcw&&_mcw.style.display!=='none')renderMobCal(_mcw);
+      if(document.getElementById('pg-sch')&&document.getElementById('pg-sch').classList.contains('show'))renderTimes();
       alert(created.length+'회의 고정수업이 등록되었습니다.');
     };
   },{});
