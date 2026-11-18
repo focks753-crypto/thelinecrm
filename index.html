@@ -1183,6 +1183,12 @@ function planPayEvents(p){
   }
   return [{method:(p&&p.paymentMethod)||'',amount:(p&&p.totalPrice)||0,date:baseDate}];
 }
+// 실제 수납 합계: payments[] 있으면 그 합(=실수납), 없으면 전액 결제로 간주(=totalPrice)
+function planPaidAmount(p){if(p&&Array.isArray(p.payments)&&p.payments.length)return p.payments.reduce((a,x)=>a+(x.amount||0),0);return (p&&p.totalPrice)||0;}
+// 미수금 = 계약총액 - 실수납. 환불건은 0.
+function planUnpaid(p){if(!p||p.refunded)return 0;return Math.max(0,((p.totalPrice)||0)-planPaidAmount(p));}
+// 회원 전체 미수금 합계(환불 제외)
+function memberUnpaid(mb){return((mb&&mb.plans)||[]).reduce((a,p)=>a+planUnpaid(p),0);}
 function planRemLbl(plan){if(plan&&plan.productType==='membership'){const dl=planDaysLeft(plan);return dl==null?'기간제':(dl>=0?('D-'+dl):'만료');}return '잔여 '+getPlanRemain(plan)+'회';}
 function planRemWarn(plan){if(plan&&plan.productType==='membership'){const dl=planDaysLeft(plan);return dl!=null&&dl>=0&&dl<=14;}const r=getPlanRemain(plan);return r>=0&&r<=2;}
 // 멤버십(기간제 이용권) 중 만료일이 가장 늦은(=최신/유효) 플랜. 여러 번 재등록 시 옛 만료 플랜이 아니라 최신 것으로 상태 판정
@@ -5190,7 +5196,8 @@ function renderMbTab(ct,mb,tab,box,close){
     // 헤더 카운트
     const hdr=ct.appendChild(document.createElement('div'));
     hdr.style.cssText='display:flex;align-items:center;gap:16px;margin-bottom:20px;';
-    hdr.innerHTML='<span style="font-size:14px;font-weight:700;color:#e2e8f0;">유효 상품 <span style="color:#818cf8;">'+active.length+'</span></span><span style="font-size:14px;color:#4a5068;">만료 상품 '+expired.length+'</span>';
+    const _mbUnpaid=memberUnpaid(mb);
+    hdr.innerHTML='<span style="font-size:14px;font-weight:700;color:#e2e8f0;">유효 상품 <span style="color:#818cf8;">'+active.length+'</span></span><span style="font-size:14px;color:#4a5068;">만료 상품 '+expired.length+'</span>'+(_mbUnpaid>0?'<span style="font-size:13px;font-weight:700;color:#f87171;margin-left:auto;background:rgba(248,113,113,.1);padding:4px 10px;border-radius:7px;">미수금 '+_mbUnpaid.toLocaleString()+'원</span>':'');
 
     // 이용권 카드들
     if(!plans.length){
@@ -5537,6 +5544,63 @@ function openPcPayment(mbId,parentBox,parentClose){
   right.appendChild(Object.assign(document.createElement('div'),{textContent:'결제할 상품'})).style.cssText='font-size:11px;font-weight:700;color:#3a3f58;letter-spacing:1px;margin-bottom:8px;';
   const selArea=right.appendChild(document.createElement('div'));selArea.style.cssText='flex:1;';
 
+  // ── 수납 상세 (분할 / 미수금) ──────────────────────────────────────────
+  // 기본은 접힘=전액 결제(현행 그대로). 펼치면 결제수단별 분할·미수금 입력.
+  let splitActive=false;
+  let updateSplitSum=()=>{};
+  let getSplitResult=()=>null; // {payments:[{method,amount,date}], paid, unpaid} 또는 null
+  const splitSec=right.appendChild(document.createElement('div'));splitSec.style.cssText='margin-top:12px;';
+  const splitToggle=splitSec.appendChild(document.createElement('button'));
+  splitToggle.type='button';
+  splitToggle.style.cssText='width:100%;padding:9px;border-radius:9px;border:1px dashed #2a3050;background:transparent;color:#818cf8;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;';
+  splitToggle.textContent='＋ 분할 결제 / 미수금 입력';
+  const splitWrap=splitSec.appendChild(document.createElement('div'));splitWrap.style.cssText='display:none;margin-top:10px;';
+  const splitRowsBox=splitWrap.appendChild(document.createElement('div'));
+  const addSplitBtn=splitWrap.appendChild(document.createElement('button'));
+  addSplitBtn.type='button';addSplitBtn.textContent='+ 결제수단 추가 (분할)';
+  addSplitBtn.style.cssText='width:100%;padding:8px;margin-top:2px;border-radius:8px;border:1px dashed #2a3050;background:transparent;color:#818cf8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;';
+  const splitSum=splitWrap.appendChild(document.createElement('div'));splitSum.style.cssText='font-size:11px;font-weight:700;margin-top:8px;line-height:1.7;';
+  const _splitRows=[];
+  function _todayStr2(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+  function _addSplitRow(method,amount,date){
+    const r=splitRowsBox.appendChild(document.createElement('div'));r.style.cssText='display:flex;gap:5px;align-items:center;margin-bottom:6px;';
+    const ai=r.appendChild(document.createElement('input'));ai.type='text';ai.value=(amount||0).toLocaleString();ai.placeholder='금액';ai.style.cssText='flex:1.1;padding:8px 9px;border:1px solid #2a3050;border-radius:7px;background:#0a0c10;color:#e2e8f0;font-size:13px;text-align:right;outline:none;box-sizing:border-box;min-width:0;font-family:inherit;';
+    const si=r.appendChild(document.createElement('select'));si.style.cssText='flex:.85;padding:8px 4px;border:1px solid #2a3050;border-radius:7px;background:#0a0c10;color:#e2e8f0;font-size:12px;outline:none;box-sizing:border-box;min-width:0;';
+    PAYMENT_OPTIONS.forEach(v=>{const o=si.appendChild(document.createElement('option'));o.value=v;o.textContent=v;if(v===method)o.selected=true;});
+    const dti=r.appendChild(document.createElement('input'));dti.type='date';dti.value=date||_todayStr2();dti.title='이 결제의 수납일';dti.style.cssText='flex:1.05;padding:8px 3px;border:1px solid #2a3050;border-radius:7px;background:#0a0c10;color:#e2e8f0;font-size:11px;outline:none;box-sizing:border-box;min-width:0;color-scheme:dark;';
+    const del=r.appendChild(document.createElement('button'));del.type='button';del.textContent='×';del.style.cssText='width:26px;height:34px;border-radius:7px;border:1px solid #2a3050;background:transparent;color:#8892b0;font-size:15px;cursor:pointer;flex-shrink:0;';
+    const obj={ai,si,dti,r};
+    ai.oninput=()=>{const c=ai.selectionStart;ai.value=(parseInt(ai.value.replace(/[^0-9]/g,''))||0).toLocaleString();try{ai.setSelectionRange(c,c);}catch(e){}updateSplitSum();};
+    si.onchange=updateSplitSum;dti.onchange=updateSplitSum;
+    del.onclick=()=>{if(_splitRows.length<=1)return;const i=_splitRows.indexOf(obj);if(i>=0)_splitRows.splice(i,1);r.remove();updateSplitSum();};
+    _splitRows.push(obj);return obj;
+  }
+  updateSplitSum=function(){
+    const paid=_splitRows.reduce((a,r)=>a+(parseInt(r.ai.value.replace(/[^0-9]/g,''))||0),0);
+    const contract=selPrice||0;const unpaid=contract-paid;
+    let html='수납 <b style="color:#e2e8f0;">'+paid.toLocaleString()+'원</b> / 계약 '+contract.toLocaleString()+'원';
+    if(unpaid>0)html+='<br><span style="color:#f87171;">미수금 '+unpaid.toLocaleString()+'원</span>';
+    else if(unpaid<0)html+='<br><span style="color:#f87171;">⚠ 수납이 계약금액을 '+(-unpaid).toLocaleString()+'원 초과</span>';
+    else html+=' <span style="color:#3dc87a;">✓ 완납</span>';
+    splitSum.innerHTML=html;splitSum.style.color='#6b7494';
+    if(splitActive)payBtn.textContent=(unpaid>0?('수납 '+paid.toLocaleString()+'원 · 미수 '+unpaid.toLocaleString()+'원  등록'):(paid.toLocaleString()+'원  결제하기'));
+  };
+  splitToggle.onclick=()=>{
+    splitActive=!splitActive;
+    splitWrap.style.display=splitActive?'block':'none';
+    splitToggle.textContent=splitActive?'− 분할/미수금 접기 (전액 결제로)':'＋ 분할 결제 / 미수금 입력';
+    splitToggle.style.color=splitActive?'#f59e0b':'#818cf8';splitToggle.style.borderColor=splitActive?'#f59e0b':'#2a3050';
+    if(splitActive){if(!_splitRows.length)_addSplitRow(selPayMethod,selPrice||0,_todayStr2());updateSplitSum();}
+    else{payBtn.textContent=(selPrice||0).toLocaleString()+'원  결제하기';}
+  };
+  addSplitBtn.onclick=()=>{_addSplitRow(selPayMethod,0,_todayStr2());updateSplitSum();};
+  getSplitResult=function(){
+    if(!splitActive)return null;
+    const pays=_splitRows.map(r=>({method:r.si.value,amount:parseInt(r.ai.value.replace(/[^0-9]/g,''))||0,date:r.dti.value||_todayStr2()})).filter(x=>x.amount>0);
+    const paid=pays.reduce((a,x)=>a+x.amount,0);
+    return{payments:pays,paid,unpaid:(selPrice||0)-paid};
+  };
+
   // 결제 버튼
   const payBtn=right.appendChild(document.createElement('button'));
   payBtn.style.cssText='width:100%;padding:16px;border-radius:12px;border:none;background:#818cf8;color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-top:14px;font-family:inherit;transition:background .15s;';
@@ -5547,6 +5611,10 @@ function openPcPayment(mbId,parentBox,parentClose){
   function updateRight(){
     selArea.innerHTML='';
     const hasSelection=selProductId||customProd||selGroupClassId;
+    // 분할/미수금 섹션: 상품(PT·헬스) 선택시만 노출(그룹수업 월정액은 청구/수납 체계가 별도라 제외)
+    const _showSplit=hasSelection&&!selGroupClassId;
+    splitSec.style.display=_showSplit?'block':'none';
+    if(!_showSplit&&splitActive){splitActive=false;splitWrap.style.display='none';splitToggle.textContent='＋ 분할 결제 / 미수금 입력';splitToggle.style.color='#818cf8';splitToggle.style.borderColor='#2a3050';}
     if(!hasSelection){
       selArea.innerHTML='<div style="font-size:12px;color:#2a2d45;text-align:center;padding:16px 0;">상품을 선택해 주세요</div>';
       payBtn.textContent='결제하기';payBtn.style.opacity='0.5';return;
@@ -5615,7 +5683,7 @@ function openPcPayment(mbId,parentBox,parentClose){
     const priceInput=priceEditWrap.appendChild(document.createElement('input'));priceInput.type='text';priceInput.value=prod.price.toLocaleString();priceInput.style.cssText='width:100%;padding:10px 12px;border:1.5px solid #818cf8;border-radius:8px;background:#0a0c10;color:#818cf8;font-size:18px;font-weight:800;text-align:right;outline:none;box-sizing:border-box;font-family:inherit;';
     const perHint=priceEditWrap.appendChild(document.createElement('div'));perHint.style.cssText='font-size:11px;color:#3a3f58;text-align:right;margin-top:4px;';
     if(prod.sessions&&prod.sessions>0)perHint.textContent='회당 '+Math.round(selPrice/prod.sessions).toLocaleString()+'원';
-    priceInput.oninput=()=>{const raw=priceInput.value.replace(/[^0-9]/g,'');selPrice=parseInt(raw)||0;const cur=priceInput.selectionStart;priceInput.value=selPrice.toLocaleString();try{priceInput.setSelectionRange(cur,cur);}catch(e){}if(prod.sessions&&prod.sessions>0)perHint.textContent='회당 '+Math.round(selPrice/prod.sessions).toLocaleString()+'원';payBtn.textContent=selPrice.toLocaleString()+'원  결제하기';};
+    priceInput.oninput=()=>{const raw=priceInput.value.replace(/[^0-9]/g,'');selPrice=parseInt(raw)||0;const cur=priceInput.selectionStart;priceInput.value=selPrice.toLocaleString();try{priceInput.setSelectionRange(cur,cur);}catch(e){}if(prod.sessions&&prod.sessions>0)perHint.textContent='회당 '+Math.round(selPrice/prod.sessions).toLocaleString()+'원';payBtn.textContent=selPrice.toLocaleString()+'원  결제하기';updateSplitSum();};
     if(prod.type==='membership'){
       const _months=membershipMonths(prod);
       if(_months>0&&selStartDate)selEndDate=addMonths(selStartDate,_months);   // 시작일+개월수 자동
@@ -5629,6 +5697,7 @@ function openPcPayment(mbId,parentBox,parentClose){
       eI.onchange=()=>selEndDate=eI.value;
     }
     payBtn.textContent=prod.price.toLocaleString()+'원  결제하기'; selPrice=prod.price;
+    if(splitActive)updateSplitSum();
   }
   updateRight();
 
@@ -5661,14 +5730,27 @@ function openPcPayment(mbId,parentBox,parentClose){
     const prod=customProd||(selProductId?products.find(p=>p.id===selProductId):null);
     if(!prod){alert('상품을 선택해주세요.');return;}
     if(prod.type==='membership'&&(!selStartDate||!selEndDate)){alert('이용 기간을 입력해주세요.');return;}
+    // 분할/미수금 처리
+    let _pays=null,_payMethod=selPayMethod,_firstPayDate=todayStr;
+    const _sp=getSplitResult();
+    if(_sp){
+      if(!_sp.payments.length){alert('수납 금액을 1건 이상 입력해주세요. (전액 미수면 금액 0으로 두지 말고 접기)');return;}
+      if(_sp.unpaid<0){alert('수납 합계가 계약금액을 초과합니다. 금액을 확인해주세요.');return;}
+      _pays=_sp.payments;
+      _payMethod=_pays.slice().sort((a,b)=>b.amount-a.amount)[0].method; // 대표 수단=최대금액
+      _firstPayDate=_pays.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)))[0].date;
+    }
     const plan={id:'pl'+Date.now(),productId:prod.id,productName:prod.name,productType:prod.type,
       duration:prod.duration||50,sessions:prod.sessions||1,totalPrice:selPrice,
       pricePerSession:prod.sessions?Math.round(selPrice/prod.sessions):selPrice,
-      paymentMethod:selPayMethod,startDate:prod.type==='membership'?selStartDate:null,endDate:prod.type==='membership'?selEndDate:null,
-      paymentDate:todayStr,addedAt:now.getTime()};
+      paymentMethod:_payMethod,startDate:prod.type==='membership'?selStartDate:null,endDate:prod.type==='membership'?selEndDate:null,
+      paymentDate:_firstPayDate,addedAt:now.getTime()};
+    // 분할이거나 미수금이 있으면 payments[] 저장(매출=실수납액만, 미수금은 수금시 매출 반영)
+    if(_pays&&(_pays.length>1||_sp.unpaid>0))plan.payments=_pays;
     mb.plans=mb.plans||[];mb.plans.push(plan);sv('og10_mb',members);
     closePayModal();
-    alert('✅ 결제 완료!\n'+prod.name+' '+selPrice.toLocaleString()+'원 ('+selPayMethod+')');
+    const _unpaidMsg=(_sp&&_sp.unpaid>0)?('\n미수금 '+_sp.unpaid.toLocaleString()+'원'):'';
+    alert('✅ 결제 완료!\n'+prod.name+' '+selPrice.toLocaleString()+'원 ('+_payMethod+')'+_unpaidMsg);
     // 회원 상세로 돌아가기
     if(parentBox&&parentClose){renderMbDetailModal(parentBox,parentClose,mbId);}
     else{renderPcContent();setTimeout(()=>openPcMemberDetail(mbId),50);}
@@ -6641,17 +6723,17 @@ function renderMbPlanCard(container, mb, p, box, close) {
       b2.appendChild(Object.assign(document.createElement('div'),{textContent:'판매일자 (매출 발생일)'})).style.cssText=lblStyle;
       const di = b2.appendChild(document.createElement('input'));
       di.type='date'; di.value=curDate; di.style.cssText=fieldStyle;
-      // 결제금액
-      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'결제금액'})).style.cssText=lblStyle;
+      // 계약금액(총액)
+      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'계약금액 (총액)'})).style.cssText=lblStyle;
       const amtIn = b2.appendChild(document.createElement('input'));
       amtIn.type='number'; amtIn.value=p.totalPrice||0; amtIn.min=0; amtIn.style.cssText=fieldStyle;
-      amtIn.placeholder='결제금액 입력';
-      // 결제수단 (분할 결제 가능 — 예: 90만 카드 + 9만 이체)
-      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'결제수단 (여러 방법으로 나눠 입력 가능)'})).style.cssText=lblStyle;
+      amtIn.placeholder='계약 총액 입력';
+      // 수납 내역 (분할·미수금 — 합계가 계약금액보다 적으면 미수금으로 처리)
+      b2.appendChild(Object.assign(document.createElement('div'),{textContent:'수납 내역 (카드·현금·계좌 나눠 입력 · 합계<계약 = 미수금)'})).style.cssText=lblStyle;
       const payWrap=b2.appendChild(document.createElement('div'));
       const sumLine=b2.appendChild(document.createElement('div'));sumLine.style.cssText='font-size:11px;font-weight:700;margin:-6px 0 10px;text-align:right;';
       const _payRows=[];
-      function _renderSum(){const s=_payRows.reduce((a,r)=>a+(parseInt(r.ai.value.replace(/[^0-9]/g,''))||0),0);const t=parseInt(amtIn.value)||0;sumLine.textContent='분할 합계 '+s.toLocaleString()+'원 / 결제금액 '+t.toLocaleString()+'원'+(s===t?' ✓':'');sumLine.style.color=(s===t)?'#3dc87a':'#f87171';}
+      function _renderSum(){const s=_payRows.reduce((a,r)=>a+(parseInt(r.ai.value.replace(/[^0-9]/g,''))||0),0);const t=parseInt(amtIn.value)||0;const u=t-s;let txt='수납 '+s.toLocaleString()+'원 / 계약 '+t.toLocaleString()+'원';if(u>0)txt+=' · 미수 '+u.toLocaleString()+'원';else if(u<0)txt+=' · 초과 '+(-u).toLocaleString()+'원';else txt+=' ✓';sumLine.textContent=txt;sumLine.style.color=(u===0)?'#3dc87a':(u>0?'#f59e0b':'#f87171');}
       // 분할 결제 안내: 결제가 2건 이상일 때 각 행의 입금/결제일 입력칸을 노출(서로 다른 날짜 가능)
       function _refreshDateCols(){const multi=_payRows.length>1;_payRows.forEach(r=>{r.dti.style.display=multi?'block':'none';});}
       function _addPayRow(method,amount,date){
@@ -6671,7 +6753,7 @@ function renderMbPlanCard(container, mb, p, box, close) {
       const addPmBtn=b2.appendChild(document.createElement('button'));addPmBtn.type='button';addPmBtn.textContent='+ 결제수단 추가 (분할)';addPmBtn.style.cssText='width:100%;padding:9px;margin:-2px 0 16px;border-radius:8px;border:1px dashed #2a3050;background:transparent;color:#818cf8;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;';
       addPmBtn.onclick=()=>{_addPayRow('카드',0,di.value);_refreshDateCols();_renderSum();};
       _refreshDateCols();
-      amtIn.oninput=()=>{if(_payRows.length===1){_payRows[0].ai.value=(parseInt(amtIn.value)||0).toLocaleString();}_renderSum();};
+      amtIn.oninput=()=>{_renderSum();};
       _renderSum();
       // 회원권 이용 기간 (시작일 ~ 종료일) — 회원권(membership)만
       let sdi=null, edi=null;
@@ -6698,14 +6780,15 @@ function renderMbPlanCard(container, mb, p, box, close) {
         d.setHours(12, 0, 0, 0);
         p.addedAt = d.getTime();
         p.totalPrice = newAmt;
-        p.paidAmount = newAmt;
         p.pricePerSession = (p.sessions&&p.sessions>0)?Math.round(newAmt/p.sessions):0;
-        // 분할 결제 수집 + 검증 (각 결제의 입금/결제일 포함)
+        // 수납 내역 수집 + 검증 (각 수납의 수단·금액·수납일 포함). 합계<계약 = 미수금 허용, 초과만 차단
         const _pays=_payRows.map(r=>({method:r.si.value, amount:parseInt(r.ai.value.replace(/[^0-9]/g,''))||0, date:r.dti.value||di.value})).filter(x=>x.amount>0);
-        if(!_pays.length){alert('결제수단 금액을 입력해주세요.');return;}
+        if(!_pays.length){alert('수납 금액을 1건 이상 입력해주세요.');return;}
         const _psum=_pays.reduce((a,x)=>a+x.amount,0);
-        if(_psum!==newAmt){alert('분할 합계('+_psum.toLocaleString()+'원)가 결제금액('+newAmt.toLocaleString()+'원)과 다릅니다.\n금액을 맞춰주세요.');return;}
-        if(_pays.length>1){p.payments=_pays;}else{delete p.payments;}
+        if(_psum>newAmt){alert('수납 합계('+_psum.toLocaleString()+'원)가 계약금액('+newAmt.toLocaleString()+'원)을 초과합니다.\n금액을 확인해주세요.');return;}
+        p.paidAmount = _psum;
+        // 분할(2건↑)이거나 미수금(합계<계약)이면 payments[] 저장, 아니면(단일 완납) 제거
+        if(_pays.length>1||_psum<newAmt){p.payments=_pays;}else{delete p.payments;}
         p.paymentMethod = _pays.slice().sort((a,b)=>b.amount-a.amount)[0].method;  // 가장 큰 금액의 수단을 대표로
         if(p.productType==='membership'){
           if(sdi&&edi&&sdi.value&&edi.value&&edi.value<sdi.value){alert('종료일이 시작일보다 빠릅니다.');return;}
@@ -6714,10 +6797,7 @@ function renderMbPlanCard(container, mb, p, box, close) {
         }
         sv('og10_mb', members);
         c2();
-        const newDate = new Date(di.value).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
-        info.innerHTML = '결제: ' + newAmt.toLocaleString() + '원' + (fmtPayMethods(p) ? ' · ' + fmtPayMethods(p) : '') + ' · ' + newDate + '<br>'
-          + (p.productType==='membership' ? planRemLbl(p) : ('사용 ' + used + '회 / 잔여 ' + rem + '회'))
-          + (p.startDate ? '<br>기간: ' + p.startDate + ' ~ ' + (p.endDate||'') : '');
+        renderMbDetailModal(box, close, mb.id); // 카드 전체 재렌더(미수금·수금 버튼 반영)
       };
     });
   };
@@ -6728,12 +6808,25 @@ function renderMbPlanCard(container, mb, p, box, close) {
   refBtn.textContent = '환불/양도';
   refBtn.onclick = () => openPcRefund(mb, p, box, close);
 
+  // 미수금 계산
+  const _paid = planPaidAmount(p); const _unpaid = planUnpaid(p);
+
   // 상세 정보
   const info = card.appendChild(document.createElement('div'));
   info.style.cssText = 'font-size:11px;color:#4a5068;line-height:1.8;';
-  info.innerHTML = '결제: ' + (p.totalPrice||0).toLocaleString() + '원' + (fmtPayMethods(p) ? ' · ' + fmtPayMethods(p) : '') + (pDate ? ' · ' + pDate : '') + '<br>'
+  info.innerHTML = '결제: ' + (p.totalPrice||0).toLocaleString() + '원' + (fmtPayMethods(p) ? ' · ' + fmtPayMethods(p) : '') + (pDate ? ' · ' + pDate : '')
+    + (_unpaid>0 ? ' <span style="color:#f87171;font-weight:700;">· 미수금 ' + _unpaid.toLocaleString() + '원</span> <span style="color:#6b7494;">(수납 ' + _paid.toLocaleString() + '원)</span>' : '')
+    + '<br>'
     + (p.productType==='membership' ? planRemLbl(p) : ('사용 ' + used + '회 / 잔여 ' + rem + '회'))
     + (p.startDate ? '<br>기간: ' + p.startDate + ' ~ ' + (p.endDate||'') : '');
+
+  // 미수금 수금 버튼 (미수금 있을 때만)
+  if(_unpaid>0){
+    const collectBtn = card.appendChild(document.createElement('button'));
+    collectBtn.style.cssText='margin-top:8px;padding:7px 14px;border-radius:8px;border:1px solid #f87171;background:rgba(248,113,113,.08);color:#f87171;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;';
+    collectBtn.textContent='💰 미수금 수금 ('+_unpaid.toLocaleString()+'원)';
+    collectBtn.onclick=()=>openPcCollectUnpaid(mb, p, box, close);
+  }
 
   // 진행 바
   const bar = card.appendChild(document.createElement('div'));
@@ -6749,6 +6842,49 @@ function renderMbPlanCard(container, mb, p, box, close) {
     const dateStrs=sesDates.map(s=>{const d=new Date(s.date);return(d.getMonth()+1)+'/'+(d.getDate())+'('+DAY[d.getDay()]+')';});
     datesDiv.innerHTML='<span style="color:#3a3f58;font-weight:700;letter-spacing:.3px;">수업일&nbsp;</span><span style="color:#6b7494;">'+dateStrs.join(' &middot; ')+'</span>';
   }
+}
+
+// 미수금 수금: 미납금을 지금(또는 지정일) 받은 것으로 기록 → payments[]에 추가(매출은 수금일에 반영)
+function openPcCollectUnpaid(mb, p, box, close){
+  const unpaid=planUnpaid(p);
+  if(unpaid<=0){alert('미수금이 없습니다.');return;}
+  const fieldStyle='width:100%;padding:11px 14px;border:1px solid #2a3050;border-radius:10px;background:#0d1117;color:#e2e8f0;font-size:14px;margin-bottom:16px;box-sizing:border-box;font-family:inherit;';
+  const lblStyle='font-size:11px;color:#8892b0;margin-bottom:6px;font-weight:700;letter-spacing:.5px;';
+  const todayStr=(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})();
+  pcModal((b2,c2)=>{
+    b2.appendChild(Object.assign(document.createElement('div'),{className:'pcm-ttl',textContent:'미수금 수금'}));
+    b2.appendChild(Object.assign(document.createElement('div'),{textContent:mb.name+' · '+(p.productName||p.duration+'분 '+p.sessions+'회권')})).style.cssText='font-size:13px;color:#8892b0;margin-bottom:6px;';
+    b2.appendChild(Object.assign(document.createElement('div'),{innerHTML:'현재 미수금 <b style="color:#f87171;">'+unpaid.toLocaleString()+'원</b> · 계약 '+(p.totalPrice||0).toLocaleString()+'원 · 기수납 '+planPaidAmount(p).toLocaleString()+'원'})).style.cssText='font-size:12px;color:#8892b0;margin-bottom:18px;';
+    // 수금액
+    b2.appendChild(Object.assign(document.createElement('div'),{textContent:'수금액'})).style.cssText=lblStyle;
+    const amtIn=b2.appendChild(document.createElement('input'));amtIn.type='text';amtIn.value=unpaid.toLocaleString();amtIn.style.cssText=fieldStyle;
+    amtIn.oninput=()=>{const c=amtIn.selectionStart;amtIn.value=(parseInt(amtIn.value.replace(/[^0-9]/g,''))||0).toLocaleString();try{amtIn.setSelectionRange(c,c);}catch(e){}};
+    // 결제수단
+    b2.appendChild(Object.assign(document.createElement('div'),{textContent:'결제수단'})).style.cssText=lblStyle;
+    const mSel=b2.appendChild(document.createElement('select'));mSel.style.cssText=fieldStyle;
+    PAYMENT_OPTIONS.forEach(v=>{const o=mSel.appendChild(document.createElement('option'));o.value=v;o.textContent=v;});
+    // 수금일 (매출 발생일)
+    b2.appendChild(Object.assign(document.createElement('div'),{textContent:'수금일 (매출 발생일)'})).style.cssText=lblStyle;
+    const dI=b2.appendChild(document.createElement('input'));dI.type='date';dI.value=todayStr;dI.style.cssText=fieldStyle;
+    const row=b2.appendChild(document.createElement('div'));row.style.cssText='display:flex;gap:10px;';
+    const cancel=row.appendChild(document.createElement('button'));cancel.textContent='취소';cancel.className='pc-tbtn';cancel.style.cssText='flex:1;padding:12px;';cancel.onclick=c2;
+    const save=row.appendChild(document.createElement('button'));save.textContent='수금 등록';save.className='pc-tbtn pri';save.style.cssText='flex:1;padding:12px;';
+    save.onclick=()=>{
+      const amt=parseInt(amtIn.value.replace(/[^0-9]/g,''))||0;
+      if(amt<=0){alert('수금액을 입력해주세요.');return;}
+      if(amt>unpaid){alert('수금액이 미수금('+unpaid.toLocaleString()+'원)보다 큽니다.');return;}
+      if(!dI.value){alert('수금일을 선택해주세요.');return;}
+      // payments[] 보장: 없으면 기존 수납(=totalPrice 전액 or planPayEvents)으로 초기화 후 추가
+      if(!Array.isArray(p.payments)||!p.payments.length){p.payments=planPayEvents(p).map(ev=>({method:ev.method||p.paymentMethod||'카드',amount:ev.amount||0,date:ev.date||p.paymentDate||todayStr}));}
+      p.payments.push({method:mSel.value,amount:amt,date:dI.value});
+      p.paidAmount=planPaidAmount(p);
+      sv('og10_mb',members);
+      c2();
+      const left=planUnpaid(p);
+      alert('✅ 수금 완료! '+amt.toLocaleString()+'원 ('+mSel.value+')'+(left>0?('\n남은 미수금 '+left.toLocaleString()+'원'):'\n미수금 전액 수금 완료'));
+      renderMbDetailModal(box,close,mb.id);
+    };
+  });
 }
 
 // 환불 모달
